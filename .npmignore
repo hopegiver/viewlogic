@@ -1,0 +1,39 @@
+# Source files (only include dist)
+src/
+build/
+test/
+test-app/
+examples/
+docs/
+
+# Development files
+.gitignore
+.eslintrc*
+.prettierrc*
+.babelrc*
+rollup.config.js
+webpack.config.js
+tsconfig.json
+jest.config.js
+
+# Git
+.git/
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Keep only essentials
+!dist/
+!README.md
+!LICENSE
+!package.json
