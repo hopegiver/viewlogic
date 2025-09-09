@@ -7,7 +7,17 @@
       "Bash(git remote add:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm install:*)",
+      "Bash(npm test)",
+      "Bash(npm run test:coverage:*)",
+      "Bash(npm whoami:*)",
+      "Bash(npm pack:*)",
+      "Bash(npm login)",
+      "Bash(git reset:*)",
+      "Bash(npm run:*)",
+      "Bash(npm publish:*)",
+      "Bash(npm token:*)"
     ],
     "deny": [],
     "ask": []
