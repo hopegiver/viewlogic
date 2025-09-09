@@ -58,11 +58,7 @@ pnpm add viewlogic
     
     <!-- Vue 3 (development version) -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    
-    <!-- ViewLogic Router (from local or CDN) -->
-    <script src="/js/viewlogic-router.js"></script>
-    <!-- Or from CDN: -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.js"></script> -->
+    <script src="https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.umd.js"></script>
     
     <script>
         // Development mode - loads files directly from src/
@@ -92,20 +88,12 @@ pnpm add viewlogic
     
     <!-- Vue 3 (production version) -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    
-    <!-- ViewLogic Router (from CDN or local) -->
     <script src="https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.min.js"></script>
-    <!-- Or from local: -->
-    <!-- <script src="/js/viewlogic-router.min.js"></script> -->
     
     <script>
         // Production mode - loads pre-built bundles from routes/
         ViewLogicRouter({
             environment: 'production',
-            basePath: '/',              // Root path (no src/ in production)
-            routesPath: '/routes',      // Pre-built route bundles
-            i18nPath: '/i18n',         // Top-level i18n
-            cacheMode: 'session',       // Enable caching
             useI18n: true,
             logLevel: 'error'          // Only log errors
         }).then(router => {
@@ -119,18 +107,11 @@ pnpm add viewlogic
 ### ES6 Module Usage
 
 ```javascript
-import { ViewLogicRouter } from 'viewlogic/dist/viewlogic-router.js';
+import { ViewLogicRouter } from 'js/viewlogic-router.js';
 
 // Create router instance
 const router = new ViewLogicRouter({
-    basePath: '/src',
-    mode: 'hash', // or 'history'
-    cacheMode: 'memory',
-    useLayout: true,
-    defaultLayout: 'default',
-    useComponents: true,
-    useI18n: true,
-    defaultLanguage: 'ko'
+    environment: 'development'
 });
 
 // Router will automatically initialize and handle routing
@@ -139,10 +120,9 @@ const router = new ViewLogicRouter({
 ### CommonJS/Node.js Usage
 
 ```javascript
-const { createRouter } = require('viewlogic/dist/viewlogic-router.umd.js');
+const { createRouter } = require('js/viewlogic-router.umd.js');
 
 createRouter({
-    basePath: './src',
     environment: 'development'
 }).then(router => {
     console.log('Router ready');
@@ -162,7 +142,8 @@ my-app/
 │   └── base.css        # Base styles for entire site
 ├── js/                  # System files (optional, can use CDN)
 │   ├── viewlogic-router.js
-│   └── viewlogic-router.min.js
+│   ├── viewlogic-router.min.js
+│   └── viewlogic-router.umd.js
 ├── src/                 # Source files (not deployed)
 │   ├── views/          # View templates (HTML)
 │   │   ├── home.html

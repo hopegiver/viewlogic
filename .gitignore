@@ -34,6 +34,7 @@ coverage/
 .cache/
 .parcel-cache/
 .npm/
+.jest-cache/
 
 # Temporary files
 tmp/
