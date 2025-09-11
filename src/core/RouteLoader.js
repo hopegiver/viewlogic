@@ -176,13 +176,24 @@ export class RouteLoader {
             }
         }
         
+        // 컴포넌트 로딩 (실패해도 라우터는 계속 작동)
+        let loadedComponents = {};
+        if (this.config.useComponents && router.componentLoader) {
+            try {
+                loadedComponents = await router.componentLoader.loadAllComponents();
+                this.log('debug', `Components loaded successfully for route: ${routeName}`);
+            } catch (error) {
+                this.log('warn', `Component loading failed for route '${routeName}', continuing without components:`, error.message);
+                loadedComponents = {}; // 빈 객체로 폴백
+            }
+        }
+
         // 단일 컴포넌트 생성
         const component = {
             ...script,
             name: script.name || this.toPascalCase(routeName),
             template,
-            components: this.config.useComponents && router.componentLoader ? 
-                await router.componentLoader.loadAllComponents() : {},
+            components: loadedComponents,
             data() {
                 const originalData = script.data ? script.data() : {};
                 const commonData = {

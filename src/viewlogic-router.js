@@ -128,13 +128,19 @@ export class ViewLogicRouter {
             }
             
             if (this.config.useComponents) {
-                this.componentLoader = new ComponentLoader(this, {
-                    ...this.config,
-                    basePath: `${this.config.basePath}/components`,
-                    cache: true,
-                    componentNames: this.config.componentNames
-                });
-                await this.componentLoader.loadAllComponents();
+                try {
+                    this.componentLoader = new ComponentLoader(this, {
+                        ...this.config,
+                        basePath: `${this.config.basePath}/components`,
+                        cache: true,
+                        componentNames: this.config.componentNames
+                    });
+                    await this.componentLoader.loadAllComponents();
+                    this.log('info', 'ComponentLoader initialized successfully');
+                } catch (componentError) {
+                    this.log('warn', 'ComponentLoader initialization failed, continuing without components:', componentError.message);
+                    this.componentLoader = null; // 컴포넌트 로더 비활성화
+                }
             }
             
             // 2. 라우터 시작

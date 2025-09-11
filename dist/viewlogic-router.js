@@ -1597,11 +1597,21 @@ ${template}`;
         template = this.mergeLayoutWithTemplate(routeName, layout, template);
       }
     }
+    let loadedComponents = {};
+    if (this.config.useComponents && router.componentLoader) {
+      try {
+        loadedComponents = await router.componentLoader.loadAllComponents();
+        this.log("debug", `Components loaded successfully for route: ${routeName}`);
+      } catch (error) {
+        this.log("warn", `Component loading failed for route '${routeName}', continuing without components:`, error.message);
+        loadedComponents = {};
+      }
+    }
     const component = {
       ...script,
       name: script.name || this.toPascalCase(routeName),
       template,
-      components: this.config.useComponents && router.componentLoader ? await router.componentLoader.loadAllComponents() : {},
+      components: loadedComponents,
       data() {
         const originalData = script.data ? script.data() : {};
         const commonData = {
@@ -2279,13 +2289,19 @@ var ViewLogicRouter = class {
         this.authManager = new AuthManager(this, this.config);
       }
       if (this.config.useComponents) {
-        this.componentLoader = new ComponentLoader(this, {
-          ...this.config,
-          basePath: `${this.config.basePath}/components`,
-          cache: true,
-          componentNames: this.config.componentNames
-        });
-        await this.componentLoader.loadAllComponents();
+        try {
+          this.componentLoader = new ComponentLoader(this, {
+            ...this.config,
+            basePath: `${this.config.basePath}/components`,
+            cache: true,
+            componentNames: this.config.componentNames
+          });
+          await this.componentLoader.loadAllComponents();
+          this.log("info", "ComponentLoader initialized successfully");
+        } catch (componentError) {
+          this.log("warn", "ComponentLoader initialization failed, continuing without components:", componentError.message);
+          this.componentLoader = null;
+        }
       }
       this.isReady = true;
       this.init();
