@@ -313,8 +313,9 @@ export default {
         // Internationalization
         const title = this.$t('product.title');
         
-        // Fetch data automatically if dataURL is defined
-        await this.$fetchData();
+        // Data automatically fetched if dataURL is defined in component
+        // this.$fetchData() is called automatically in mounted()
+        console.log('Auto-loaded data:', this.products); // From dataURL
     },
     methods: {
         handleProductClick(productId) {
@@ -430,20 +431,19 @@ window.ViewLogicRouter(config);
 ```javascript
 export default {
     name: 'ProductsList',
+    dataURL: '/api/products',  // ✨ Auto-fetch magic!
     data() {
         return {
-            title: 'Our Products',
-            products: []
+            title: 'Our Products'
+            // products: [] - No need! Auto-populated from dataURL
         };
     },
-    async mounted() {
-        this.products = await this.loadProducts();
+    mounted() {
+        // Products already loaded from dataURL!
+        console.log('Products loaded:', this.products);
+        console.log('Loading state:', this.$dataLoading);
     },
     methods: {
-        async loadProducts() {
-            const response = await fetch('/api/products');
-            return response.json();
-        },
         formatPrice(price) {
             return new Intl.NumberFormat('ko-KR', {
                 style: 'currency',
@@ -452,6 +452,10 @@ export default {
         },
         viewDetail(id) {
             this.navigateTo('products/detail', { id });
+        },
+        async refreshProducts() {
+            // Manual refresh if needed
+            await this.$fetchData();
         }
     }
 };
@@ -550,6 +554,7 @@ ViewLogic Router provides a complete routing solution in an incredibly small pac
 - ✅ Layout system
 - ✅ Error handling
 - ✅ Development/production modes
+- ✅ **Automatic data fetching with dataURL**
 - ✅ **Revolutionary DynamicInclude & HtmlInclude components**
 - ✅ **10+ Built-in UI components (Button, Modal, Card, etc.)**
 
@@ -666,13 +671,17 @@ ViewLogic Router includes groundbreaking components that revolutionize how you h
 ```html
 <!-- Dynamically load content from any URL -->
 <DynamicInclude 
-    :url="contentUrl" 
-    :params="{ id: productId }"
-    @loaded="onContentLoaded"
-    @error="onContentError">
-    <template #loading>Loading content...</template>
-    <template #error="{ error }">Failed to load: {{ error.message }}</template>
-</DynamicInclude>
+    page="login" 
+    :use-cache="false"
+    loading-text="로그인 페이지 로딩 중..."
+    wrapper-class="test-dynamic-include"
+    :params="{ 
+        returnUrl: '/dashboard', 
+        showWelcome: true,
+        theme: 'compact',
+        testMode: true
+    }"
+/>
 ```
 
 **Features:**
@@ -686,11 +695,12 @@ ViewLogic Router includes groundbreaking components that revolutionize how you h
 ```html
 <!-- Include raw HTML content with Vue reactivity -->
 <HtmlInclude 
-    :html="dynamicHtmlContent"
+    src="/src/views/404.html"
     :sanitize="true"
-    @rendered="onHtmlRendered">
-    <template #fallback>Default content when HTML is empty</template>
-</HtmlInclude>
+    :use-cache="false"
+    loading-text="위젯 로딩 중..."
+    wrapper-class="test-html-include"
+/>
 ```
 
 **Features:**
@@ -700,11 +710,77 @@ ViewLogic Router includes groundbreaking components that revolutionize how you h
 - **Fallback Support** - Default content when HTML is unavailable
 - **Script Execution** - Optional JavaScript execution in HTML content
 
+### Automatic Data Fetching with dataURL
+```javascript
+// src/logic/products/list.js
+export default {
+    name: 'ProductsList',
+    dataURL: '/api/products',  // ✨ Magic happens here!
+    data() {
+        return {
+            title: 'Our Products'
+            // products: [] - No need to declare, auto-populated from API
+        };
+    },
+    mounted() {
+        // Data is already fetched and available!
+        console.log('Products loaded:', this.products);
+        console.log('Loading state:', this.$dataLoading);
+    },
+    methods: {
+        async refreshData() {
+            // Manual refresh if needed
+            await this.$fetchData();
+        }
+    }
+};
+```
+
+**Features:**
+- **Zero-Config API Calls** - Just define `dataURL` and data is automatically fetched
+- **Query Parameter Integration** - Current route parameters are automatically sent to API
+- **Loading State Management** - `$dataLoading` property automatically managed
+- **Error Handling** - Built-in error handling with events
+- **Data Merging** - API response automatically merged into component data
+- **Event Support** - `@data-loaded` and `@data-error` events available
+
 ### Why These Components Are Revolutionary
 
 #### Traditional Approach Problems
 ```javascript
-// Traditional Vue way - complex and verbose
+// Traditional Vue way - complex and verbose for API calls
+export default {
+    data() {
+        return {
+            products: [],
+            loading: false,
+            error: null
+        };
+    },
+    async mounted() {
+        await this.loadProducts();
+    },
+    methods: {
+        async loadProducts() {
+            this.loading = true;
+            this.error = null;
+            try {
+                const response = await fetch('/api/products');
+                if (!response.ok) throw new Error('Failed to fetch');
+                const data = await response.json();
+                this.products = data.products || data;
+                // Manual error handling, loading states, etc.
+            } catch (error) {
+                this.error = error.message;
+                console.error('Failed to load products:', error);
+            } finally {
+                this.loading = false;
+            }
+        }
+    }
+}
+
+// For dynamic content loading - even more complex
 async loadDynamicContent() {
     this.loading = true;
     try {
@@ -723,13 +799,35 @@ async loadDynamicContent() {
 }
 ```
 
-#### ViewLogic Router Way - Simple and Elegant
-```html
-<!-- One line solution -->
-<DynamicInclude :url="`/api/content/${contentId}`" />
+#### ViewLogic Router Way - Revolutionary Simplicity
+```javascript
+// Automatic API fetching - just define dataURL!
+export default {
+    dataURL: '/api/products',  // ✨ That's it! 
+    data() {
+        return {
+            title: 'Our Products'
+            // No need for products:[], loading:false, error:null
+        };
+    },
+    mounted() {
+        // Data already fetched and available
+        console.log('Products:', this.products);
+        console.log('Loading:', this.$dataLoading);
+    }
+}
 ```
 
 ### Use Cases
+
+#### Automatic Data Fetching (dataURL)
+- **🛒 Product Listings** - `dataURL: '/api/products'` automatically loads and populates product data
+- **👤 User Profiles** - `dataURL: '/api/user'` fetches user information with authentication
+- **📊 Dashboard Data** - `dataURL: '/api/dashboard/stats'` loads analytics data
+- **📰 Article Content** - `dataURL: '/api/articles'` populates blog posts or news
+- **🔍 Search Results** - Query parameters automatically sent to search API
+
+#### Dynamic Components
 - **📰 Dynamic Content Management** - Load blog posts, news articles dynamically
 - **🛒 Product Details** - Fetch product information on-demand
 - **📊 Dashboard Widgets** - Load dashboard components from APIs
@@ -740,10 +838,12 @@ async loadDynamicContent() {
 ### Advantages Over Other Solutions
 | Feature | ViewLogic Router | React Suspense | Vue Async Components |
 |---------|------------------|----------------|----------------------|
+| **Auto Data Fetching** | ✅ `dataURL` property | ❌ Manual fetch logic | ❌ Manual fetch logic |
+| **Query Parameter Integration** | ✅ Automatic API params | ❌ Manual URL building | ❌ Manual URL building |
 | **Dynamic URLs** | ✅ Built-in | ❌ Manual implementation | ❌ Manual implementation |
 | **Parameter Injection** | ✅ Automatic | ❌ Manual | ❌ Manual |
-| **Error Boundaries** | ✅ Built-in slots | ✅ ErrorBoundary | ❌ Manual |
-| **Loading States** | ✅ Built-in slots | ✅ Suspense | ❌ Manual |
+| **Loading State Management** | ✅ `$dataLoading` auto-managed | ✅ Suspense | ❌ Manual state |
+| **Error Boundaries** | ✅ Built-in slots + events | ✅ ErrorBoundary | ❌ Manual |
 | **HTML Sanitization** | ✅ Built-in | ❌ External library | ❌ External library |
 | **Cache Integration** | ✅ Automatic | ❌ Manual | ❌ Manual |
 
