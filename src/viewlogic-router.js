@@ -250,10 +250,13 @@ export class ViewLogicRouter {
                         originalRoute: routeName,
                         loginRoute: this.config.loginRoute 
                     });
-                    const redirectUrl = routeName !== this.config.loginRoute ? 
-                        `${this.config.loginRoute}?redirect=${encodeURIComponent(routeName)}` : 
-                        this.config.loginRoute;
-                    this.navigateTo(redirectUrl);
+                    
+                    // navigateTo를 사용하여 이전 페이지로 돌아가기 지원
+                    if (routeName !== this.config.loginRoute) {
+                        this.navigateTo(this.config.loginRoute, { redirect: routeName });
+                    } else {
+                        this.navigateTo(this.config.loginRoute);
+                    }
                 }
                 return;
             }
@@ -319,10 +322,21 @@ export class ViewLogicRouter {
         newVueApp.config.globalProperties.$router = {
             navigateTo: (route, params) => this.navigateTo(route, params),
             getCurrentRoute: () => this.getCurrentRoute(),
+            
+            // 통합된 파라미터 관리 (라우팅 + 쿼리 파라미터)
+            getParams: () => this.queryManager?.getAllParams() || {},
+            getParam: (key, defaultValue) => this.queryManager?.getParam(key, defaultValue),
+            
+            // 쿼리 파라미터 전용 메서드 (하위 호환성)
             getQueryParams: () => this.queryManager?.getQueryParams() || {},
-            getQueryParam: (key) => this.queryManager?.getQueryParam(key),
+            getQueryParam: (key, defaultValue) => this.queryManager?.getQueryParam(key, defaultValue),
             setQueryParams: (params, replace) => this.queryManager?.setQueryParams(params, replace),
             removeQueryParams: (keys) => this.queryManager?.removeQueryParams(keys),
+            
+            // 라우팅 파라미터 전용 메서드
+            getRouteParams: () => this.queryManager?.getRouteParams() || {},
+            getRouteParam: (key, defaultValue) => this.queryManager?.getRouteParam(key, defaultValue),
+            
             currentRoute: this.currentHash,
             currentQuery: this.queryManager?.getQueryParams() || {}
         };
@@ -395,6 +409,11 @@ export class ViewLogicRouter {
         // Clear current query params if navigating to a different route
         if (routeName !== this.currentHash && this.queryManager) {
             this.queryManager.clearQueryParams();
+        }
+        
+        // Set route parameters
+        if (this.queryManager) {
+            this.queryManager.setCurrentRouteParams(params);
         }
         
         // Update URL with new route and params

@@ -20,6 +20,9 @@ export class QueryManager {
         // 현재 쿼리 파라미터 상태
         this.currentQueryParams = {};
         
+        // 현재 라우팅 파라미터 상태 (navigateTo로 전달된 params)
+        this.currentRouteParams = {};
+        
         this.log('info', 'QueryManager initialized with config:', this.config);
     }
 
@@ -284,8 +287,9 @@ export class QueryManager {
     /**
      * 특정 쿼리 파라미터 가져오기
      */
-    getQueryParam(key) {
-        return this.currentQueryParams ? this.currentQueryParams[key] : undefined;
+    getQueryParam(key, defaultValue = undefined) {
+        const value = this.currentQueryParams ? this.currentQueryParams[key] : undefined;
+        return value !== undefined ? value : defaultValue;
     }
 
     /**
@@ -370,6 +374,50 @@ export class QueryManager {
     }
 
     /**
+     * 현재 라우팅 파라미터 설정 (navigateTo에서 호출)
+     */
+    setCurrentRouteParams(params) {
+        this.currentRouteParams = params || {};
+        this.log('debug', 'Route params set:', this.currentRouteParams);
+    }
+
+    /**
+     * 통합된 파라미터 반환 (라우팅 파라미터 + 쿼리 파라미터)
+     */
+    getAllParams() {
+        return {
+            ...this.currentRouteParams,
+            ...this.currentQueryParams
+        };
+    }
+
+    /**
+     * 통합된 파라미터에서 특정 키 값 반환
+     */
+    getParam(key, defaultValue = undefined) {
+        // 쿼리 파라미터가 라우팅 파라미터보다 우선순위 높음
+        const value = this.currentQueryParams[key] !== undefined ? 
+                     this.currentQueryParams[key] : 
+                     this.currentRouteParams[key];
+        return value !== undefined ? value : defaultValue;
+    }
+
+    /**
+     * 라우팅 파라미터만 반환
+     */
+    getRouteParams() {
+        return { ...this.currentRouteParams };
+    }
+
+    /**
+     * 라우팅 파라미터에서 특정 키 값 반환
+     */
+    getRouteParam(key, defaultValue = undefined) {
+        const value = this.currentRouteParams[key];
+        return value !== undefined ? value : defaultValue;
+    }
+
+    /**
      * URL 업데이트 (라우터의 updateURL 메소드 호출)
      */
     updateURL() {
@@ -396,6 +444,7 @@ export class QueryManager {
      */
     destroy() {
         this.currentQueryParams = {};
+        this.currentRouteParams = {};
         this.router = null;
         this.log('debug', 'QueryManager destroyed');
     }

@@ -188,10 +188,6 @@ export class RouteLoader {
                 const commonData = {
                     ...originalData,
                     currentRoute: routeName,
-                    pageTitle: script.pageTitle || router.routeLoader.generatePageTitle(routeName),
-                    showHeader: script.showHeader !== false,
-                    headerTitle: script.headerTitle || router.routeLoader.generatePageTitle(routeName),
-                    headerSubtitle: script.headerSubtitle,
                     $query: router.queryManager?.getQueryParams() || {},
                     $lang: router.i18nManager?.getCurrentLanguage() || router.config.i18nDefaultLanguage,
                     $dataLoading: false
@@ -201,8 +197,9 @@ export class RouteLoader {
             },
             computed: {
                 ...(script.computed || {}),
+                // 하위 호환성을 위해 params는 유지하되 getAllParams 사용
                 params() {
-                    return router.queryManager?.getQueryParams() || {};
+                    return router.queryManager?.getAllParams() || {};
                 }
             },
             async mounted() {
@@ -218,13 +215,14 @@ export class RouteLoader {
                 // 라우팅 관련
                 navigateTo: (route, params) => router.navigateTo(route, params),
                 getCurrentRoute: () => router.getCurrentRoute(),
-                getQueryParams: () => router.queryManager?.getQueryParams() || {},
-                getQueryParam: (key) => router.queryManager?.getQueryParam(key),
-                setQueryParams: (params, replace) => router.queryManager?.setQueryParams(params, replace),
-                removeQueryParams: (keys) => router.queryManager?.removeQueryParams(keys),
+                
+                // 통합된 파라미터 관리 (라우팅 + 쿼리 파라미터)
+                getParams: () => router.queryManager?.getAllParams() || {},
+                getParam: (key, defaultValue) => router.queryManager?.getParam(key, defaultValue),
+                
                 // i18n 관련
                 $t: (key, params) => router.i18nManager?.t(key, params) || key,
-                $i18n: () => router.i18nManager || null,
+
                 // 인증 관련
                 $isAuthenticated: () => router.authManager?.isUserAuthenticated() || false,
                 $logout: () => router.authManager ? router.navigateTo(router.authManager.handleLogout()) : null,
@@ -235,6 +233,7 @@ export class RouteLoader {
                 $removeToken: (storage) => router.authManager?.removeAccessToken(storage) || null,
                 $getAuthCookie: () => router.authManager?.getAuthCookie() || null,
                 $getCookie: (name) => router.authManager?.getCookieValue(name) || null,
+                
                 // 데이터 fetch
                 async $fetchData() {
                     if (!script.dataURL) return;

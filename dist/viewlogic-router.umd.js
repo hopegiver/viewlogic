@@ -25,16 +25,17 @@
     function getBaseUrl() {
         // Try to detect current script URL to determine base path
         if (typeof document !== 'undefined') {
-            const currentScript = document.currentScript || 
-                                Array.from(document.scripts).find(script => 
-                                    script.src.includes('viewlogic-router.umd.js'));
-            if (currentScript && currentScript.src) {
+            const scripts = Array.from(document.scripts);
+            const currentScript = scripts.find(script => 
+                script.src && script.src.includes('viewlogic-router.umd.js')
+            );
+            if (currentScript) {
                 const url = new URL(currentScript.src);
-                return url.origin + url.pathname.replace(/\/[^\/]*$/, '/');
+                const baseUrl = url.origin + url.pathname.replace(/\/[^\/]*$/, '/');
+                return baseUrl;
             }
         }
         
-        // Fallback to CDN if detection fails
         return 'https://cdn.jsdelivr.net/npm/viewlogic/dist/';
     }
 

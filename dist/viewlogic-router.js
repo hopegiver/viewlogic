@@ -1123,6 +1123,7 @@ var QueryManager = class {
     };
     this.router = router;
     this.currentQueryParams = {};
+    this.currentRouteParams = {};
     this.log("info", "QueryManager initialized with config:", this.config);
   }
   /**
@@ -1326,8 +1327,9 @@ var QueryManager = class {
   /**
    * 특정 쿼리 파라미터 가져오기
    */
-  getQueryParam(key) {
-    return this.currentQueryParams ? this.currentQueryParams[key] : void 0;
+  getQueryParam(key, defaultValue = void 0) {
+    const value = this.currentQueryParams ? this.currentQueryParams[key] : void 0;
+    return value !== void 0 ? value : defaultValue;
   }
   /**
    * 쿼리 파라미터 설정
@@ -1392,6 +1394,42 @@ var QueryManager = class {
     this.currentQueryParams = params || {};
   }
   /**
+   * 현재 라우팅 파라미터 설정 (navigateTo에서 호출)
+   */
+  setCurrentRouteParams(params) {
+    this.currentRouteParams = params || {};
+    this.log("debug", "Route params set:", this.currentRouteParams);
+  }
+  /**
+   * 통합된 파라미터 반환 (라우팅 파라미터 + 쿼리 파라미터)
+   */
+  getAllParams() {
+    return {
+      ...this.currentRouteParams,
+      ...this.currentQueryParams
+    };
+  }
+  /**
+   * 통합된 파라미터에서 특정 키 값 반환
+   */
+  getParam(key, defaultValue = void 0) {
+    const value = this.currentQueryParams[key] !== void 0 ? this.currentQueryParams[key] : this.currentRouteParams[key];
+    return value !== void 0 ? value : defaultValue;
+  }
+  /**
+   * 라우팅 파라미터만 반환
+   */
+  getRouteParams() {
+    return { ...this.currentRouteParams };
+  }
+  /**
+   * 라우팅 파라미터에서 특정 키 값 반환
+   */
+  getRouteParam(key, defaultValue = void 0) {
+    const value = this.currentRouteParams[key];
+    return value !== void 0 ? value : defaultValue;
+  }
+  /**
    * URL 업데이트 (라우터의 updateURL 메소드 호출)
    */
   updateURL() {
@@ -1416,6 +1454,7 @@ var QueryManager = class {
    */
   destroy() {
     this.currentQueryParams = {};
+    this.currentRouteParams = {};
     this.router = null;
     this.log("debug", "QueryManager destroyed");
   }
@@ -1568,10 +1607,6 @@ ${template}`;
         const commonData = {
           ...originalData,
           currentRoute: routeName,
-          pageTitle: script.pageTitle || router.routeLoader.generatePageTitle(routeName),
-          showHeader: script.showHeader !== false,
-          headerTitle: script.headerTitle || router.routeLoader.generatePageTitle(routeName),
-          headerSubtitle: script.headerSubtitle,
           $query: router.queryManager?.getQueryParams() || {},
           $lang: router.i18nManager?.getCurrentLanguage() || router.config.i18nDefaultLanguage,
           $dataLoading: false
@@ -1580,8 +1615,9 @@ ${template}`;
       },
       computed: {
         ...script.computed || {},
+        // 하위 호환성을 위해 params는 유지하되 getAllParams 사용
         params() {
-          return router.queryManager?.getQueryParams() || {};
+          return router.queryManager?.getAllParams() || {};
         }
       },
       async mounted() {
@@ -1597,13 +1633,11 @@ ${template}`;
         // 라우팅 관련
         navigateTo: (route, params) => router.navigateTo(route, params),
         getCurrentRoute: () => router.getCurrentRoute(),
-        getQueryParams: () => router.queryManager?.getQueryParams() || {},
-        getQueryParam: (key) => router.queryManager?.getQueryParam(key),
-        setQueryParams: (params, replace) => router.queryManager?.setQueryParams(params, replace),
-        removeQueryParams: (keys) => router.queryManager?.removeQueryParams(keys),
+        // 통합된 파라미터 관리 (라우팅 + 쿼리 파라미터)
+        getParams: () => router.queryManager?.getAllParams() || {},
+        getParam: (key, defaultValue) => router.queryManager?.getParam(key, defaultValue),
         // i18n 관련
         $t: (key, params) => router.i18nManager?.t(key, params) || key,
-        $i18n: () => router.i18nManager || null,
         // 인증 관련
         $isAuthenticated: () => router.authManager?.isUserAuthenticated() || false,
         $logout: () => router.authManager ? router.navigateTo(router.authManager.handleLogout()) : null,
@@ -2336,8 +2370,11 @@ var ViewLogicRouter = class {
             originalRoute: routeName,
             loginRoute: this.config.loginRoute
           });
-          const redirectUrl = routeName !== this.config.loginRoute ? `${this.config.loginRoute}?redirect=${encodeURIComponent(routeName)}` : this.config.loginRoute;
-          this.navigateTo(redirectUrl);
+          if (routeName !== this.config.loginRoute) {
+            this.navigateTo(this.config.loginRoute, { redirect: routeName });
+          } else {
+            this.navigateTo(this.config.loginRoute);
+          }
         }
         return;
       }
@@ -2378,10 +2415,17 @@ var ViewLogicRouter = class {
     newVueApp.config.globalProperties.$router = {
       navigateTo: (route, params) => this.navigateTo(route, params),
       getCurrentRoute: () => this.getCurrentRoute(),
+      // 통합된 파라미터 관리 (라우팅 + 쿼리 파라미터)
+      getParams: () => this.queryManager?.getAllParams() || {},
+      getParam: (key, defaultValue) => this.queryManager?.getParam(key, defaultValue),
+      // 쿼리 파라미터 전용 메서드 (하위 호환성)
       getQueryParams: () => this.queryManager?.getQueryParams() || {},
-      getQueryParam: (key) => this.queryManager?.getQueryParam(key),
+      getQueryParam: (key, defaultValue) => this.queryManager?.getQueryParam(key, defaultValue),
       setQueryParams: (params, replace) => this.queryManager?.setQueryParams(params, replace),
       removeQueryParams: (keys) => this.queryManager?.removeQueryParams(keys),
+      // 라우팅 파라미터 전용 메서드
+      getRouteParams: () => this.queryManager?.getRouteParams() || {},
+      getRouteParam: (key, defaultValue) => this.queryManager?.getRouteParam(key, defaultValue),
       currentRoute: this.currentHash,
       currentQuery: this.queryManager?.getQueryParams() || {}
     };
@@ -2427,6 +2471,9 @@ var ViewLogicRouter = class {
     }
     if (routeName !== this.currentHash && this.queryManager) {
       this.queryManager.clearQueryParams();
+    }
+    if (this.queryManager) {
+      this.queryManager.setCurrentRouteParams(params);
     }
     this.updateURL(routeName, params);
   }
