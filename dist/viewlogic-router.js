@@ -2229,9 +2229,11 @@ var ViewLogicRouter = class {
         this.authManager = new AuthManager(this, this.config);
       }
       if (this.config.useComponents) {
+        const currentOrigin = window.location.origin;
+        const componentsBasePath = `${currentOrigin}${this.config.basePath}/components`;
         this.componentLoader = new ComponentLoader(this, {
           ...this.config,
-          basePath: this.config.basePath + "/components",
+          basePath: componentsBasePath,
           cache: true,
           componentNames: this.config.componentNames
         });

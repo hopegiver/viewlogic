@@ -112,9 +112,13 @@ export class ViewLogicRouter {
             }
             
             if (this.config.useComponents) {
+                // 현재 사이트의 도메인을 기준으로 컴포넌트 경로 설정
+                const currentOrigin = window.location.origin;
+                const componentsBasePath = `${currentOrigin}${this.config.basePath}/components`;
+                
                 this.componentLoader = new ComponentLoader(this, {
                     ...this.config,
-                    basePath: this.config.basePath + '/components',
+                    basePath: componentsBasePath,
                     cache: true,
                     componentNames: this.config.componentNames
                 });
