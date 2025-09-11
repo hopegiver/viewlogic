@@ -151,7 +151,8 @@ var I18nManager = class {
       }
     }
     try {
-      const response = await fetch(`../i18n/${language}.json`);
+      const i18nPath = `${this.router.config.i18nPath}/${language}.json`;
+      const response = await fetch(i18nPath);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -1468,7 +1469,8 @@ var RouteLoader = class {
    */
   async loadTemplate(routeName) {
     try {
-      const response = await fetch(`${this.config.basePath}/views/${routeName}.html`);
+      const templatePath = `${this.config.basePath}/views/${routeName}.html`;
+      const response = await fetch(templatePath);
       if (!response.ok) throw new Error(`Template not found: ${response.status}`);
       const template = await response.text();
       this.log("debug", `Template '${routeName}' loaded successfully`);
@@ -1483,7 +1485,8 @@ var RouteLoader = class {
    */
   async loadStyle(routeName) {
     try {
-      const response = await fetch(`${this.config.basePath}/styles/${routeName}.css`);
+      const stylePath = `${this.config.basePath}/styles/${routeName}.css`;
+      const response = await fetch(stylePath);
       if (!response.ok) throw new Error(`Style not found: ${response.status}`);
       const style = await response.text();
       this.log("debug", `Style '${routeName}' loaded successfully`);
@@ -1498,7 +1501,8 @@ var RouteLoader = class {
    */
   async loadLayout(layoutName) {
     try {
-      const response = await fetch(`${this.config.basePath}/layouts/${layoutName}.html`);
+      const layoutPath = `${this.config.basePath}/layouts/${layoutName}.html`;
+      const response = await fetch(layoutPath);
       if (!response.ok) throw new Error(`Layout not found: ${response.status}`);
       const layout = await response.text();
       this.log("debug", `Layout '${layoutName}' loaded successfully`);
@@ -2165,8 +2169,9 @@ var ViewLogicRouter = class {
    * 설정 빌드 (분리하여 가독성 향상)
    */
   _buildConfig(options) {
+    const currentOrigin = window.location.origin;
     const defaults = {
-      basePath: "/src",
+      basePath: `${currentOrigin}/src`,
       mode: "hash",
       cacheMode: "memory",
       cacheTTL: 3e5,
@@ -2174,12 +2179,13 @@ var ViewLogicRouter = class {
       useLayout: true,
       defaultLayout: "default",
       environment: "development",
-      routesPath: "/routes",
+      routesPath: `${currentOrigin}/routes`,
       enableErrorReporting: true,
       useComponents: true,
       componentNames: ["Button", "Modal", "Card", "Toast", "Input", "Tabs", "Checkbox", "Alert", "DynamicInclude", "HtmlInclude"],
       useI18n: true,
       defaultLanguage: "ko",
+      i18nPath: `${currentOrigin}/i18n`,
       logLevel: "info",
       authEnabled: false,
       loginRoute: "login",
@@ -2200,7 +2206,17 @@ var ViewLogicRouter = class {
       allowedKeyPattern: /^[a-zA-Z0-9_-]+$/,
       logSecurityWarnings: true
     };
-    return { ...defaults, ...options };
+    const config = { ...defaults, ...options };
+    if (options.basePath && !options.basePath.startsWith("http")) {
+      config.basePath = `${currentOrigin}${options.basePath}`;
+    }
+    if (options.routesPath && !options.routesPath.startsWith("http")) {
+      config.routesPath = `${currentOrigin}${options.routesPath}`;
+    }
+    if (options.i18nPath && !options.i18nPath.startsWith("http")) {
+      config.i18nPath = `${currentOrigin}${options.i18nPath}`;
+    }
+    return config;
   }
   /**
    * 로깅 래퍼 메서드
@@ -2229,11 +2245,9 @@ var ViewLogicRouter = class {
         this.authManager = new AuthManager(this, this.config);
       }
       if (this.config.useComponents) {
-        const currentOrigin = window.location.origin;
-        const componentsBasePath = `${currentOrigin}${this.config.basePath}/components`;
         this.componentLoader = new ComponentLoader(this, {
           ...this.config,
-          basePath: componentsBasePath,
+          basePath: `${this.config.basePath}/components`,
           cache: true,
           componentNames: this.config.componentNames
         });

@@ -38,8 +38,10 @@ export class ViewLogicRouter {
      * 설정 빌드 (분리하여 가독성 향상)
      */
     _buildConfig(options) {
+        const currentOrigin = window.location.origin;
+        
         const defaults = {
-            basePath: '/src',
+            basePath: `${currentOrigin}/src`,
             mode: 'hash',
             cacheMode: 'memory',
             cacheTTL: 300000,
@@ -47,12 +49,13 @@ export class ViewLogicRouter {
             useLayout: true,
             defaultLayout: 'default',
             environment: 'development',
-            routesPath: '/routes',
+            routesPath: `${currentOrigin}/routes`,
             enableErrorReporting: true,
             useComponents: true,
             componentNames: ['Button', 'Modal', 'Card', 'Toast', 'Input', 'Tabs', 'Checkbox', 'Alert', 'DynamicInclude', 'HtmlInclude'],
             useI18n: true,
             defaultLanguage: 'ko',
+            i18nPath: `${currentOrigin}/i18n`,
             logLevel: 'info',
             authEnabled: false,
             loginRoute: 'login',
@@ -74,7 +77,20 @@ export class ViewLogicRouter {
             logSecurityWarnings: true
         };
         
-        return { ...defaults, ...options };
+        const config = { ...defaults, ...options };
+        
+        // 사용자가 제공한 basePath와 routesPath에 origin이 없으면 추가
+        if (options.basePath && !options.basePath.startsWith('http')) {
+            config.basePath = `${currentOrigin}${options.basePath}`;
+        }
+        if (options.routesPath && !options.routesPath.startsWith('http')) {
+            config.routesPath = `${currentOrigin}${options.routesPath}`;
+        }
+        if (options.i18nPath && !options.i18nPath.startsWith('http')) {
+            config.i18nPath = `${currentOrigin}${options.i18nPath}`;
+        }
+        
+        return config;
     }
 
 
@@ -112,13 +128,9 @@ export class ViewLogicRouter {
             }
             
             if (this.config.useComponents) {
-                // 현재 사이트의 도메인을 기준으로 컴포넌트 경로 설정
-                const currentOrigin = window.location.origin;
-                const componentsBasePath = `${currentOrigin}${this.config.basePath}/components`;
-                
                 this.componentLoader = new ComponentLoader(this, {
                     ...this.config,
-                    basePath: componentsBasePath,
+                    basePath: `${this.config.basePath}/components`,
                     cache: true,
                     componentNames: this.config.componentNames
                 });

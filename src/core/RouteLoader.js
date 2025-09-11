@@ -32,7 +32,7 @@ export class RouteLoader {
                 const module = await import(importPath);
                 script = module.default;
             } else {
-                // 개발 모드: src 폴더에서 로드 (절대 경로)
+                // 개발 모드: basePath는 이미 origin이 포함되어 있음
                 const importPath = `${this.config.basePath}/logic/${routeName}.js`;
                 this.log('debug', `Loading development route: ${importPath}`);
                 const module = await import(importPath);
@@ -63,7 +63,8 @@ export class RouteLoader {
      */
     async loadTemplate(routeName) {
         try {
-            const response = await fetch(`${this.config.basePath}/views/${routeName}.html`);
+            const templatePath = `${this.config.basePath}/views/${routeName}.html`;
+            const response = await fetch(templatePath);
             if (!response.ok) throw new Error(`Template not found: ${response.status}`);
             const template = await response.text();
             this.log('debug', `Template '${routeName}' loaded successfully`);
@@ -80,7 +81,8 @@ export class RouteLoader {
      */
     async loadStyle(routeName) {
         try {
-            const response = await fetch(`${this.config.basePath}/styles/${routeName}.css`);
+            const stylePath = `${this.config.basePath}/styles/${routeName}.css`;
+            const response = await fetch(stylePath);
             if (!response.ok) throw new Error(`Style not found: ${response.status}`);
             const style = await response.text();
             this.log('debug', `Style '${routeName}' loaded successfully`);
@@ -97,7 +99,8 @@ export class RouteLoader {
      */
     async loadLayout(layoutName) {
         try {
-            const response = await fetch(`${this.config.basePath}/layouts/${layoutName}.html`);
+            const layoutPath = `${this.config.basePath}/layouts/${layoutName}.html`;
+            const response = await fetch(layoutPath);
             if (!response.ok) throw new Error(`Layout not found: ${response.status}`);
             const layout = await response.text();
             

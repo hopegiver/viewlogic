@@ -188,8 +188,9 @@ export class I18nManager {
         }
         
         try {
-            // JSON 파일로 변경
-            const response = await fetch(`../i18n/${language}.json`);
+            // JSON 파일로 변경 - config의 i18nPath 사용
+            const i18nPath = `${this.router.config.i18nPath}/${language}.json`;
+            const response = await fetch(i18nPath);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
