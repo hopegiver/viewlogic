@@ -69,6 +69,8 @@ export class ViewLogicRouter {
             authStorage: 'cookie',
             authCookieOptions: {},
             authSkipValidation: false,
+            // 서브폴더 배포 지원을 위한 base URL path
+            baseURLPath: this._detectBaseURLPath(),
             enableParameterValidation: true,
             maxParameterLength: 1000,
             maxParameterCount: 50,
@@ -91,6 +93,32 @@ export class ViewLogicRouter {
         }
         
         return config;
+    }
+
+    /**
+     * 서브폴더 배포를 위한 base URL path 감지
+     */
+    _detectBaseURLPath() {
+        // script 태그의 src 속성에서 기본 경로를 추론
+        const scripts = document.querySelectorAll('script[src*="viewlogic-router"]');
+        if (scripts.length > 0) {
+            const scriptSrc = scripts[0].src;
+            const url = new URL(scriptSrc);
+            const pathParts = url.pathname.split('/');
+            pathParts.pop(); // 파일명 제거
+            return pathParts.join('/');
+        }
+        
+        // HTML 파일의 현재 경로에서 추론
+        const currentPath = window.location.pathname;
+        const pathParts = currentPath.split('/');
+        
+        // index.html 등 파일명 제거
+        if (pathParts[pathParts.length - 1].includes('.')) {
+            pathParts.pop();
+        }
+        
+        return pathParts.join('/');
     }
 
     /**
@@ -279,8 +307,23 @@ export class ViewLogicRouter {
                 queryParams: this.queryManager?.parseQueryString(queryPart || window.location.search.slice(1)) || {}
             };
         } else {
+            // History Mode - 서브폴더 배포 지원
+            const fullPath = window.location.pathname;
+            const basePath = this.config.baseURLPath || '';
+            
+            // base path 제거하여 실제 route 추출
+            let route = fullPath;
+            if (basePath && fullPath.startsWith(basePath)) {
+                route = fullPath.slice(basePath.length);
+            }
+            
+            // 맨 앞의 / 제거
+            if (route.startsWith('/')) {
+                route = route.slice(1);
+            }
+            
             return {
-                route: window.location.pathname.slice(1) || 'home',
+                route: route || 'home',
                 queryParams: this.queryManager?.parseQueryString(window.location.search.slice(1)) || {}
             };
         }
@@ -487,9 +530,15 @@ export class ViewLogicRouter {
         const queryParams = params || this.queryManager?.getQueryParams() || {};
         const queryString = this.queryManager?.buildQueryString(queryParams) || '';
         
-        // URL 빌드 최적화
+        // URL 빌드 최적화 - 서브폴더 배포 지원
         const buildURL = (route, queryString, isHash = true) => {
-            const base = route === 'home' ? '/' : `/${route}`;
+            let base = route === 'home' ? '/' : `/${route}`;
+            
+            // History Mode에서 서브폴더 경로 추가
+            if (!isHash && this.config.baseURLPath && this.config.baseURLPath !== '/') {
+                base = `${this.config.baseURLPath}${base}`;
+            }
+            
             const url = queryString ? `${base}?${queryString}` : base;
             return isHash ? `#${url}` : url;
         };
@@ -503,7 +552,14 @@ export class ViewLogicRouter {
             }
         } else {
             const newPath = buildURL(route, queryString, false);
-            const isSameRoute = window.location.pathname === (route === 'home' ? '/' : `/${route}`);
+            
+            // 서브폴더 배포를 고려한 경로 비교
+            let expectedPath = route === 'home' ? '/' : `/${route}`;
+            if (this.config.baseURLPath && this.config.baseURLPath !== '/') {
+                expectedPath = `${this.config.baseURLPath}${expectedPath}`;
+            }
+            
+            const isSameRoute = window.location.pathname === expectedPath;
             
             if (isSameRoute) {
                 window.history.replaceState({}, '', newPath);

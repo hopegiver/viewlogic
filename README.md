@@ -293,6 +293,44 @@ ViewLogicRouter({
 - **Parent paths** (`../path`) → Navigate up directory levels
 - **HTTP URLs** → Used as-is (no processing)
 
+### 🔄 Hash vs History Mode in Subfolders
+
+Both routing modes work seamlessly in subfolder deployments:
+
+```javascript
+// Hash Mode (recommended for subfolders)
+// URL: https://example.com/myapp/#/products?id=123
+ViewLogicRouter({ 
+    mode: 'hash',           // Works anywhere, no server config needed
+    basePath: 'src'
+});
+
+// History Mode (requires server configuration)
+// URL: https://example.com/myapp/products?id=123  
+ViewLogicRouter({ 
+    mode: 'history',        // Cleaner URLs, needs server setup
+    basePath: 'src'         // Auto-detects /myapp/ base path
+});
+```
+
+**History Mode Server Configuration:**
+```nginx
+# Nginx - redirect all subfolder requests to index.html
+location /myapp/ {
+    try_files $uri $uri/ /myapp/index.html;
+}
+```
+
+```apache
+# Apache .htaccess in /myapp/ folder
+RewriteEngine On
+RewriteBase /myapp/
+RewriteRule ^index\.html$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /myapp/index.html [L]
+```
+
 ## 📖 Complete API Documentation
 
 For comprehensive API documentation including all methods, configuration options, and detailed examples, see:
