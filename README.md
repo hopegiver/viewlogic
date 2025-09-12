@@ -260,6 +260,39 @@ const config = {
 };
 ```
 
+### 🏗️ Subfolder Deployment Support
+
+ViewLogic Router supports deployment in subfolders with smart path resolution:
+
+```javascript
+// Root deployment: https://example.com/
+ViewLogicRouter({
+    basePath: '/src',           // → https://example.com/src
+    routesPath: '/routes',      // → https://example.com/routes
+    i18nPath: '/i18n'          // → https://example.com/i18n
+});
+
+// Subfolder deployment: https://example.com/myapp/
+ViewLogicRouter({
+    basePath: 'src',            // → https://example.com/myapp/src (relative)
+    routesPath: 'routes',       // → https://example.com/myapp/routes (relative)
+    i18nPath: 'i18n',          // → https://example.com/myapp/i18n (relative)
+});
+
+// Mixed paths: https://example.com/projects/myapp/
+ViewLogicRouter({
+    basePath: './src',          // → https://example.com/projects/myapp/src
+    routesPath: '../shared/routes', // → https://example.com/projects/shared/routes  
+    i18nPath: '/global/i18n'    // → https://example.com/global/i18n (absolute)
+});
+```
+
+**Path Resolution Rules:**
+- **Absolute paths** (`/path`) → `https://domain.com/path`
+- **Relative paths** (`path`, `./path`) → Resolved from current page location
+- **Parent paths** (`../path`) → Navigate up directory levels
+- **HTTP URLs** → Used as-is (no processing)
+
 ## 📖 Complete API Documentation
 
 For comprehensive API documentation including all methods, configuration options, and detailed examples, see:

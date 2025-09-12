@@ -19,7 +19,8 @@
       "Bash(npm publish:*)",
       "Bash(npm token:*)",
       "Bash(gzip:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

@@ -79,20 +79,65 @@ export class ViewLogicRouter {
         
         const config = { ...defaults, ...options };
         
-        // 사용자가 제공한 basePath와 routesPath에 origin이 없으면 추가
+        // 스마트한 경로 처리 - 서브폴더 배포 지원
         if (options.basePath && !options.basePath.startsWith('http')) {
-            config.basePath = `${currentOrigin}${options.basePath}`;
+            config.basePath = this.resolvePath(options.basePath);
         }
         if (options.routesPath && !options.routesPath.startsWith('http')) {
-            config.routesPath = `${currentOrigin}${options.routesPath}`;
+            config.routesPath = this.resolvePath(options.routesPath);
         }
         if (options.i18nPath && !options.i18nPath.startsWith('http')) {
-            config.i18nPath = `${currentOrigin}${options.i18nPath}`;
+            config.i18nPath = this.resolvePath(options.i18nPath);
         }
         
         return config;
     }
 
+    /**
+     * 스마트한 경로 해결 - 서브폴더 배포 지원
+     */
+    resolvePath(path) {
+        const currentOrigin = window.location.origin;
+        const currentPathname = window.location.pathname;
+        
+        // 절대 경로인 경우 (/)
+        if (path.startsWith('/')) {
+            return `${currentOrigin}${path}`;
+        }
+        
+        // 상대 경로인 경우 현재 경로 기준으로 해결
+        const basePath = currentPathname.endsWith('/') 
+            ? currentPathname 
+            : currentPathname.substring(0, currentPathname.lastIndexOf('/') + 1);
+        
+        // 상대 경로 정규화
+        const resolvedPath = this.normalizePath(basePath + path);
+        
+        return `${currentOrigin}${resolvedPath}`;
+    }
+
+    /**
+     * 경로 정규화 (../, ./ 처리)
+     */
+    normalizePath(path) {
+        const parts = path.split('/').filter(part => part !== '' && part !== '.');
+        const stack = [];
+        
+        for (const part of parts) {
+            if (part === '..') {
+                if (stack.length > 0 && stack[stack.length - 1] !== '..') {
+                    stack.pop();
+                } else if (!path.startsWith('/')) {
+                    stack.push(part);
+                }
+            } else {
+                stack.push(part);
+            }
+        }
+        
+        const normalized = '/' + stack.join('/');
+        return normalized === '/' ? '/' : normalized;
+    }
 
     /**
      * 로깅 래퍼 메서드
