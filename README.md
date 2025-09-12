@@ -1,4 +1,4 @@
-# ViewLogic Router v1.1.1
+# ViewLogic Router
 
 <p align="center">
   <a href="https://github.com/hopegiver/viewlogic">
@@ -13,14 +13,6 @@
 </p>
 
 > A revolutionary Vue 3 routing system with View-Logic separation and Zero Build Development
-
-## 🆕 Latest Updates (v1.1.1)
-
-- ✨ **Automatic Form Handling** - Revolutionary form submission with `{paramName}` variable parameters
-- 🔄 **Multiple API Support** - Parallel data fetching from multiple APIs with named data storage
-- 🛡️ **Enhanced Validation** - HTML5 + custom function validation with graceful error handling
-- 🚀 **Component Loading Resilience** - Router continues to work even if components fail to load
-- 📝 **Comprehensive Documentation** - Extensive real-world examples and usage patterns
 
 ## 🎯 Core Philosophy: Simplicity Through Design
 
