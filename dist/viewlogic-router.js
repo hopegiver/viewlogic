@@ -993,6 +993,7 @@ var CacheManager = class {
     this.cacheTimestamps.clear();
     this.lruOrder = [];
     this.log(`\u{1F525} Cleared all cache (${size} entries)`);
+    return size;
   }
   /**
    * 만료된 캐시 항목들 정리
@@ -2545,14 +2546,14 @@ var ViewLogicRouter = class {
   /**
    * 통합 경로 해결 - 서브폴더 배포 및 basePath 지원
    */
-  resolvePath(path, applicationBasePath = null) {
+  resolvePath(path, basePath = null) {
     const currentOrigin = window.location.origin;
     if (path.startsWith("http")) {
       return path;
     }
     if (path.startsWith("/")) {
-      if (applicationBasePath && applicationBasePath !== "/") {
-        const cleanBasePath = applicationBasePath.endsWith("/") ? applicationBasePath.slice(0, -1) : applicationBasePath;
+      if (basePath && basePath !== "/") {
+        const cleanBasePath = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
         const cleanPath = path.startsWith("/") ? path : `/${path}`;
         const fullPath = `${cleanBasePath}${cleanPath}`;
         const fullUrl2 = `${currentOrigin}${fullPath}`;
@@ -2561,8 +2562,8 @@ var ViewLogicRouter = class {
       return `${currentOrigin}${path}`;
     }
     const currentPathname = window.location.pathname;
-    const basePath = currentPathname.endsWith("/") ? currentPathname : currentPathname.substring(0, currentPathname.lastIndexOf("/") + 1);
-    const resolvedPath = this.normalizePath(basePath + path);
+    const currentBase = currentPathname.endsWith("/") ? currentPathname : currentPathname.substring(0, currentPathname.lastIndexOf("/") + 1);
+    const resolvedPath = this.normalizePath(currentBase + path);
     const fullUrl = `${currentOrigin}${resolvedPath}`;
     return fullUrl.replace(/([^:])\/{2,}/g, "$1/");
   }

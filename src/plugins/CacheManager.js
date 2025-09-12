@@ -188,6 +188,7 @@ export class CacheManager {
         this.lruOrder = [];
         
         this.log(`🔥 Cleared all cache (${size} entries)`);
+        return size;
     }
     
     /**

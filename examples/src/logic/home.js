@@ -45,13 +45,9 @@ export default {
     },
     
     methods: {
-        showToast(message = '테스트 알림', type = 'success') {
+        showToast(message = '알림 테스트가 성공적으로 실행되었습니다!', type = 'success') {
             if (this.$refs.toast) {
-                this.$refs.toast.show({
-                    message: message,
-                    type: type,
-                    duration: 3000
-                });
+                this.$refs.toast[type](message);
             }
         },
         

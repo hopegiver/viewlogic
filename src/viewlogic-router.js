@@ -116,12 +116,12 @@ export class ViewLogicRouter {
         
         // 상대 경로인 경우 현재 경로 기준으로 해결
         const currentPathname = window.location.pathname;
-        const basePath = currentPathname.endsWith('/') 
+        const currentBase = currentPathname.endsWith('/') 
             ? currentPathname 
             : currentPathname.substring(0, currentPathname.lastIndexOf('/') + 1);
         
         // 상대 경로 정규화
-        const resolvedPath = this.normalizePath(basePath + path);
+        const resolvedPath = this.normalizePath(currentBase + path);
         
         const fullUrl = `${currentOrigin}${resolvedPath}`;
         

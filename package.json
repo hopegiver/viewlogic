@@ -26,6 +26,7 @@
     "test:coverage": "jest --coverage",
     "serve": "npx http-server . -p 8080 -c-1",
     "serve:test": "npx http-server test-app -p 8081 -c-1",
+    "examples": "cd examples && npx http-server . -p 3000 -c-1",
     "link:local": "npm link",
     "link:test": "cd ../viewlogic && npm link viewlogic",
     "prepublishOnly": "npm run build && npm test",
