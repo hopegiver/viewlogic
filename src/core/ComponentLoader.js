@@ -6,7 +6,7 @@ export class ComponentLoader {
     constructor(router = null, options = {}) {
 
         this.config = {
-            basePath: options.basePath || '/src/components',
+            componentsPath: options.componentsPath || '/components',  // srcPath 기준 상대 경로
             debug: options.debug || false,
             environment: options.environment || 'development',
             ...options
@@ -56,7 +56,27 @@ export class ComponentLoader {
      * 파일에서 컴포넌트 로드
      */
     async _loadComponentFromFile(componentName) {
-        const componentPath = `${this.config.basePath}/${componentName}.js`;
+        // srcPath + componentsPath를 조합하여 컴포넌트 경로 생성
+        const componentRelativePath = `${this.config.componentsPath}/${componentName}.js`;
+        
+        let componentPath;
+        if (this.router && this.router.config.srcPath) {
+            // srcPath는 이미 전체 URL이므로 직접 조합
+            const srcPath = this.router.config.srcPath;
+            if (srcPath.startsWith('http')) {
+                // 이중 슬래시 방지
+                const cleanSrcPath = srcPath.endsWith('/') ? srcPath.slice(0, -1) : srcPath;
+                const cleanComponentPath = componentRelativePath.startsWith('/') ? componentRelativePath : `/${componentRelativePath}`;
+                componentPath = `${cleanSrcPath}${cleanComponentPath}`;
+            } else {
+                componentPath = this.router.resolvePath(`${srcPath}${componentRelativePath}`);
+            }
+        } else {
+            // 폴백: 기본 경로 사용
+            componentPath = this.router ? 
+                this.router.resolvePath(`/src${componentRelativePath}`) : 
+                `/src${componentRelativePath}`;
+        }
         
         try {
             const module = await import(componentPath);
@@ -112,7 +132,7 @@ export class ComponentLoader {
      */
     async _loadProductionComponents() {
         try {
-            const componentsPath = `${this.config.routesPath}/_components.js`;
+            const componentsPath = `${this.router?.config?.routesPath || '/routes'}/_components.js`;
             this.log('info', '[PRODUCTION] Loading unified components from:', componentsPath);
             
             const componentsModule = await import(componentsPath);

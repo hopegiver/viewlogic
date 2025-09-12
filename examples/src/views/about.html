@@ -1,0 +1,24 @@
+<div class="about-page">
+
+    <div class="about-content">
+        <div class="intro-section">
+            <h2>프로젝트 소개</h2>
+            <p>이 프로젝트는 React와 Vue 모두 호환 가능한 해시 기반 라우터입니다.</p>
+        </div>
+        
+        <div class="features-section">
+            <h2>핵심 기능</h2>
+            <div class="feature-grid">
+                <div class="feature-card" v-for="feature in features" :key="feature.title">
+                    <h3>{{ feature.icon }} {{ feature.title }}</h3>
+                    <p>{{ feature.description }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="about-actions">
+            <button @click="navigateTo('home')">Home</button>
+            <button @click="navigateTo('contact')">Contact</button>
+        </div>
+    </div>
+</div>

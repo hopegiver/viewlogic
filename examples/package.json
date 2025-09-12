@@ -1,0 +1,64 @@
+{
+  "name": "viewlogic-vue",
+  "version": "1.0.0",
+  "description": "A modular Vue 3 web application with custom router system",
+  "main": "index.html",
+  "type": "module",
+  "scripts": {
+    "dev": "python -m http.server 8000",
+    "build": "node build.cjs build",
+    "build:prod": "node build.cjs build --minify --optimize",
+    "build:dev": "node build.cjs build --verbose",
+    "build:clean": "node build.cjs clean",
+    "build:fresh": "node build.cjs build --no-cache",
+    "build:info": "node build.cjs info",
+    "build:full": "node build.cjs build --minify --source-map --optimize --verbose",
+    "serve": "python -m http.server 8000",
+    "start": "python -m http.server 8000",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose",
+    "test:update": "jest --updateSnapshot"
+  },
+  "keywords": [
+    "vue3",
+    "router",
+    "modular",
+    "frontend",
+    "spa",
+    "layouts",
+    "builder"
+  ],
+  "author": "hopegiver",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:hopegiver/viewlogic-vue.git"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.28.3",
+    "@babel/preset-env": "^7.28.3",
+    "@jest/globals": "^30.0.5",
+    "@vue/test-utils": "^2.4.4",
+    "@vue/vue3-jest": "^29.2.6",
+    "babel-jest": "^29.7.0",
+    "esbuild": "^0.25.9",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "vue": "^3.4.21"
+  },
+  "files": [
+    "src/",
+    "routes/",
+    "js/",
+    "css/",
+    "index.html",
+    "production.html",
+    "build.cjs"
+  ]
+}

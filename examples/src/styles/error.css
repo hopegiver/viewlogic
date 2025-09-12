@@ -1,0 +1,184 @@
+.error-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    padding: 2rem;
+}
+
+.error-content {
+    text-align: center;
+    max-width: 600px;
+    padding: 2rem;
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.error-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.error-code {
+    font-size: 6rem;
+    font-weight: 700;
+    color: #dc3545;
+    margin: 0;
+    line-height: 1;
+}
+
+.error-title {
+    font-size: 1.8rem;
+    color: #343a40;
+    margin: 1rem 0;
+    font-weight: 600;
+}
+
+.error-description {
+    font-size: 1.1rem;
+    color: #6c757d;
+    margin: 1.5rem 0;
+    line-height: 1.5;
+}
+
+.error-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.error-actions .btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.error-actions .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.error-actions .btn-primary {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.error-actions .btn-primary:hover:not(:disabled) {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+.error-actions .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}
+
+.error-actions .btn-secondary:hover {
+    background-color: #545b62;
+    transform: translateY(-2px);
+}
+
+.error-actions .btn-outline {
+    background-color: transparent;
+    color: #007bff;
+    border-color: #007bff;
+}
+
+.error-actions .btn-outline:hover {
+    background-color: #007bff;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.error-help {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.error-details {
+    margin-bottom: 1rem;
+}
+
+.error-details summary {
+    cursor: pointer;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.error-details summary:hover {
+    background-color: #e9ecef;
+}
+
+.error-tech-info {
+    text-align: left;
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.error-tech-info p {
+    margin: 0.5rem 0;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #007bff;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+}
+
+.btn-link:hover {
+    color: #0056b3;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .error-container {
+        padding: 1rem;
+        min-height: 50vh;
+    }
+    
+    .error-content {
+        padding: 1.5rem;
+    }
+    
+    .error-code {
+        font-size: 4rem;
+    }
+    
+    .error-title {
+        font-size: 1.5rem;
+    }
+    
+    .error-actions {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .error-actions .btn {
+        width: 100%;
+        max-width: 250px;
+    }
+}

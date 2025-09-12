@@ -1,0 +1,46 @@
+<header>
+    <nav class="main-nav">
+        <div class="nav-container">
+            <!-- 사이트 로고 -->
+            <div class="nav-brand">
+                <a @click="navigateTo('home')" class="brand-link">
+                    <span class="brand-logo">🚀</span>
+                    <span class="brand-text">ViewLogic</span>
+                </a>
+            </div>
+
+            <!-- 모바일 햄버거 메뉴 버튼 -->
+            <button class="nav-toggle">
+                <span class="nav-toggle-bar"></span>
+                <span class="nav-toggle-bar"></span>
+                <span class="nav-toggle-bar"></span>
+            </button>
+
+            <!-- 중앙 네비게이션 메뉴 -->
+            <div class="nav-menu">
+                <ul class="nav-links">
+                    <li><a @click="navigateTo('home')" :class="{ active: currentRoute === 'home' }">Home</a></li>
+                    <li><a @click="navigateTo('about')" :class="{ active: currentRoute === 'about' }">About</a></li>
+                    <li><a @click="navigateTo('contact')" :class="{ active: currentRoute === 'contact' }">Contact</a></li>
+                </ul>
+            </div>
+
+            <!-- 오른쪽 유틸리티 메뉴 -->
+            <div class="nav-utils">
+            </div>
+        </div>
+    </nav>
+</header>
+
+<main class="main-content">
+    <div class="container">
+        <!-- 페이지 콘텐츠가 여기에 삽입됩니다 -->
+        {{ content }}
+    </div>
+</main>
+
+<footer class="page-footer">
+    <div class="container">
+        <p>&copy; 2025 ViewLogic App. All rights reserved.</p>
+    </div>
+</footer>

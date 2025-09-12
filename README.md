@@ -301,15 +301,13 @@ Both routing modes work seamlessly in subfolder deployments:
 // Hash Mode (recommended for subfolders)
 // URL: https://example.com/myapp/#/products?id=123
 ViewLogicRouter({ 
-    mode: 'hash',           // Works anywhere, no server config needed
-    basePath: 'src'
+    mode: 'hash'           // Works anywhere, no server config needed
 });
 
 // History Mode (requires server configuration)
 // URL: https://example.com/myapp/products?id=123  
 ViewLogicRouter({ 
-    mode: 'history',        // Cleaner URLs, needs server setup
-    basePath: 'src'         // Auto-detects /myapp/ base path
+    mode: 'history'        // Cleaner URLs, needs server setup
 });
 ```
 

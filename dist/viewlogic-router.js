@@ -42,6 +42,8 @@ var I18nManager = class {
         await this.loadMessages(this.currentLanguage);
       } catch (error) {
         this.log("error", "Failed to load initial language file:", error);
+        this.messages.set(this.currentLanguage, {});
+        this.log("info", "Using empty message object as fallback");
       }
     } else {
       this.log("debug", "Language messages already loaded:", this.currentLanguage);
@@ -98,9 +100,17 @@ var I18nManager = class {
       this.log("info", "Language changed successfully", { from: oldLanguage, to: language });
       return true;
     } catch (error) {
-      this.currentLanguage = oldLanguage;
-      this.log("error", "Failed to change language:", error);
-      return false;
+      this.log("error", "Failed to load messages for language change, using empty messages:", error);
+      this.messages.set(language, {});
+      this.saveLanguageToCache(language);
+      this.emit("languageChanged", {
+        from: oldLanguage,
+        to: language,
+        messages: {},
+        error: true
+      });
+      this.log("warn", "Language changed with empty messages", { from: oldLanguage, to: language });
+      return true;
     }
   }
   /**
@@ -136,7 +146,10 @@ var I18nManager = class {
       return messages;
     } catch (error) {
       this.loadPromises.delete(language);
-      throw error;
+      this.log("error", "Failed to load messages, using empty fallback for:", language, error);
+      const emptyMessages = {};
+      this.messages.set(language, emptyMessages);
+      return emptyMessages;
     }
   }
   /**
@@ -165,9 +178,15 @@ var I18nManager = class {
       this.log("error", "Failed to load messages file for:", language, error);
       if (language !== this.config.fallbackLanguage) {
         this.log("info", "Trying fallback language:", this.config.fallbackLanguage);
-        return await this._loadMessagesFromFile(this.config.fallbackLanguage);
+        try {
+          return await this._loadMessagesFromFile(this.config.fallbackLanguage);
+        } catch (fallbackError) {
+          this.log("error", "Fallback language also failed:", fallbackError);
+          return {};
+        }
       }
-      throw new Error(`Failed to load messages for language: ${language}`);
+      this.log("warn", `No messages available for language: ${language}, using empty fallback`);
+      return {};
     }
   }
   /**
@@ -352,7 +371,8 @@ var I18nManager = class {
       return true;
     } catch (error) {
       this.log("error", "I18n initialization failed:", error);
-      return false;
+      this.log("info", "I18n system ready with fallback behavior");
+      return true;
     }
   }
   /**
@@ -413,7 +433,8 @@ var I18nManager = class {
       return true;
     } catch (error) {
       this.log("error", "Failed to initialize I18n system:", error);
-      return false;
+      this.log("info", "I18n system will continue with fallback behavior");
+      return true;
     }
   }
 };
@@ -1464,8 +1485,10 @@ var QueryManager = class {
 var RouteLoader = class {
   constructor(router, options = {}) {
     this.config = {
-      basePath: options.basePath || "/src",
-      routesPath: options.routesPath || "/routes",
+      srcPath: options.srcPath || router.config.srcPath || "/src",
+      // 소스 파일 경로
+      routesPath: options.routesPath || router.config.routesPath || "/routes",
+      // 프로덕션 라우트 경로
       environment: options.environment || "development",
       useLayout: options.useLayout !== false,
       defaultLayout: options.defaultLayout || "default",
@@ -1487,7 +1510,7 @@ var RouteLoader = class {
         const module = await import(importPath);
         script = module.default;
       } else {
-        const importPath = `${this.config.basePath}/logic/${routeName}.js`;
+        const importPath = `${this.config.srcPath}/logic/${routeName}.js`;
         this.log("debug", `Loading development route: ${importPath}`);
         const module = await import(importPath);
         script = module.default;
@@ -1508,7 +1531,7 @@ var RouteLoader = class {
    */
   async loadTemplate(routeName) {
     try {
-      const templatePath = `${this.config.basePath}/views/${routeName}.html`;
+      const templatePath = `${this.config.srcPath}/views/${routeName}.html`;
       const response = await fetch(templatePath);
       if (!response.ok) throw new Error(`Template not found: ${response.status}`);
       const template = await response.text();
@@ -1524,7 +1547,7 @@ var RouteLoader = class {
    */
   async loadStyle(routeName) {
     try {
-      const stylePath = `${this.config.basePath}/styles/${routeName}.css`;
+      const stylePath = `${this.config.srcPath}/styles/${routeName}.css`;
       const response = await fetch(stylePath);
       if (!response.ok) throw new Error(`Style not found: ${response.status}`);
       const style = await response.text();
@@ -1540,7 +1563,7 @@ var RouteLoader = class {
    */
   async loadLayout(layoutName) {
     try {
-      const layoutPath = `${this.config.basePath}/layouts/${layoutName}.html`;
+      const layoutPath = `${this.config.srcPath}/layouts/${layoutName}.html`;
       const response = await fetch(layoutPath);
       if (!response.ok) throw new Error(`Layout not found: ${response.status}`);
       const layout = await response.text();
@@ -1618,7 +1641,14 @@ ${template}`;
           ...originalData,
           currentRoute: routeName,
           $query: router.queryManager?.getQueryParams() || {},
-          $lang: router.i18nManager?.getCurrentLanguage() || router.config.i18nDefaultLanguage,
+          $lang: (() => {
+            try {
+              return router.i18nManager?.getCurrentLanguage() || router.config.i18nDefaultLanguage || router.config.defaultLanguage || "ko";
+            } catch (error) {
+              if (router.errorHandler) router.errorHandler.warn("RouteLoader", "Failed to get current language:", error);
+              return router.config.defaultLanguage || "ko";
+            }
+          })(),
           $dataLoading: false
         };
         return commonData;
@@ -1652,8 +1682,15 @@ ${template}`;
         // 통합된 파라미터 관리 (라우팅 + 쿼리 파라미터)
         getParams: () => router.queryManager?.getAllParams() || {},
         getParam: (key, defaultValue) => router.queryManager?.getParam(key, defaultValue),
-        // i18n 관련
-        $t: (key, params) => router.i18nManager?.t(key, params) || key,
+        // i18n 관련 (resilient - i18n 실패해도 key 반환)
+        $t: (key, params) => {
+          try {
+            return router.i18nManager?.t(key, params) || key;
+          } catch (error) {
+            if (router.errorHandler) router.errorHandler.warn("RouteLoader", "i18n translation failed, returning key:", error);
+            return key;
+          }
+        },
         // 인증 관련
         $isAuthenticated: () => router.authManager?.isUserAuthenticated() || false,
         $logout: () => router.authManager ? router.navigateTo(router.authManager.handleLogout()) : null,
@@ -1968,7 +2005,7 @@ ${template}`;
   getStats() {
     return {
       environment: this.config.environment,
-      basePath: this.config.basePath,
+      srcPath: this.config.srcPath,
       routesPath: this.config.routesPath,
       useLayout: this.config.useLayout,
       useComponents: this.config.useComponents
@@ -2272,7 +2309,8 @@ var ErrorHandler = class {
 var ComponentLoader = class {
   constructor(router = null, options = {}) {
     this.config = {
-      basePath: options.basePath || "/src/components",
+      componentsPath: options.componentsPath || "/components",
+      // srcPath 기준 상대 경로
       debug: options.debug || false,
       environment: options.environment || "development",
       ...options
@@ -2314,7 +2352,20 @@ var ComponentLoader = class {
    * 파일에서 컴포넌트 로드
    */
   async _loadComponentFromFile(componentName) {
-    const componentPath = `${this.config.basePath}/${componentName}.js`;
+    const componentRelativePath = `${this.config.componentsPath}/${componentName}.js`;
+    let componentPath;
+    if (this.router && this.router.config.srcPath) {
+      const srcPath = this.router.config.srcPath;
+      if (srcPath.startsWith("http")) {
+        const cleanSrcPath = srcPath.endsWith("/") ? srcPath.slice(0, -1) : srcPath;
+        const cleanComponentPath = componentRelativePath.startsWith("/") ? componentRelativePath : `/${componentRelativePath}`;
+        componentPath = `${cleanSrcPath}${cleanComponentPath}`;
+      } else {
+        componentPath = this.router.resolvePath(`${srcPath}${componentRelativePath}`);
+      }
+    } else {
+      componentPath = this.router ? this.router.resolvePath(`/src${componentRelativePath}`) : `/src${componentRelativePath}`;
+    }
     try {
       const module = await import(componentPath);
       const component = module.default;
@@ -2357,7 +2408,7 @@ var ComponentLoader = class {
    */
   async _loadProductionComponents() {
     try {
-      const componentsPath = `${this.config.routesPath}/_components.js`;
+      const componentsPath = `${this.router?.config?.routesPath || "/routes"}/_components.js`;
       this.log("info", "[PRODUCTION] Loading unified components from:", componentsPath);
       const componentsModule = await import(componentsPath);
       if (typeof componentsModule.registerComponents === "function") {
@@ -2445,7 +2496,10 @@ var ViewLogicRouter = class {
   _buildConfig(options) {
     const currentOrigin = window.location.origin;
     const defaults = {
-      basePath: `${currentOrigin}/src`,
+      basePath: "/",
+      // 애플리케이션 기본 경로 (서브폴더 배포용)
+      srcPath: "/src",
+      // 소스 파일 경로
       mode: "hash",
       cacheMode: "memory",
       cacheTTL: 3e5,
@@ -2453,13 +2507,15 @@ var ViewLogicRouter = class {
       useLayout: true,
       defaultLayout: "default",
       environment: "development",
-      routesPath: `${currentOrigin}/routes`,
+      routesPath: "/routes",
+      // 프로덕션 라우트 경로
       enableErrorReporting: true,
       useComponents: true,
       componentNames: ["Button", "Modal", "Card", "Toast", "Input", "Tabs", "Checkbox", "Alert", "DynamicInclude", "HtmlInclude"],
-      useI18n: true,
+      useI18n: false,
       defaultLanguage: "ko",
-      i18nPath: `${currentOrigin}/i18n`,
+      i18nPath: "/i18n",
+      // 다국어 파일 경로
       logLevel: "info",
       authEnabled: false,
       loginRoute: "login",
@@ -2481,16 +2537,55 @@ var ViewLogicRouter = class {
       logSecurityWarnings: true
     };
     const config = { ...defaults, ...options };
-    if (options.basePath && !options.basePath.startsWith("http")) {
-      config.basePath = `${currentOrigin}${options.basePath}`;
-    }
-    if (options.routesPath && !options.routesPath.startsWith("http")) {
-      config.routesPath = `${currentOrigin}${options.routesPath}`;
-    }
-    if (options.i18nPath && !options.i18nPath.startsWith("http")) {
-      config.i18nPath = `${currentOrigin}${options.i18nPath}`;
-    }
+    config.srcPath = this.resolvePath(config.srcPath, config.basePath);
+    config.routesPath = this.resolvePath(config.routesPath, config.basePath);
+    config.i18nPath = this.resolvePath(config.i18nPath, config.basePath);
     return config;
+  }
+  /**
+   * 통합 경로 해결 - 서브폴더 배포 및 basePath 지원
+   */
+  resolvePath(path, applicationBasePath = null) {
+    const currentOrigin = window.location.origin;
+    if (path.startsWith("http")) {
+      return path;
+    }
+    if (path.startsWith("/")) {
+      if (applicationBasePath && applicationBasePath !== "/") {
+        const cleanBasePath = applicationBasePath.endsWith("/") ? applicationBasePath.slice(0, -1) : applicationBasePath;
+        const cleanPath = path.startsWith("/") ? path : `/${path}`;
+        const fullPath = `${cleanBasePath}${cleanPath}`;
+        const fullUrl2 = `${currentOrigin}${fullPath}`;
+        return fullUrl2.replace(/([^:])\/{2,}/g, "$1/");
+      }
+      return `${currentOrigin}${path}`;
+    }
+    const currentPathname = window.location.pathname;
+    const basePath = currentPathname.endsWith("/") ? currentPathname : currentPathname.substring(0, currentPathname.lastIndexOf("/") + 1);
+    const resolvedPath = this.normalizePath(basePath + path);
+    const fullUrl = `${currentOrigin}${resolvedPath}`;
+    return fullUrl.replace(/([^:])\/{2,}/g, "$1/");
+  }
+  /**
+   * URL 경로 정규화 (이중 슬래시 제거 및 ../, ./ 처리)
+   */
+  normalizePath(path) {
+    path = path.replace(/\/+/g, "/");
+    const parts = path.split("/").filter((part) => part !== "" && part !== ".");
+    const stack = [];
+    for (const part of parts) {
+      if (part === "..") {
+        if (stack.length > 0 && stack[stack.length - 1] !== "..") {
+          stack.pop();
+        } else if (!path.startsWith("/")) {
+          stack.push(part);
+        }
+      } else {
+        stack.push(part);
+      }
+    }
+    const normalized = "/" + stack.join("/");
+    return normalized === "/" ? "/" : normalized;
   }
   /**
    * 로깅 래퍼 메서드
@@ -2510,9 +2605,16 @@ var ViewLogicRouter = class {
       this.queryManager = new QueryManager(this, this.config);
       this.errorHandler = new ErrorHandler(this, this.config);
       if (this.config.useI18n) {
-        this.i18nManager = new I18nManager(this, this.config);
-        if (this.i18nManager.initPromise) {
-          await this.i18nManager.initPromise;
+        try {
+          this.i18nManager = new I18nManager(this, this.config);
+          if (this.i18nManager.initPromise) {
+            await this.i18nManager.initPromise;
+          }
+          this.log("info", "I18nManager initialized successfully");
+        } catch (i18nError) {
+          this.log("warn", "I18nManager initialization failed, continuing without i18n:", i18nError.message);
+          this.i18nManager = null;
+          this.config.useI18n = false;
         }
       }
       if (this.config.authEnabled) {
@@ -2596,8 +2698,17 @@ var ViewLogicRouter = class {
         queryParams: this.queryManager?.parseQueryString(queryPart || window.location.search.slice(1)) || {}
       };
     } else {
+      const fullPath = window.location.pathname;
+      const basePath = this.config.basePath || "/";
+      let route = fullPath;
+      if (basePath !== "/" && fullPath.startsWith(basePath)) {
+        route = fullPath.slice(basePath.length);
+      }
+      if (route.startsWith("/")) {
+        route = route.slice(1);
+      }
       return {
-        route: window.location.pathname.slice(1) || "home",
+        route: route || "home",
         queryParams: this.queryManager?.parseQueryString(window.location.search.slice(1)) || {}
       };
     }
@@ -2730,7 +2841,10 @@ var ViewLogicRouter = class {
     const queryParams = params || this.queryManager?.getQueryParams() || {};
     const queryString = this.queryManager?.buildQueryString(queryParams) || "";
     const buildURL = (route2, queryString2, isHash = true) => {
-      const base = route2 === "home" ? "/" : `/${route2}`;
+      let base = route2 === "home" ? "/" : `/${route2}`;
+      if (!isHash && this.config.basePath && this.config.basePath !== "/") {
+        base = `${this.config.basePath}${base}`;
+      }
       const url = queryString2 ? `${base}?${queryString2}` : base;
       return isHash ? `#${url}` : url;
     };
@@ -2741,7 +2855,11 @@ var ViewLogicRouter = class {
       }
     } else {
       const newPath = buildURL(route, queryString, false);
-      const isSameRoute = window.location.pathname === (route === "home" ? "/" : `/${route}`);
+      let expectedPath = route === "home" ? "/" : `/${route}`;
+      if (this.config.basePath && this.config.basePath !== "/") {
+        expectedPath = `${this.config.basePath}${expectedPath}`;
+      }
+      const isSameRoute = window.location.pathname === expectedPath;
       if (isSameRoute) {
         window.history.replaceState({}, "", newPath);
       } else {

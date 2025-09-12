@@ -1,0 +1,107 @@
+.home-page {
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.home-page h1 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 2.5rem;
+    text-align: center;
+}
+
+.home-content {
+    padding: 20px;
+}
+
+.home-content > p {
+    font-size: 1.2rem;
+    text-align: center;
+    margin-bottom: 20px;
+    color: #666;
+}
+
+.home-message {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.home-message p {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.features {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+}
+
+.features h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.features ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.features li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.features li:before {
+    content: "✓ ";
+    color: #28a745;
+    font-weight: bold;
+}
+
+.home-actions {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.home-actions button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin: 0 10px;
+    font-size: 1rem;
+    transition: background 0.3s;
+}
+
+.home-actions button:hover {
+    background: #0056b3;
+}
+
+@media (max-width: 768px) {
+    .home-page {
+        padding: 15px;
+        margin: 10px;
+    }
+    
+    .home-page h1 {
+        font-size: 2rem;
+    }
+    
+    .home-actions button {
+        display: block;
+        width: 100%;
+        margin: 10px 0;
+    }
+}

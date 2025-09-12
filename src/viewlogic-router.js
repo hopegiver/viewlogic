@@ -41,7 +41,8 @@ export class ViewLogicRouter {
         const currentOrigin = window.location.origin;
         
         const defaults = {
-            basePath: `${currentOrigin}/src`,
+            basePath: '/',                  // 애플리케이션 기본 경로 (서브폴더 배포용)
+            srcPath: '/src',               // 소스 파일 경로
             mode: 'hash',
             cacheMode: 'memory',
             cacheTTL: 300000,
@@ -49,13 +50,13 @@ export class ViewLogicRouter {
             useLayout: true,
             defaultLayout: 'default',
             environment: 'development',
-            routesPath: `${currentOrigin}/routes`,
+            routesPath: '/routes',         // 프로덕션 라우트 경로
             enableErrorReporting: true,
             useComponents: true,
             componentNames: ['Button', 'Modal', 'Card', 'Toast', 'Input', 'Tabs', 'Checkbox', 'Alert', 'DynamicInclude', 'HtmlInclude'],
-            useI18n: true,
+            useI18n: false,
             defaultLanguage: 'ko',
-            i18nPath: `${currentOrigin}/i18n`,
+            i18nPath: '/i18n',            // 다국어 파일 경로
             logLevel: 'info',
             authEnabled: false,
             loginRoute: 'login',
@@ -69,8 +70,6 @@ export class ViewLogicRouter {
             authStorage: 'cookie',
             authCookieOptions: {},
             authSkipValidation: false,
-            // 서브폴더 배포 지원을 위한 base URL path
-            baseURLPath: this._detectBaseURLPath(),
             enableParameterValidation: true,
             maxParameterLength: 1000,
             maxParameterCount: 50,
@@ -81,59 +80,42 @@ export class ViewLogicRouter {
         
         const config = { ...defaults, ...options };
         
-        // 스마트한 경로 처리 - 서브폴더 배포 지원
-        if (options.basePath && !options.basePath.startsWith('http')) {
-            config.basePath = this.resolvePath(options.basePath);
-        }
-        if (options.routesPath && !options.routesPath.startsWith('http')) {
-            config.routesPath = this.resolvePath(options.routesPath);
-        }
-        if (options.i18nPath && !options.i18nPath.startsWith('http')) {
-            config.i18nPath = this.resolvePath(options.i18nPath);
-        }
+        // 절대 경로들을 basePath 기준으로 해결
+        config.srcPath = this.resolvePath(config.srcPath, config.basePath);
+        config.routesPath = this.resolvePath(config.routesPath, config.basePath);
+        config.i18nPath = this.resolvePath(config.i18nPath, config.basePath);
         
         return config;
     }
 
     /**
-     * 서브폴더 배포를 위한 base URL path 감지
+     * 통합 경로 해결 - 서브폴더 배포 및 basePath 지원
      */
-    _detectBaseURLPath() {
-        // script 태그의 src 속성에서 기본 경로를 추론
-        const scripts = document.querySelectorAll('script[src*="viewlogic-router"]');
-        if (scripts.length > 0) {
-            const scriptSrc = scripts[0].src;
-            const url = new URL(scriptSrc);
-            const pathParts = url.pathname.split('/');
-            pathParts.pop(); // 파일명 제거
-            return pathParts.join('/');
-        }
-        
-        // HTML 파일의 현재 경로에서 추론
-        const currentPath = window.location.pathname;
-        const pathParts = currentPath.split('/');
-        
-        // index.html 등 파일명 제거
-        if (pathParts[pathParts.length - 1].includes('.')) {
-            pathParts.pop();
-        }
-        
-        return pathParts.join('/');
-    }
-
-    /**
-     * 스마트한 경로 해결 - 서브폴더 배포 지원
-     */
-    resolvePath(path) {
+    resolvePath(path, basePath = null) {
         const currentOrigin = window.location.origin;
-        const currentPathname = window.location.pathname;
         
-        // 절대 경로인 경우 (/)
+        // HTTP URL인 경우 그대로 반환
+        if (path.startsWith('http')) {
+            return path;
+        }
+        
+        // 절대 경로인 경우
         if (path.startsWith('/')) {
+            // basePath 제공된 경우 basePath와 조합
+            if (basePath && basePath !== '/') {
+                // 이중 슬래시 방지
+                const cleanBasePath = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+                const cleanPath = path.startsWith('/') ? path : `/${path}`;
+                const fullPath = `${cleanBasePath}${cleanPath}`;
+                const fullUrl = `${currentOrigin}${fullPath}`;
+                return fullUrl.replace(/([^:])\/{2,}/g, '$1/');
+            }
+            // 일반적인 절대 경로
             return `${currentOrigin}${path}`;
         }
         
         // 상대 경로인 경우 현재 경로 기준으로 해결
+        const currentPathname = window.location.pathname;
         const basePath = currentPathname.endsWith('/') 
             ? currentPathname 
             : currentPathname.substring(0, currentPathname.lastIndexOf('/') + 1);
@@ -141,13 +123,18 @@ export class ViewLogicRouter {
         // 상대 경로 정규화
         const resolvedPath = this.normalizePath(basePath + path);
         
-        return `${currentOrigin}${resolvedPath}`;
+        const fullUrl = `${currentOrigin}${resolvedPath}`;
+        
+        // HTTP URL의 이중 슬래시 제거
+        return fullUrl.replace(/([^:])\/{2,}/g, '$1/');
     }
 
     /**
-     * 경로 정규화 (../, ./ 처리)
+     * URL 경로 정규화 (이중 슬래시 제거 및 ../, ./ 처리)
      */
     normalizePath(path) {
+        // 이중 슬래시 제거
+        path = path.replace(/\/+/g, '/');
         const parts = path.split('/').filter(part => part !== '' && part !== '.');
         const stack = [];
         
@@ -166,6 +153,7 @@ export class ViewLogicRouter {
         const normalized = '/' + stack.join('/');
         return normalized === '/' ? '/' : normalized;
     }
+
 
     /**
      * 로깅 래퍼 메서드
@@ -309,11 +297,11 @@ export class ViewLogicRouter {
         } else {
             // History Mode - 서브폴더 배포 지원
             const fullPath = window.location.pathname;
-            const basePath = this.config.baseURLPath || '';
+            const basePath = this.config.basePath || '/';
             
             // base path 제거하여 실제 route 추출
             let route = fullPath;
-            if (basePath && fullPath.startsWith(basePath)) {
+            if (basePath !== '/' && fullPath.startsWith(basePath)) {
                 route = fullPath.slice(basePath.length);
             }
             
@@ -534,9 +522,9 @@ export class ViewLogicRouter {
         const buildURL = (route, queryString, isHash = true) => {
             let base = route === 'home' ? '/' : `/${route}`;
             
-            // History Mode에서 서브폴더 경로 추가
-            if (!isHash && this.config.baseURLPath && this.config.baseURLPath !== '/') {
-                base = `${this.config.baseURLPath}${base}`;
+            // History Mode에서 basePath 경로 추가
+            if (!isHash && this.config.basePath && this.config.basePath !== '/') {
+                base = `${this.config.basePath}${base}`;
             }
             
             const url = queryString ? `${base}?${queryString}` : base;
@@ -555,8 +543,8 @@ export class ViewLogicRouter {
             
             // 서브폴더 배포를 고려한 경로 비교
             let expectedPath = route === 'home' ? '/' : `/${route}`;
-            if (this.config.baseURLPath && this.config.baseURLPath !== '/') {
-                expectedPath = `${this.config.baseURLPath}${expectedPath}`;
+            if (this.config.basePath && this.config.basePath !== '/') {
+                expectedPath = `${this.config.basePath}${expectedPath}`;
             }
             
             const isSameRoute = window.location.pathname === expectedPath;

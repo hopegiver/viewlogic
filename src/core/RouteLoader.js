@@ -5,8 +5,8 @@
 export class RouteLoader {
     constructor(router, options = {}) {
         this.config = {
-            basePath: options.basePath || '/src',
-            routesPath: options.routesPath || '/routes',
+            srcPath: options.srcPath || router.config.srcPath || '/src',    // 소스 파일 경로
+            routesPath: options.routesPath || router.config.routesPath || '/routes', // 프로덕션 라우트 경로
             environment: options.environment || 'development',
             useLayout: options.useLayout !== false,
             defaultLayout: options.defaultLayout || 'default',
@@ -32,8 +32,8 @@ export class RouteLoader {
                 const module = await import(importPath);
                 script = module.default;
             } else {
-                // 개발 모드: basePath는 이미 origin이 포함되어 있음
-                const importPath = `${this.config.basePath}/logic/${routeName}.js`;
+                // 개발 모드: srcPath 사용하여 소스 파일 경로 구성
+                const importPath = `${this.config.srcPath}/logic/${routeName}.js`;
                 this.log('debug', `Loading development route: ${importPath}`);
                 const module = await import(importPath);
                 script = module.default;
@@ -63,7 +63,7 @@ export class RouteLoader {
      */
     async loadTemplate(routeName) {
         try {
-            const templatePath = `${this.config.basePath}/views/${routeName}.html`;
+            const templatePath = `${this.config.srcPath}/views/${routeName}.html`;
             const response = await fetch(templatePath);
             if (!response.ok) throw new Error(`Template not found: ${response.status}`);
             const template = await response.text();
@@ -81,7 +81,7 @@ export class RouteLoader {
      */
     async loadStyle(routeName) {
         try {
-            const stylePath = `${this.config.basePath}/styles/${routeName}.css`;
+            const stylePath = `${this.config.srcPath}/styles/${routeName}.css`;
             const response = await fetch(stylePath);
             if (!response.ok) throw new Error(`Style not found: ${response.status}`);
             const style = await response.text();
@@ -99,7 +99,7 @@ export class RouteLoader {
      */
     async loadLayout(layoutName) {
         try {
-            const layoutPath = `${this.config.basePath}/layouts/${layoutName}.html`;
+            const layoutPath = `${this.config.srcPath}/layouts/${layoutName}.html`;
             const response = await fetch(layoutPath);
             if (!response.ok) throw new Error(`Layout not found: ${response.status}`);
             const layout = await response.text();
@@ -681,7 +681,7 @@ export class RouteLoader {
     getStats() {
         return {
             environment: this.config.environment,
-            basePath: this.config.basePath,
+            srcPath: this.config.srcPath,
             routesPath: this.config.routesPath,
             useLayout: this.config.useLayout,
             useComponents: this.config.useComponents

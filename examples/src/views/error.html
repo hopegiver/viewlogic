@@ -1,0 +1,47 @@
+<div class="error-container">
+    <div class="error-content">
+        <div class="error-icon">{{ errorIcon }}</div>
+        <h1 class="error-code">{{ errorCode }}</h1>
+        <h2 class="error-title">{{ errorTitle }}</h2>
+        <p class="error-description">{{ errorDescription }}</p>
+        
+        <div class="error-actions">
+            <button 
+                v-if="showRetry" 
+                @click="handleRetry" 
+                :disabled="isRetrying"
+                class="btn btn-primary"
+            >
+                <span v-if="isRetrying">재시도 중...</span>
+                <span v-else>🔄 다시 시도</span>
+            </button>
+            
+            <button 
+                v-if="showGoHome" 
+                @click="goHome" 
+                class="btn btn-secondary"
+            >
+                🏠 홈으로 가기
+            </button>
+            
+            <button @click="goBack" class="btn btn-outline">
+                ← 뒤로 가기
+            </button>
+        </div>
+        
+        <div class="error-help">
+            <details class="error-details">
+                <summary>기술적 세부사항</summary>
+                <div class="error-tech-info">
+                    <p><strong>오류 코드:</strong> {{ errorCode }}</p>
+                    <p><strong>시간:</strong> {{ new Date().toLocaleString() }}</p>
+                    <p><strong>URL:</strong> {{ window.location.href }}</p>
+                </div>
+            </details>
+            
+            <button @click="reportError" class="btn btn-link">
+                📧 문제 신고하기
+            </button>
+        </div>
+    </div>
+</div>
