@@ -36,6 +36,7 @@ Clear separation between **View** (presentation) and **Logic** (business logic),
 - 🌐 **i18n Ready** - Built-in internationalization support
 - 🔐 **Authentication** - Built-in auth management system
 - 💾 **Smart Caching** - Intelligent route and component caching
+- 📝 **Automatic Form Handling** - Revolutionary form submission with variable parameters
 - 🚀 **Ultra-Lightweight** - Complete routing system in just 13KB gzipped (48KB minified)
 
 ## 📦 Installation
@@ -314,7 +315,8 @@ export default {
         const title = this.$t('product.title');
         
         // Data automatically fetched if dataURL is defined in component
-        // this.$fetchData() is called automatically in mounted()
+        // Single API: this.products available
+        // Multiple APIs: this.products, this.categories, this.stats, etc. available
         console.log('Auto-loaded data:', this.products); // From dataURL
     },
     methods: {
@@ -374,7 +376,10 @@ export default {
 - `$t(key, params)` - Translate text with optional parameters
 
 #### Data Management Functions  
-- `$fetchData()` - Fetch data from dataURL (if defined in component)
+- `$fetchData()` - Fetch data from single dataURL or all multiple dataURLs
+- `$fetchData('apiName')` - Fetch data from specific named API (multiple dataURL mode)
+- `$fetchAllData()` - Explicitly fetch all APIs (works for both single and multiple dataURL)
+- `$fetchMultipleData()` - Internal method for multiple API handling
 
 ### Component Data Properties
 
@@ -556,6 +561,7 @@ ViewLogic Router provides a complete routing solution in an incredibly small pac
 - ✅ Development/production modes
 - ✅ **Automatic data fetching with dataURL**
 - ✅ **Revolutionary DynamicInclude & HtmlInclude components**
+- ✅ **Automatic form handling with variable parameters**
 - ✅ **10+ Built-in UI components (Button, Modal, Card, etc.)**
 
 ### Why So Small?
@@ -711,6 +717,8 @@ ViewLogic Router includes groundbreaking components that revolutionize how you h
 - **Script Execution** - Optional JavaScript execution in HTML content
 
 ### Automatic Data Fetching with dataURL
+
+#### Single API (Simple Usage)
 ```javascript
 // src/logic/products/list.js
 export default {
@@ -736,13 +744,59 @@ export default {
 };
 ```
 
+#### Multiple APIs (Advanced Usage) - 🆕 Revolutionary!
+```javascript
+// src/logic/dashboard/main.js
+export default {
+    name: 'DashboardMain',
+    dataURL: {
+        products: '/api/products',
+        categories: '/api/categories', 
+        stats: '/api/dashboard/stats',
+        user: '/api/user/profile'
+    },  // ✨ Multiple APIs with named data!
+    data() {
+        return {
+            title: 'Dashboard'
+            // products: [], categories: [], stats: {}, user: {}
+            // All auto-populated from respective APIs!
+        };
+    },
+    mounted() {
+        // All APIs called in parallel, data available by name!
+        console.log('Products:', this.products);
+        console.log('Categories:', this.categories);
+        console.log('Stats:', this.stats);
+        console.log('User:', this.user);
+        console.log('Loading state:', this.$dataLoading);
+    },
+    methods: {
+        async refreshProducts() {
+            // Refresh specific API only
+            await this.$fetchData('products');
+        },
+        async refreshStats() {
+            // Refresh specific API only
+            await this.$fetchData('stats');
+        },
+        async refreshAllData() {
+            // Refresh all APIs
+            await this.$fetchAllData();
+        }
+    }
+};
+```
+
 **Features:**
 - **Zero-Config API Calls** - Just define `dataURL` and data is automatically fetched
-- **Query Parameter Integration** - Current route parameters are automatically sent to API
+- **🆕 Multiple API Support** - Define multiple APIs with custom names
+- **🚀 Parallel Processing** - Multiple APIs called simultaneously for best performance
+- **🎯 Selective Refresh** - Refresh specific APIs independently
+- **Query Parameter Integration** - Current route parameters are automatically sent to all APIs
 - **Loading State Management** - `$dataLoading` property automatically managed
-- **Error Handling** - Built-in error handling with events
-- **Data Merging** - API response automatically merged into component data
-- **Event Support** - `@data-loaded` and `@data-error` events available
+- **Advanced Error Handling** - Per-API error handling with detailed events
+- **Named Data Storage** - Each API result stored with its defined name
+- **Event Support** - `@data-loaded` and `@data-error` events with detailed info
 
 ### Why These Components Are Revolutionary
 
@@ -821,11 +875,20 @@ export default {
 ### Use Cases
 
 #### Automatic Data Fetching (dataURL)
+
+**Single API Usage:**
 - **🛒 Product Listings** - `dataURL: '/api/products'` automatically loads and populates product data
 - **👤 User Profiles** - `dataURL: '/api/user'` fetches user information with authentication
 - **📊 Dashboard Data** - `dataURL: '/api/dashboard/stats'` loads analytics data
 - **📰 Article Content** - `dataURL: '/api/articles'` populates blog posts or news
 - **🔍 Search Results** - Query parameters automatically sent to search API
+
+**🆕 Multiple API Usage (Revolutionary!):**
+- **📊 Dashboard Pages** - `dataURL: { stats: '/api/stats', users: '/api/users', orders: '/api/orders' }`
+- **🛒 E-commerce Pages** - `dataURL: { products: '/api/products', cart: '/api/cart', wishlist: '/api/wishlist' }`
+- **👥 Social Media** - `dataURL: { posts: '/api/posts', friends: '/api/friends', notifications: '/api/notifications' }`
+- **📱 Admin Panels** - `dataURL: { analytics: '/api/analytics', logs: '/api/logs', settings: '/api/settings' }`
+- **🎯 Landing Pages** - `dataURL: { hero: '/api/hero-content', testimonials: '/api/testimonials', features: '/api/features' }`
 
 #### Dynamic Components
 - **📰 Dynamic Content Management** - Load blog posts, news articles dynamically
@@ -848,6 +911,351 @@ export default {
 | **Cache Integration** | ✅ Automatic | ❌ Manual | ❌ Manual |
 
 These components eliminate the need for complex state management and manual DOM manipulation, making dynamic content loading as simple as using a regular component.
+
+## 📝 Automatic Form Handling with Variable Parameters
+
+ViewLogic Router includes revolutionary automatic form handling that eliminates the need for manual form submission logic. Just define your forms with `action` attributes and the router handles the rest!
+
+### Basic Form Handling
+
+```html
+<!-- src/views/contact.html -->
+<div class="contact-page">
+    <h1>Contact Us</h1>
+    <form action="/api/contact" method="POST">
+        <input type="text" name="name" required placeholder="Your Name">
+        <input type="email" name="email" required placeholder="Your Email">
+        <textarea name="message" required placeholder="Your Message"></textarea>
+        <button type="submit">Send Message</button>
+    </form>
+</div>
+```
+
+```javascript
+// src/logic/contact.js
+export default {
+    name: 'ContactPage',
+    mounted() {
+        // Forms are automatically bound - no additional code needed!
+        // Form submission will automatically POST to /api/contact
+        console.log('Form handling is automatic!');
+    }
+};
+```
+
+### Variable Parameter Forms - 🆕 Revolutionary!
+
+The most powerful feature is **variable parameter support** in action URLs. You can use simple template syntax to inject dynamic values:
+
+```html
+<!-- Dynamic form actions with variable parameters -->
+<form action="/api/users/{userId}/posts" method="POST" 
+      data-success="handlePostSuccess"
+      data-error="handlePostError">
+    <input type="text" name="title" required placeholder="Post Title">
+    <textarea name="content" required placeholder="Post Content"></textarea>
+    <button type="submit">Create Post</button>
+</form>
+
+<!-- Order update with dynamic order ID -->
+<form action="/api/orders/{orderId}/update" method="PUT"
+      data-success="orderUpdated"
+      data-redirect="/orders">
+    <input type="number" name="quantity" required>
+    <select name="status">
+        <option value="pending">Pending</option>
+        <option value="processing">Processing</option>
+        <option value="completed">Completed</option>
+    </select>
+    <button type="submit">Update Order</button>
+</form>
+
+<!-- File upload support -->
+<form action="/api/profile/{userId}/avatar" method="POST" enctype="multipart/form-data"
+      data-success="avatarUploaded">
+    <input type="file" name="avatar" accept="image/*" required>
+    <button type="submit">Upload Avatar</button>
+</form>
+```
+
+```javascript
+// Component logic - parameters are resolved automatically
+export default {
+    name: 'UserProfile',
+    data() {
+        return {
+            userId: 123,    // {userId} will be replaced with this value
+            orderId: 456    // {orderId} will be replaced with this value
+        };
+    },
+    methods: {
+        handlePostSuccess(response) {
+            console.log('Post created successfully!', response);
+        },
+        orderUpdated(response) {
+            console.log('Order updated!', response);
+        }
+    }
+};
+```
+
+### How Parameter Resolution Works
+
+Parameters are resolved automatically from multiple sources in this order:
+
+1. **Route Parameters**: `this.getParam('paramName')` - from URL query parameters
+2. **Component Data**: `this.paramName` - from component's data properties  
+3. **Computed Properties**: `this.paramName` - from component's computed properties
+
+```javascript
+// Component example
+export default {
+    name: 'UserProfile',
+    data() {
+        return {
+            userId: 123,        // Available as {userId} in action URLs
+            productId: 456      // Available as {productId} in action URLs
+        };
+    },
+    computed: {
+        currentOrderId() {   // Available as {currentOrderId} in action URLs
+            return this.getParam('orderId') || this.defaultOrderId;
+        }
+    },
+    mounted() {
+        // Route parameters also work: /user-profile?userId=789
+        // {userId} will use 789 from URL, or fall back to data() value of 123
+    }
+};
+```
+
+### Event Handlers and Callbacks
+
+Define success and error handlers using data attributes:
+
+```html
+<form action="/api/newsletter/subscribe" method="POST"
+      data-success="subscriptionSuccess"
+      data-error="subscriptionError"
+      data-redirect="/thank-you">
+    <input type="email" name="email" required>
+    <button type="submit">Subscribe</button>
+</form>
+```
+
+```javascript
+// src/logic/newsletter.js
+export default {
+    name: 'NewsletterPage',
+    methods: {
+        subscriptionSuccess(response, formData) {
+            console.log('Subscription successful!', response);
+            this.$toast('Thank you for subscribing!', 'success');
+            // Form will automatically redirect to /thank-you
+        },
+        subscriptionError(error, formData) {
+            console.error('Subscription failed:', error);
+            this.$toast('Subscription failed. Please try again.', 'error');
+        }
+    }
+};
+```
+
+### Complete Form Options
+
+```html
+<!-- All available data attributes -->
+<form action="/api/complex/{{getParam('id')}}" method="POST"
+      data-success="handleSuccess"           <!-- Success callback method -->
+      data-error="handleError"               <!-- Error callback method -->
+      data-redirect="/success"               <!-- Auto-redirect on success -->
+      data-confirm="Are you sure?"           <!-- Confirmation dialog -->
+      data-loading="Processing..."           <!-- Loading message -->
+      enctype="multipart/form-data">         <!-- File upload support -->
+    
+    <input type="text" name="title" required>
+    <input type="file" name="attachment" accept=".pdf,.doc">
+    <button type="submit">Submit</button>
+</form>
+```
+
+### Authentication Integration
+
+Forms automatically include authentication tokens when available:
+
+```html
+<!-- Authentication token automatically added for authenticated users -->
+<form action="/api/protected/resource" method="POST">
+    <input type="text" name="data" required>
+    <button type="submit">Save Protected Data</button>
+</form>
+```
+
+```javascript
+// Authentication token automatically included in headers:
+// Authorization: Bearer <user-token>
+// No additional code needed!
+```
+
+### Form Validation
+
+Built-in client-side validation with custom validation support:
+
+```html
+<!-- HTML5 validation attributes work automatically -->
+<form action="/api/user/register" method="POST" data-success="registrationSuccess">
+    <input type="email" name="email" required 
+           pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
+    <input type="password" name="password" required minlength="8">
+    <input type="password" name="confirmPassword" required>
+    <button type="submit">Register</button>
+</form>
+```
+
+### Real-World Examples
+
+#### User Profile Update
+```html
+<!-- User profile with dynamic user ID -->
+<form action="/api/users/{userId}" method="PUT" 
+      data-success="profileUpdated"
+      data-redirect="/profile?updated=true">
+    <input type="text" name="firstName" :value="user.firstName">
+    <input type="text" name="lastName" :value="user.lastName">
+    <input type="email" name="email" :value="user.email">
+    <button type="submit">Update Profile</button>
+</form>
+```
+
+#### E-commerce Order Management
+```html
+<!-- Order status update with order ID from route -->
+<form action="/api/orders/{orderId}/status" method="PUT"
+      data-success="orderStatusUpdated">
+    <select name="status" required>
+        <option value="pending">Pending</option>
+        <option value="shipped">Shipped</option>
+        <option value="delivered">Delivered</option>
+    </select>
+    <textarea name="notes" placeholder="Optional notes"></textarea>
+    <button type="submit">Update Status</button>
+</form>
+```
+
+#### Blog Post Creation
+```html
+<!-- Create post for specific category -->
+<form action="/api/categories/{categoryId}/posts" method="POST"
+      data-success="postCreated"
+      data-redirect="/posts">
+    <input type="text" name="title" required>
+    <textarea name="content" required></textarea>
+    <input type="file" name="featured_image" accept="image/*">
+    <button type="submit">Create Post</button>
+</form>
+```
+
+### Advantages Over Traditional Form Handling
+
+| Feature | Traditional Vue/React | ViewLogic Router |
+|---------|----------------------|------------------|
+| **Setup Required** | Manual event handlers + API calls | ✅ Zero setup - just add `action` |
+| **Variable Parameters** | Manual string interpolation | ✅ Template syntax with function evaluation |
+| **Authentication** | Manual token handling | ✅ Automatic token injection |
+| **File Uploads** | Complex FormData handling | ✅ Automatic multipart support |
+| **Loading States** | Manual loading management | ✅ Automatic loading indicators |
+| **Error Handling** | Custom error logic | ✅ Built-in error callbacks |
+| **Validation** | External validation libraries | ✅ HTML5 + custom validation |
+| **Redirect Logic** | Manual navigation code | ✅ `data-redirect` attribute |
+
+### Why This Is Revolutionary
+
+#### Traditional Form Handling (Complex & Verbose)
+```javascript
+// Traditional way - lots of boilerplate code
+export default {
+    data() {
+        return {
+            form: { name: '', email: '', message: '' },
+            loading: false,
+            error: null
+        };
+    },
+    methods: {
+        async submitForm() {
+            this.loading = true;
+            this.error = null;
+            
+            try {
+                const token = this.$store.getters.authToken;
+                const response = await fetch('/api/contact', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(this.form)
+                });
+                
+                if (!response.ok) throw new Error('Submit failed');
+                
+                const result = await response.json();
+                this.$toast('Message sent successfully!');
+                this.$router.push('/thank-you');
+                
+            } catch (error) {
+                this.error = error.message;
+                console.error('Form submission failed:', error);
+            } finally {
+                this.loading = false;
+            }
+        }
+    }
+};
+```
+
+#### ViewLogic Router Way (Revolutionary Simplicity)
+```html
+<!-- Just add action attribute - everything else is automatic! -->
+<form action="/api/contact" method="POST" 
+      data-success="handleSuccess" 
+      data-redirect="/thank-you">
+    <input type="text" name="name" required>
+    <input type="email" name="email" required>
+    <textarea name="message" required></textarea>
+    <button type="submit">Send Message</button>
+</form>
+
+<!-- Variable parameters work seamlessly -->
+<form action="/api/users/{userId}/posts" method="POST" 
+      data-success="postCreated">
+    <input type="text" name="title" required>
+    <textarea name="content" required></textarea>
+    <button type="submit">Create Post</button>
+</form>
+```
+
+```javascript
+// Minimal code needed
+export default {
+    data() {
+        return {
+            userId: 123  // {userId} automatically resolved
+        };
+    },
+    methods: {
+        handleSuccess(response) {
+            this.$toast('Message sent successfully!');
+            // Automatic redirect to /thank-you
+        },
+        postCreated(response) {
+            this.$toast('Post created successfully!');
+        }
+    }
+};
+```
+
+This automatic form handling system eliminates hundreds of lines of boilerplate code while providing more features and better security than traditional approaches.
 
 ## 🔗 Revolutionary Query-Only Parameter System
 

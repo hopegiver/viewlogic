@@ -218,8 +218,18 @@ export class RouteLoader {
                     await script.mounted.call(this);
                 }
                 if (script.dataURL) {
-                    await this.$fetchData();
+                    if (typeof script.dataURL === 'string') {
+                        // 기존 단일 API 방식 (하위 호환성)
+                        await this.$fetchData();
+                    } else if (typeof script.dataURL === 'object') {
+                        // 새로운 다중 API 방식
+                        await this.$fetchMultipleData();
+                    }
                 }
+                
+                // 🆕 자동 폼 바인딩
+                await this.$nextTick(); // DOM이 완전히 렌더링된 후
+                this.$bindAutoForms();
             },
             methods: {
                 ...script.methods,
@@ -245,22 +255,331 @@ export class RouteLoader {
                 $getAuthCookie: () => router.authManager?.getAuthCookie() || null,
                 $getCookie: (name) => router.authManager?.getCookieValue(name) || null,
                 
-                // 데이터 fetch
-                async $fetchData() {
+                // 데이터 fetch (단일 API 또는 특정 API)
+                async $fetchData(apiName) {
                     if (!script.dataURL) return;
                     
                     this.$dataLoading = true;
                     try {
-                        const data = await router.routeLoader.fetchComponentData(script.dataURL);
-                        if (router.errorHandler) router.errorHandler.debug('RouteLoader', `Data fetched for ${routeName}:`, data);
-                        Object.assign(this, data);
-                        this.$emit('data-loaded', data);
+                        if (typeof script.dataURL === 'string') {
+                            // 기존 단일 API 방식
+                            const data = await router.routeLoader.fetchComponentData(script.dataURL);
+                            if (router.errorHandler) router.errorHandler.debug('RouteLoader', `Data fetched for ${routeName}:`, data);
+                            Object.assign(this, data);
+                            this.$emit('data-loaded', data);
+                        } else if (typeof script.dataURL === 'object' && apiName) {
+                            // 특정 API만 새로고침
+                            const url = script.dataURL[apiName];
+                            if (url) {
+                                const data = await router.routeLoader.fetchComponentData(url);
+                                if (router.errorHandler) router.errorHandler.debug('RouteLoader', `Data fetched for ${routeName}.${apiName}:`, data);
+                                this[apiName] = data;
+                                this.$emit('data-loaded', { [apiName]: data });
+                            }
+                        } else {
+                            // 다중 API - 전체 새로고침
+                            await this.$fetchMultipleData();
+                        }
                     } catch (error) {
                         if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Failed to fetch data for ${routeName}:`, error);
                         this.$emit('data-error', error);
                     } finally {
                         this.$dataLoading = false;
                     }
+                },
+
+                // 다중 API 데이터 fetch
+                async $fetchMultipleData() {
+                    if (!script.dataURL || typeof script.dataURL !== 'object') return;
+                    
+                    const dataURLs = script.dataURL;
+                    this.$dataLoading = true;
+                    
+                    try {
+                        // 병렬로 모든 API 호출
+                        const promises = Object.entries(dataURLs).map(async ([key, url]) => {
+                            try {
+                                const data = await router.routeLoader.fetchComponentData(url);
+                                return { key, data, success: true };
+                            } catch (error) {
+                                if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Failed to fetch ${key} for ${routeName}:`, error);
+                                return { key, error, success: false };
+                            }
+                        });
+                        
+                        const results = await Promise.all(promises);
+                        const successfulResults = {};
+                        const errors = {};
+                        
+                        // 결과 처리
+                        results.forEach(({ key, data, error, success }) => {
+                            if (success) {
+                                this[key] = data;
+                                successfulResults[key] = data;
+                            } else {
+                                errors[key] = error;
+                            }
+                        });
+                        
+                        if (router.errorHandler) router.errorHandler.debug('RouteLoader', `Multiple data fetched for ${routeName}:`, successfulResults);
+                        
+                        // 이벤트 발생
+                        if (Object.keys(successfulResults).length > 0) {
+                            this.$emit('data-loaded', successfulResults);
+                        }
+                        if (Object.keys(errors).length > 0) {
+                            this.$emit('data-error', errors);
+                        }
+                        
+                    } catch (error) {
+                        if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Failed to fetch multiple data for ${routeName}:`, error);
+                        this.$emit('data-error', error);
+                    } finally {
+                        this.$dataLoading = false;
+                    }
+                },
+
+                // 전체 데이터 새로고침 (명시적 메서드)
+                async $fetchAllData() {
+                    if (typeof script.dataURL === 'string') {
+                        await this.$fetchData();
+                    } else if (typeof script.dataURL === 'object') {
+                        await this.$fetchMultipleData();
+                    }
+                },
+
+                // 🆕 자동 폼 바인딩 메서드
+                $bindAutoForms() {
+                    const forms = document.querySelectorAll('form.auto-form, form[action]');
+                    
+                    forms.forEach(form => {
+                        // 기존 이벤트 리스너 제거 (중복 방지)
+                        form.removeEventListener('submit', form._boundSubmitHandler);
+                        
+                        // 새 이벤트 리스너 추가
+                        const boundHandler = (e) => this.$handleFormSubmit(e);
+                        form._boundSubmitHandler = boundHandler;
+                        form.addEventListener('submit', boundHandler);
+                        
+                        if (router.errorHandler) router.errorHandler.debug('RouteLoader', `Form auto-bound: ${form.getAttribute('action')}`);
+                    });
+                },
+
+                // 🆕 폼 서브밋 핸들러
+                async $handleFormSubmit(event) {
+                    event.preventDefault();
+                    
+                    const form = event.target;
+                    let action = form.getAttribute('action');
+                    const method = form.getAttribute('method') || 'POST';
+                    
+                    // 핸들러 함수들 가져오기
+                    const successHandler = form.getAttribute('data-success-handler');
+                    const errorHandler = form.getAttribute('data-error-handler');  
+                    const loadingHandler = form.getAttribute('data-loading-handler');
+                    const redirectTo = form.getAttribute('data-redirect');
+
+                    try {
+                        // 로딩 시작
+                        if (loadingHandler && this[loadingHandler]) {
+                            this[loadingHandler](true, form);
+                        }
+
+                        // 🆕 액션 URL에 가변 파라미터 처리 (간단한 템플릿 치환)
+                        action = this.$processActionParams(action);
+
+                        // 클라이언트 사이드 검증
+                        if (!this.$validateForm(form)) {
+                            return;
+                        }
+
+                        // FormData 생성
+                        const formData = new FormData(form);
+                        const data = Object.fromEntries(formData.entries());
+
+                        if (router.errorHandler) router.errorHandler.debug('RouteLoader', `Form submitting to: ${action}`, data);
+
+                        // API 호출
+                        const response = await this.$submitFormData(action, method, data, form);
+                        
+                        // 성공 핸들러 호출
+                        if (successHandler && this[successHandler]) {
+                            this[successHandler](response, form);
+                        }
+
+                        // 자동 리다이렉트
+                        if (redirectTo) {
+                            setTimeout(() => {
+                                this.navigateTo(redirectTo);
+                            }, 1000); // 1초 후 리다이렉트
+                        }
+
+                    } catch (error) {
+                        if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Form submission error:`, error);
+                        
+                        // 에러 핸들러 호출
+                        if (errorHandler && this[errorHandler]) {
+                            this[errorHandler](error, form);
+                        } else {
+                            console.error('Form submission error:', error);
+                        }
+                    } finally {
+                        // 로딩 종료
+                        if (loadingHandler && this[loadingHandler]) {
+                            this[loadingHandler](false, form);
+                        }
+                    }
+                },
+
+                // 🆕 액션 파라미터 처리 메서드 (간단한 템플릿 치환)
+                $processActionParams(actionTemplate) {
+                    let processedAction = actionTemplate;
+                    
+                    // {paramName} 패턴 찾기
+                    const paramMatches = actionTemplate.match(/\{([^}]+)\}/g);
+                    
+                    if (paramMatches) {
+                        paramMatches.forEach(match => {
+                            const paramName = match.slice(1, -1); // {id} -> id
+                            
+                            try {
+                                // 컴포넌트의 data나 computed, methods에서 값 찾기
+                                let paramValue = null;
+                                
+                                // 1. 먼저 getParam으로 라우트 파라미터에서 찾기
+                                paramValue = this.getParam(paramName);
+                                
+                                // 2. 컴포넌트 data에서 찾기
+                                if (paramValue === null || paramValue === undefined) {
+                                    paramValue = this[paramName];
+                                }
+                                
+                                // 3. computed 속성에서 찾기
+                                if (paramValue === null || paramValue === undefined) {
+                                    if (this.$options.computed && this.$options.computed[paramName]) {
+                                        paramValue = this[paramName];
+                                    }
+                                }
+                                
+                                if (paramValue !== null && paramValue !== undefined) {
+                                    // 템플릿 대체: {id} -> 실제값
+                                    processedAction = processedAction.replace(
+                                        match, 
+                                        encodeURIComponent(paramValue)
+                                    );
+                                    
+                                    if (router.errorHandler) router.errorHandler.debug('RouteLoader', `Parameter resolved: ${paramName} = ${paramValue}`);
+                                } else {
+                                    if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Parameter '${paramName}' not found in component data, computed, or route params`);
+                                    // 파라미터를 찾을 수 없으면 원본 그대로 유지
+                                }
+                            } catch (error) {
+                                if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Error processing parameter '${paramName}':`, error);
+                                // 에러가 발생해도 원본 그대로 유지
+                            }
+                        });
+                    }
+                    
+                    return processedAction;
+                },
+
+
+                // 🆕 폼 데이터 서브밋
+                async $submitFormData(action, method, data, form) {
+                    // 파일 업로드 체크
+                    const hasFile = Array.from(form.elements).some(el => el.type === 'file' && el.files.length > 0);
+                    
+                    const headers = {
+                        'Accept': 'application/json',
+                        // 인증 토큰 자동 추가
+                        ...(this.$getToken() && {
+                            'Authorization': `Bearer ${this.$getToken()}`
+                        })
+                    };
+
+                    let body;
+                    if (hasFile) {
+                        // 파일이 있으면 FormData 그대로 전송
+                        body = new FormData(form);
+                        // Content-Type을 설정하지 않음 (브라우저가 자동으로 multipart/form-data로 설정)
+                    } else {
+                        // JSON으로 전송
+                        headers['Content-Type'] = 'application/json';
+                        body = JSON.stringify(data);
+                    }
+
+                    const response = await fetch(action, {
+                        method: method.toUpperCase(),
+                        headers,
+                        body
+                    });
+
+                    if (!response.ok) {
+                        let error;
+                        try {
+                            error = await response.json();
+                        } catch (e) {
+                            error = { message: `HTTP ${response.status}: ${response.statusText}` };
+                        }
+                        throw new Error(error.message || `HTTP ${response.status}`);
+                    }
+
+                    try {
+                        return await response.json();
+                    } catch (e) {
+                        // 응답이 JSON이 아닌 경우 (예: 204 No Content)
+                        return { success: true };
+                    }
+                },
+
+                // 🆕 클라이언트 사이드 폼 검증
+                $validateForm(form) {
+                    let isValid = true;
+                    const inputs = form.querySelectorAll('input, textarea, select');
+
+                    inputs.forEach(input => {
+                        // 기본 HTML5 검증
+                        if (!input.checkValidity()) {
+                            isValid = false;
+                            input.classList.add('error');
+                            return;
+                        }
+
+                        // 커스텀 검증 함수 확인
+                        const validationFunction = input.getAttribute('data-validation');
+                        if (validationFunction) {
+                            const isInputValid = this.$validateInput(input, validationFunction);
+                            if (!isInputValid) {
+                                isValid = false;
+                                input.classList.add('error');
+                            } else {
+                                input.classList.remove('error');
+                            }
+                        } else {
+                            input.classList.remove('error');
+                        }
+                    });
+
+                    return isValid;
+                },
+
+                // 🆕 개별 입력 검증
+                $validateInput(input, validationFunction) {
+                    const value = input.value;
+                    
+                    // 커스텀 검증 함수 호출
+                    if (typeof this[validationFunction] === 'function') {
+                        try {
+                            return this[validationFunction](value, input);
+                        } catch (error) {
+                            if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Validation function '${validationFunction}' error:`, error);
+                            return false;
+                        }
+                    }
+                    
+                    // 함수가 없으면 true 반환
+                    if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Validation function '${validationFunction}' not found`);
+                    return true;
                 }
             },
             _routeName: routeName
