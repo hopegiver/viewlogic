@@ -1760,14 +1760,13 @@ ${template}`;
           const successHandler = form.getAttribute("data-success-handler");
           const errorHandler = form.getAttribute("data-error-handler");
           const loadingHandler = form.getAttribute("data-loading-handler");
-          const shouldValidate = form.getAttribute("data-validate") === "true";
           const redirectTo = form.getAttribute("data-redirect");
           try {
             if (loadingHandler && this[loadingHandler]) {
               this[loadingHandler](true, form);
             }
             action = this.$processActionParams(action);
-            if (shouldValidate && !this.$validateForm(form)) {
+            if (!this.$validateForm(form)) {
               return;
             }
             const formData = new FormData(form);
@@ -1876,9 +1875,9 @@ ${template}`;
               input.classList.add("error");
               return;
             }
-            const validation = input.getAttribute("data-validation");
-            if (validation) {
-              const isInputValid = this.$validateInput(input, validation);
+            const validationFunction = input.getAttribute("data-validation");
+            if (validationFunction) {
+              const isInputValid = this.$validateInput(input, validationFunction);
               if (!isInputValid) {
                 isValid = false;
                 input.classList.add("error");
@@ -1892,22 +1891,18 @@ ${template}`;
           return isValid;
         },
         // 🆕 개별 입력 검증
-        $validateInput(input, validationRule) {
+        $validateInput(input, validationFunction) {
           const value = input.value;
-          const [rule, param] = validationRule.split(":");
-          switch (rule) {
-            case "minLength":
-              return value.length >= parseInt(param);
-            case "maxLength":
-              return value.length <= parseInt(param);
-            case "pattern":
-              return new RegExp(param).test(value);
-            case "confirm":
-              const confirmInput = document.querySelector(`[name="${param}"]`);
-              return confirmInput && value === confirmInput.value;
-            default:
-              return true;
+          if (typeof this[validationFunction] === "function") {
+            try {
+              return this[validationFunction](value, input);
+            } catch (error) {
+              if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Validation function '${validationFunction}' error:`, error);
+              return false;
+            }
           }
+          if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Validation function '${validationFunction}' not found`);
+          return true;
         }
       },
       _routeName: routeName

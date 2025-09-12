@@ -257,296 +257,86 @@ const config = {
 };
 ```
 
-## 📖 API Reference
+## 📖 Complete API Documentation
 
-### Router Instance Methods
+For comprehensive API documentation including all methods, configuration options, and detailed examples, see:
 
-```javascript
-// Navigation
-router.navigateTo('routeName', { param: 'value' });
-router.navigateTo({ route: 'products', params: { id: 123 } });
+**📚 [Complete API Reference →](./docs/index.md)**
 
-// Get current route
-const currentRoute = router.getCurrentRoute();
-
-// Unified parameter system - all parameters are query-based
-router.queryManager.setQueryParams({ id: 123, category: 'electronics' });
-const params = router.queryManager.getParams(); // Gets all parameters
-const userId = router.queryManager.getParam('id', 1); // Get specific parameter with default
-router.queryManager.removeQueryParams(['category']);
-
-// Authentication (if enabled)
-router.authManager.login(token);
-router.authManager.logout();
-const isAuth = router.authManager.isAuthenticated();
-
-// Internationalization (if enabled)
-router.i18nManager.setLanguage('en');
-const t = router.i18nManager.translate('welcome.message');
-
-// Cache management
-router.cacheManager.clearAll();
-
-// Cleanup
-router.destroy();
-```
-
-### Global Functions Available in Route Components
-
-Every route component automatically has access to these global functions:
+### Quick API Overview
 
 ```javascript
+// Basic router usage
+const router = new ViewLogicRouter({ environment: 'development' });
+router.navigateTo('products', { id: 123, category: 'electronics' });
+const current = router.getCurrentRoute();
+
+// In route components - global methods automatically available:
 export default {
-    name: 'MyComponent',
-    data() {
-        return {
-            products: []
-        };
-    },
-    async mounted() {
-        // Get all parameters (both route and query parameters)
-        const allParams = this.getParams();
-        
-        // Get specific parameter with default value
-        const categoryId = this.getParam('categoryId', 1);
-        const sortBy = this.getParam('sort', 'name');
-        
-        // Navigation
-        this.navigateTo('product-detail', { id: 123 });
-        
-        // Check authentication
-        if (this.$isAuthenticated()) {
-            // User is logged in
-        }
-        
-        // Internationalization
-        const title = this.$t('product.title');
-        
-        // Data automatically fetched if dataURL is defined in component
-        // Single API: this.products available
-        // Multiple APIs: this.products, this.categories, this.stats, etc. available
-        console.log('Auto-loaded data:', this.products); // From dataURL
-    },
-    methods: {
-        handleProductClick(productId) {
-            // Navigate with parameters
-            this.navigateTo('product-detail', { 
-                id: productId,
-                category: this.getParam('category')
-            });
-        },
-        
-        handleLogout() {
-            this.$logout(); // Will navigate to login page
-        },
-        
-        async loadUserData() {
-            // Get authentication token
-            const token = this.$getToken();
-            if (token) {
-                // Make authenticated API call
-                const response = await fetch('/api/user', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-            }
-        },
-        
-        changeLanguage() {
-            // Change language and get translated text
-            const greeting = this.$t('common.greeting');
-        }
-    }
-};
-```
-
-### Complete Global Functions List
-
-#### Navigation Functions
-- `navigateTo(route, params)` - Navigate to a route with parameters
-- `getCurrentRoute()` - Get current route name
-
-#### Parameter Management
-- `getParams()` - Get all parameters (route + query)
-- `getParam(key, defaultValue)` - Get specific parameter with default
-
-#### Authentication Functions
-- `$isAuthenticated()` - Check if user is authenticated
-- `$logout()` - Logout and navigate to login page
-- `$loginSuccess(target)` - Handle successful login navigation
-- `$checkAuth(route)` - Check authentication for a route
-- `$getToken()` - Get access token
-- `$setToken(token, options)` - Set access token
-- `$removeToken(storage)` - Remove access token
-- `$getAuthCookie()` - Get authentication cookie
-- `$getCookie(name)` - Get specific cookie value
-
-#### Internationalization Functions
-- `$t(key, params)` - Translate text with optional parameters
-
-#### Data Management Functions  
-- `$fetchData()` - Fetch data from single dataURL or all multiple dataURLs
-- `$fetchData('apiName')` - Fetch data from specific named API (multiple dataURL mode)
-- `$fetchAllData()` - Explicitly fetch all APIs (works for both single and multiple dataURL)
-- `$fetchMultipleData()` - Internal method for multiple API handling
-
-### Component Data Properties
-
-Every route component also has access to these reactive data properties:
-
-```javascript
-data() {
-    return {
-        // Your custom data
-        products: [],
-        
-        // Automatically available properties
-        currentRoute: 'home',           // Current route name
-        $query: {},                     // Current query parameters
-        $lang: 'ko',                   // Current language
-        $dataLoading: false            // Data loading state
-    };
-}
-```
-
-### Global Access
-
-After initialization, the router is available globally:
-
-```javascript
-// UMD build automatically sets window.router
-window.router.navigateTo('about');
-
-// Also available as
-window.createRouter(config);
-window.ViewLogicRouter(config);
-```
-
-## 🎯 View-Logic Separation Example
-
-### Development Mode (Separated Files)
-
-#### View File (src/views/products/list.html)
-```html
-<div class="products-page">
-    <h1>{{ title }}</h1>
-    <div class="product-grid">
-        <div v-for="product in products" :key="product.id" class="product-card">
-            <img :src="product.image" :alt="product.name">
-            <h3>{{ product.name }}</h3>
-            <p class="price">{{ formatPrice(product.price) }}</p>
-            <button @click="viewDetail(product.id)">View Detail</button>
-        </div>
-    </div>
-</div>
-```
-
-#### Logic File (src/logic/products/list.js)
-```javascript
-export default {
-    name: 'ProductsList',
-    dataURL: '/api/products',  // ✨ Auto-fetch magic!
-    data() {
-        return {
-            title: 'Our Products'
-            // products: [] - No need! Auto-populated from dataURL
-        };
-    },
+    dataURL: '/api/products', // Auto-fetch data
     mounted() {
-        // Products already loaded from dataURL!
-        console.log('Products loaded:', this.products);
-        console.log('Loading state:', this.$dataLoading);
+        const id = this.getParam('id');           // Get parameter
+        this.navigateTo('detail', { id });        // Navigate
+        console.log('Data loaded:', this.products); // From dataURL
+        if (this.$isAuthenticated()) { /* auth check */ }
+        const text = this.$t('welcome.message');   // i18n
+    }
+};
+```
+
+### Key Global Methods (Auto-available in all route components)
+- **Navigation**: `navigateTo()`, `getCurrentRoute()`
+- **Parameters**: `getParams()`, `getParam(key, defaultValue)`
+- **Data Fetching**: `$fetchData()`, `$fetchAllData()` (with dataURL)
+- **Authentication**: `$isAuthenticated()`, `$getToken()`, `$logout()`
+- **Forms**: Auto-binding with `action` attribute and `{param}` templates
+- **i18n**: `$t(key, params)` for translations
+
+### Auto-Injected Properties
+```javascript
+// Automatically available in every route component:
+// currentRoute, $query, $lang, $dataLoading
+```
+
+## 🎯 View-Logic Separation
+
+ViewLogic Router separates concerns into distinct files:
+
+### Development Structure
+- **View**: `src/views/products.html` - HTML template
+- **Logic**: `src/logic/products.js` - Vue component logic  
+- **Style**: `src/styles/products.css` - Component styles
+
+### Example Component
+```javascript
+// src/logic/products.js
+export default {
+    name: 'ProductsList',
+    dataURL: '/api/products',  // Auto-fetch data
+    data() {
+        return { title: 'Our Products' };
     },
     methods: {
-        formatPrice(price) {
-            return new Intl.NumberFormat('ko-KR', {
-                style: 'currency',
-                currency: 'KRW'
-            }).format(price);
-        },
         viewDetail(id) {
-            this.navigateTo('products/detail', { id });
-        },
-        async refreshProducts() {
-            // Manual refresh if needed
-            await this.$fetchData();
+            this.navigateTo('product-detail', { id });
         }
     }
 };
 ```
 
-#### Style File (src/styles/products/list.css)
-```css
-.products-page {
-    padding: 20px;
-}
+### Production Build
+All files automatically combine into optimized bundles in `routes/` folder.
 
-.product-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
-}
+## 🔄 Development vs Production
 
-.product-card {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 15px;
-    transition: transform 0.2s;
-}
-
-.product-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.price {
-    font-weight: bold;
-    color: #2196F3;
-}
-```
-
-### Production Mode (Built Bundle)
-
-After build, these files are automatically combined into a single optimized bundle:
+| Mode | Files | Requests | Best For |
+|------|-------|----------|----------|
+| **Development** | Separate files | 4 per route | Real-time development |
+| **Production** | Single bundle | 1 per route | Performance & deployment |
 
 ```javascript
-// routes/products/list.js (Auto-generated)
-export default {
-    name: 'ProductsList',
-    template: `<div class="products-page">...`, // View injected
-    _style: `.products-page { ... }`,            // Style injected
-    // ... logic code
-}
-```
-
-## 🔄 Development vs Production Mode
-
-### Development Mode Benefits
-- **No Build Required**: Edit files and refresh browser to see changes
-- **Clear Separation**: View, Logic, and Style in separate files for better organization
-- **Easy Debugging**: Source maps and unminified code
-- **Real-time Updates**: Changes reflect immediately without compilation
-- **⚠️ Performance Trade-off**: Multiple file requests per route (view.html + logic.js + style.css + layout.html)
-
-### Production Mode Benefits
-- **Optimized Bundles**: Each route is a single, minified JavaScript file
-- **⚡ Superior Performance**: Single file request per route (all assets pre-bundled)
-- **Faster Loading**: Pre-built bundles eliminate compilation overhead
-- **Reduced Requests**: Combined view + logic + style in one file
-- **CDN Ready**: Individual route files can be cached and served from CDN
-- **Minimal Bundle Size**: Each route file contains only what's needed for that specific route
-
-### Automatic Environment Detection
-
-```javascript
-// Development Mode (loads from src/)
-ViewLogicRouter({ 
-    environment: 'development',
-});
-
-// Production Mode (loads from dist/routes/)
-ViewLogicRouter({ 
-    environment: 'production',
-});
+// Set environment mode
+ViewLogicRouter({ environment: 'development' }); // or 'production'
 ```
 
 ## 🪶 Ultra-Lightweight Bundle
@@ -771,117 +561,22 @@ export default {
 
 ### Why These Components Are Revolutionary
 
-#### Traditional Approach Problems
-```javascript
-// Traditional Vue way - complex and verbose for API calls
-export default {
-    data() {
-        return {
-            products: [],
-            loading: false,
-            error: null
-        };
-    },
-    async mounted() {
-        await this.loadProducts();
-    },
-    methods: {
-        async loadProducts() {
-            this.loading = true;
-            this.error = null;
-            try {
-                const response = await fetch('/api/products');
-                if (!response.ok) throw new Error('Failed to fetch');
-                const data = await response.json();
-                this.products = data.products || data;
-                // Manual error handling, loading states, etc.
-            } catch (error) {
-                this.error = error.message;
-                console.error('Failed to load products:', error);
-            } finally {
-                this.loading = false;
-            }
-        }
-    }
-}
+**Traditional Approach**: 30+ lines of loading states, error handling, and manual API calls.
 
-// For dynamic content loading - even more complex
-async loadDynamicContent() {
-    this.loading = true;
-    try {
-        const response = await fetch(`/api/content/${this.contentId}`);
-        const data = await response.json();
-        this.content = data.html;
-        this.$nextTick(() => {
-            // Manual DOM manipulation needed
-            this.bindEvents();
-        });
-    } catch (error) {
-        this.error = error;
-    } finally {
-        this.loading = false;
-    }
-}
-```
+**ViewLogic Approach**: `dataURL: '/api/products'` - That's it! Data automatically fetched and available as `this.products`.
 
-#### ViewLogic Router Way - Revolutionary Simplicity
-```javascript
-// Automatic API fetching - just define dataURL!
-export default {
-    dataURL: '/api/products',  // ✨ That's it! 
-    data() {
-        return {
-            title: 'Our Products'
-            // No need for products:[], loading:false, error:null
-        };
-    },
-    mounted() {
-        // Data already fetched and available
-        console.log('Products:', this.products);
-        console.log('Loading:', this.$dataLoading);
-    }
-}
-```
+### Common Use Cases
+- **Single API**: `dataURL: '/api/products'` - Product listings, user profiles, articles
+- **Multiple APIs**: `dataURL: { stats: '/api/stats', users: '/api/users' }` - Dashboards, admin panels
+- **Dynamic Content**: `<DynamicInclude page="login" :params="{ theme: 'compact' }" />`
+- **HTML Includes**: `<HtmlInclude src="/widgets/weather.html" :sanitize="true" />`
 
-### Use Cases
-
-#### Automatic Data Fetching (dataURL)
-
-**Single API Usage:**
-- **🛒 Product Listings** - `dataURL: '/api/products'` automatically loads and populates product data
-- **👤 User Profiles** - `dataURL: '/api/user'` fetches user information with authentication
-- **📊 Dashboard Data** - `dataURL: '/api/dashboard/stats'` loads analytics data
-- **📰 Article Content** - `dataURL: '/api/articles'` populates blog posts or news
-- **🔍 Search Results** - Query parameters automatically sent to search API
-
-**🆕 Multiple API Usage (Revolutionary!):**
-- **📊 Dashboard Pages** - `dataURL: { stats: '/api/stats', users: '/api/users', orders: '/api/orders' }`
-- **🛒 E-commerce Pages** - `dataURL: { products: '/api/products', cart: '/api/cart', wishlist: '/api/wishlist' }`
-- **👥 Social Media** - `dataURL: { posts: '/api/posts', friends: '/api/friends', notifications: '/api/notifications' }`
-- **📱 Admin Panels** - `dataURL: { analytics: '/api/analytics', logs: '/api/logs', settings: '/api/settings' }`
-- **🎯 Landing Pages** - `dataURL: { hero: '/api/hero-content', testimonials: '/api/testimonials', features: '/api/features' }`
-
-#### Dynamic Components
-- **📰 Dynamic Content Management** - Load blog posts, news articles dynamically
-- **🛒 Product Details** - Fetch product information on-demand
-- **📊 Dashboard Widgets** - Load dashboard components from APIs
-- **📝 Form Builders** - Dynamic form generation from configuration
-- **🎨 Template Systems** - CMS-driven content rendering
-- **📱 Micro-frontends** - Load remote components seamlessly
-
-### Advantages Over Other Solutions
-| Feature | ViewLogic Router | React Suspense | Vue Async Components |
-|---------|------------------|----------------|----------------------|
-| **Auto Data Fetching** | ✅ `dataURL` property | ❌ Manual fetch logic | ❌ Manual fetch logic |
-| **Query Parameter Integration** | ✅ Automatic API params | ❌ Manual URL building | ❌ Manual URL building |
-| **Dynamic URLs** | ✅ Built-in | ❌ Manual implementation | ❌ Manual implementation |
-| **Parameter Injection** | ✅ Automatic | ❌ Manual | ❌ Manual |
-| **Loading State Management** | ✅ `$dataLoading` auto-managed | ✅ Suspense | ❌ Manual state |
-| **Error Boundaries** | ✅ Built-in slots + events | ✅ ErrorBoundary | ❌ Manual |
-| **HTML Sanitization** | ✅ Built-in | ❌ External library | ❌ External library |
-| **Cache Integration** | ✅ Automatic | ❌ Manual | ❌ Manual |
-
-These components eliminate the need for complex state management and manual DOM manipulation, making dynamic content loading as simple as using a regular component.
+### Advantages
+- ✅ **Auto Data Fetching** with `dataURL` property (others: manual logic)
+- ✅ **Parameter Integration** - Query params sent automatically
+- ✅ **Loading States** - `$dataLoading` auto-managed
+- ✅ **Built-in Security** - HTML sanitization included
+- ✅ **Zero Setup** - Works immediately without configuration
 
 ## 📝 Automatic Form Handling with Variable Parameters
 
@@ -1000,176 +695,84 @@ export default {
 };
 ```
 
-### Event Handlers and Callbacks
-
-Define success and error handlers using data attributes:
-
+### Event Handlers
 ```html
-<form action="/api/newsletter/subscribe" method="POST"
-      data-success="subscriptionSuccess"
-      data-error="subscriptionError"
-      data-redirect="/thank-you">
+<form action="/api/subscribe" method="POST"
+      data-success="subscriptionSuccess" data-error="subscriptionError">
     <input type="email" name="email" required>
     <button type="submit">Subscribe</button>
 </form>
 ```
-
 ```javascript
-// src/logic/newsletter.js
 export default {
-    name: 'NewsletterPage',
     methods: {
-        subscriptionSuccess(response, formData) {
-            console.log('Subscription successful!', response);
-            this.$toast('Thank you for subscribing!', 'success');
-            // Form will automatically redirect to /thank-you
-        },
-        subscriptionError(error, formData) {
-            console.error('Subscription failed:', error);
-            this.$toast('Subscription failed. Please try again.', 'error');
-        }
+        subscriptionSuccess(response) { this.$toast('Success!', 'success'); },
+        subscriptionError(error) { this.$toast('Failed!', 'error'); }
     }
 };
 ```
 
-### Complete Form Options
-
+### Form Options
 ```html
-<!-- All available data attributes -->
-<form action="/api/complex/{{getParam('id')}}" method="POST"
-      data-success="handleSuccess"           <!-- Success callback method -->
-      data-error="handleError"               <!-- Error callback method -->
-      data-redirect="/success"               <!-- Auto-redirect on success -->
-      data-confirm="Are you sure?"           <!-- Confirmation dialog -->
-      data-loading="Processing..."           <!-- Loading message -->
-      enctype="multipart/form-data">         <!-- File upload support -->
-    
-    <input type="text" name="title" required>
-    <input type="file" name="attachment" accept=".pdf,.doc">
+<form action="/api/resource/{id}" method="POST"
+      data-success="handleSuccess"    data-error="handleError"
+      data-redirect="/success"        data-confirm="Sure?"
+      enctype="multipart/form-data">
+    <input name="title" required>
+    <input type="file" name="file" accept=".pdf">
     <button type="submit">Submit</button>
 </form>
 ```
 
 ### Authentication Integration
-
-Forms automatically include authentication tokens when available:
-
 ```html
-<!-- Authentication token automatically added for authenticated users -->
+<!-- Auth tokens automatically included for authenticated users -->
 <form action="/api/protected/resource" method="POST">
-    <input type="text" name="data" required>
-    <button type="submit">Save Protected Data</button>
+    <input name="data" required>
+    <button type="submit">Save</button>
 </form>
-```
-
-```javascript
-// Authentication token automatically included in headers:
-// Authorization: Bearer <user-token>
-// No additional code needed!
+<!-- Authorization: Bearer <token> header added automatically -->
 ```
 
 ### Form Validation
-
-Built-in client-side validation with custom validation support:
-
 ```html
-<!-- HTML5 validation attributes work automatically -->
-<form action="/api/user/register" method="POST" data-success="registrationSuccess">
-    <input type="email" name="email" required 
-           pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$">
-    <input type="password" name="password" required minlength="8">
-    <input type="password" name="confirmPassword" required>
+<!-- HTML5 + custom validation -->
+<form action="/api/register" method="POST">
+    <input type="email" name="email" required pattern="...">
+    <input type="password" name="password" minlength="8" required>
     <button type="submit">Register</button>
 </form>
 ```
 
-### Real-World Examples
-
-#### User Profile Update
+### Real-World Form Examples
 ```html
-<!-- User profile with dynamic user ID -->
-<form action="/api/users/{userId}" method="PUT" 
-      data-success="profileUpdated"
-      data-redirect="/profile?updated=true">
-    <input type="text" name="firstName" :value="user.firstName">
-    <input type="text" name="lastName" :value="user.lastName">
-    <input type="email" name="email" :value="user.email">
-    <button type="submit">Update Profile</button>
+<!-- User profile with dynamic parameters -->
+<form action="/api/users/{userId}" method="PUT" data-success="profileUpdated">
+    <input name="firstName" required>
+    <button type="submit">Update</button>
 </form>
-```
 
-#### E-commerce Order Management
-```html
-<!-- Order status update with order ID from route -->
-<form action="/api/orders/{orderId}/status" method="PUT"
-      data-success="orderStatusUpdated">
+<!-- Order management -->
+<form action="/api/orders/{orderId}/status" method="PUT">
     <select name="status" required>
         <option value="pending">Pending</option>
         <option value="shipped">Shipped</option>
-        <option value="delivered">Delivered</option>
     </select>
-    <textarea name="notes" placeholder="Optional notes"></textarea>
-    <button type="submit">Update Status</button>
+    <button type="submit">Update</button>
 </form>
 ```
 
-#### Blog Post Creation
-```html
-<!-- Create post for specific category -->
-<form action="/api/categories/{categoryId}/posts" method="POST"
-      data-success="postCreated"
-      data-redirect="/posts">
-    <input type="text" name="title" required>
-    <textarea name="content" required></textarea>
-    <input type="file" name="featured_image" accept="image/*">
-    <button type="submit">Create Post</button>
-</form>
-```
+### Form Handling Advantages
+- ✅ **Zero Setup** - Just add `action` attribute vs manual event handlers
+- ✅ **Variable Parameters** - `{userId}` template syntax vs manual interpolation  
+- ✅ **Auto Authentication** - Tokens injected automatically
+- ✅ **File Uploads** - Automatic multipart support
+- ✅ **Built-in Validation** - HTML5 + custom functions
 
-### Advantages Over Traditional Form Handling
-
-| Feature | Traditional Vue/React | ViewLogic Router |
-|---------|----------------------|------------------|
-| **Setup Required** | Manual event handlers + API calls | ✅ Zero setup - just add `action` |
-| **Variable Parameters** | Manual string interpolation | ✅ Template syntax with function evaluation |
-| **Authentication** | Manual token handling | ✅ Automatic token injection |
-| **File Uploads** | Complex FormData handling | ✅ Automatic multipart support |
-| **Loading States** | Manual loading management | ✅ Automatic loading indicators |
-| **Error Handling** | Custom error logic | ✅ Built-in error callbacks |
-| **Validation** | External validation libraries | ✅ HTML5 + custom validation |
-| **Redirect Logic** | Manual navigation code | ✅ `data-redirect` attribute |
-
-### Code Comparison: Traditional vs ViewLogic
-
-**Traditional Approach** (30+ lines):
-```javascript
-// Lots of boilerplate for simple form
-export default {
-    data() { return { form: {}, loading: false, error: null }; },
-    methods: {
-        async submitForm() {
-            // 20+ lines of fetch, error handling, tokens, etc.
-        }
-    }
-};
-```
-
-**ViewLogic Approach** (5 lines):
-```html
-<form action="/api/contact" data-success="handleSuccess">
-    <input name="name" required>
-    <button type="submit">Send</button>
-</form>
-```
-```javascript
-export default {
-    methods: {
-        handleSuccess(response) { /* success handling */ }
-    }
-};
-```
-
-**Result**: 80% less code with more features (auto-auth, validation, error handling).
+### Code Comparison
+**Traditional**: 30+ lines of boilerplate for forms, API calls, loading states  
+**ViewLogic**: 5 lines with `action` attribute + callback method  
+**Result**: 80% less code, more features included
 
 ## 🔗 Query-Only Parameter System
 
