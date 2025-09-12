@@ -117,9 +117,16 @@ export class ViewLogicRouter {
             
             // 조건부 매니저들
             if (this.config.useI18n) {
-                this.i18nManager = new I18nManager(this, this.config);
-                if (this.i18nManager.initPromise) {
-                    await this.i18nManager.initPromise;
+                try {
+                    this.i18nManager = new I18nManager(this, this.config);
+                    if (this.i18nManager.initPromise) {
+                        await this.i18nManager.initPromise;
+                    }
+                    this.log('info', 'I18nManager initialized successfully');
+                } catch (i18nError) {
+                    this.log('warn', 'I18nManager initialization failed, continuing without i18n:', i18nError.message);
+                    this.i18nManager = null; // i18n 매니저 비활성화
+                    this.config.useI18n = false; // i18n 비활성화
                 }
             }
             

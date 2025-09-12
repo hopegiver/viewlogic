@@ -54,6 +54,9 @@ export class I18nManager {
                 await this.loadMessages(this.currentLanguage);
             } catch (error) {
                 this.log('error', 'Failed to load initial language file:', error);
+                // 폴백으로 빈 메시지 객체 설정하여 시스템이 계속 작동하도록
+                this.messages.set(this.currentLanguage, {});
+                this.log('info', 'Using empty message object as fallback');
             }
         } else {
             this.log('debug', 'Language messages already loaded:', this.currentLanguage);
@@ -108,7 +111,7 @@ export class I18nManager {
         this.currentLanguage = language;
 
         try {
-            // 언어 파일 로드
+            // 언어 파일 로드 (실패해도 빈 객체라도 받을 수 있도록)
             await this.loadMessages(language);
             
             // 캐시에 저장
@@ -124,10 +127,23 @@ export class I18nManager {
             this.log('info', 'Language changed successfully', { from: oldLanguage, to: language });
             return true;
         } catch (error) {
-            // 실패 시 이전 언어로 복원
-            this.currentLanguage = oldLanguage;
-            this.log('error', 'Failed to change language:', error);
-            return false;
+            // 실패해도 언어는 변경하되, 빈 메시지 객체 사용
+            this.log('error', 'Failed to load messages for language change, using empty messages:', error);
+            this.messages.set(language, {});
+            
+            // 캐시에 저장
+            this.saveLanguageToCache(language);
+            
+            // 이벤트 발생
+            this.emit('languageChanged', {
+                from: oldLanguage,
+                to: language,
+                messages: {},
+                error: true
+            });
+            
+            this.log('warn', 'Language changed with empty messages', { from: oldLanguage, to: language });
+            return true; // true 반환하여 라우터가 계속 작동하도록
         }
     }
 
@@ -170,7 +186,11 @@ export class I18nManager {
             return messages;
         } catch (error) {
             this.loadPromises.delete(language);
-            throw error;
+            // 실패해도 빈 객체 설정하여 시스템이 계속 작동하도록
+            this.log('error', 'Failed to load messages, using empty fallback for:', language, error);
+            const emptyMessages = {};
+            this.messages.set(language, emptyMessages);
+            return emptyMessages;
         }
     }
 
@@ -208,10 +228,18 @@ export class I18nManager {
             // 폴백 언어 시도
             if (language !== this.config.fallbackLanguage) {
                 this.log('info', 'Trying fallback language:', this.config.fallbackLanguage);
-                return await this._loadMessagesFromFile(this.config.fallbackLanguage);
+                try {
+                    return await this._loadMessagesFromFile(this.config.fallbackLanguage);
+                } catch (fallbackError) {
+                    this.log('error', 'Fallback language also failed:', fallbackError);
+                    // 폴백도 실패하면 빈 객체 반환하여 시스템이 계속 작동하도록
+                    return {};
+                }
             }
             
-            throw new Error(`Failed to load messages for language: ${language}`);
+            // 마지막 폴백: 빈 객체 반환
+            this.log('warn', `No messages available for language: ${language}, using empty fallback`);
+            return {};
         }
     }
     
@@ -430,7 +458,9 @@ export class I18nManager {
             return true;
         } catch (error) {
             this.log('error', 'I18n initialization failed:', error);
-            return false;
+            // 실패해도 라우터가 계속 작동하도록 true 반환
+            this.log('info', 'I18n system ready with fallback behavior');
+            return true;
         }
     }
     
@@ -502,7 +532,9 @@ export class I18nManager {
             return true;
         } catch (error) {
             this.log('error', 'Failed to initialize I18n system:', error);
-            return false;
+            // 실패해도 시스템은 계속 작동하도록 true 반환
+            this.log('info', 'I18n system will continue with fallback behavior');
+            return true;
         }
     }
 }

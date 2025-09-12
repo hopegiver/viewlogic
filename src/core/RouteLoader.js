@@ -200,7 +200,14 @@ export class RouteLoader {
                     ...originalData,
                     currentRoute: routeName,
                     $query: router.queryManager?.getQueryParams() || {},
-                    $lang: router.i18nManager?.getCurrentLanguage() || router.config.i18nDefaultLanguage,
+                    $lang: (() => {
+                        try {
+                            return router.i18nManager?.getCurrentLanguage() || router.config.i18nDefaultLanguage || router.config.defaultLanguage || 'ko';
+                        } catch (error) {
+                            if (router.errorHandler) router.errorHandler.warn('RouteLoader', 'Failed to get current language:', error);
+                            return router.config.defaultLanguage || 'ko';
+                        }
+                    })(),
                     $dataLoading: false
                 };
                 
@@ -241,8 +248,15 @@ export class RouteLoader {
                 getParams: () => router.queryManager?.getAllParams() || {},
                 getParam: (key, defaultValue) => router.queryManager?.getParam(key, defaultValue),
                 
-                // i18n 관련
-                $t: (key, params) => router.i18nManager?.t(key, params) || key,
+                // i18n 관련 (resilient - i18n 실패해도 key 반환)
+                $t: (key, params) => {
+                    try {
+                        return router.i18nManager?.t(key, params) || key;
+                    } catch (error) {
+                        if (router.errorHandler) router.errorHandler.warn('RouteLoader', 'i18n translation failed, returning key:', error);
+                        return key;
+                    }
+                },
 
                 // 인증 관련
                 $isAuthenticated: () => router.authManager?.isUserAuthenticated() || false,
