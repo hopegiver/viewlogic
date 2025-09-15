@@ -56,7 +56,15 @@ export class ApiHandler {
 
             // POST/PUT 데이터 처리
             if (options.data && ['POST', 'PUT', 'PATCH'].includes(requestOptions.method.toUpperCase())) {
-                requestOptions.body = JSON.stringify(options.data);
+                if (options.data instanceof FormData) {
+                    // FormData인 경우 그대로 전송 (Content-Type 자동 설정)
+                    requestOptions.body = options.data;
+                    // FormData일 때 Content-Type 헤더 제거 (브라우저가 자동 설정)
+                    delete requestOptions.headers['Content-Type'];
+                } else {
+                    // 일반 객체인 경우 JSON으로 직렬화
+                    requestOptions.body = JSON.stringify(options.data);
+                }
             }
             
             const response = await fetch(fullURL, requestOptions);

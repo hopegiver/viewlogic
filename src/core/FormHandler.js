@@ -110,104 +110,37 @@ export class FormHandler {
     }
 
     /**
-     * 액션 파라미터 처리 (간단한 템플릿 치환)
+     * 액션 파라미터 처리 (ApiHandler 재사용)
      */
     processActionParams(actionTemplate, component) {
-        let processedAction = actionTemplate;
-        
-        // {paramName} 패턴 찾기
-        const paramMatches = actionTemplate.match(/\{([^}]+)\}/g);
-        
-        if (paramMatches) {
-            paramMatches.forEach(match => {
-                const paramName = match.slice(1, -1); // {id} -> id
-                
-                try {
-                    let paramValue = null;
-                    
-                    // 1. 먼저 getParam으로 라우트 파라미터에서 찾기
-                    paramValue = component.getParam(paramName);
-                    
-                    // 2. 컴포넌트 data에서 찾기
-                    if (paramValue === null || paramValue === undefined) {
-                        paramValue = component[paramName];
-                    }
-                    
-                    // 3. computed 속성에서 찾기
-                    if (paramValue === null || paramValue === undefined) {
-                        if (component.$options.computed && component.$options.computed[paramName]) {
-                            paramValue = component[paramName];
-                        }
-                    }
-                    
-                    if (paramValue !== null && paramValue !== undefined) {
-                        // 템플릿 대체: {id} -> 실제값
-                        processedAction = processedAction.replace(
-                            match, 
-                            encodeURIComponent(paramValue)
-                        );
-                        
-                        this.log('debug', `Parameter resolved: ${paramName} = ${paramValue}`);
-                    } else {
-                        this.log('warn', `Parameter '${paramName}' not found in component data, computed, or route params`);
-                    }
-                } catch (error) {
-                    this.log('warn', `Error processing parameter '${paramName}':`, error);
-                }
-            });
-        }
-        
-        return processedAction;
+        // ApiHandler의 processURLParameters 재사용하여 일관성 확보
+        return this.router.routeLoader.apiHandler.processURLParameters(actionTemplate, component);
     }
 
     /**
-     * 폼 데이터 서브밋
+     * 폼 데이터 서브밋 (ApiHandler 활용)
      */
     async submitFormData(action, method, data, form, component) {
         // 파일 업로드 체크
         const hasFile = Array.from(form.elements).some(el => el.type === 'file' && el.files.length > 0);
         
-        const headers = {
-            'Accept': 'application/json',
-            // 인증 토큰 자동 추가
-            ...(component.$getToken() && {
-                'Authorization': `Bearer ${component.$getToken()}`
-            })
+        // ApiHandler를 사용하여 일관된 API 호출 및 에러 처리
+        const options = {
+            method: method.toUpperCase(),
+            headers: {}
         };
 
-        let body;
         if (hasFile) {
-            // 파일이 있으면 FormData 그대로 전송
-            body = new FormData(form);
-            // Content-Type을 설정하지 않음 (브라우저가 자동으로 multipart/form-data로 설정)
+            // 파일이 있으면 FormData 그대로 전송 (Content-Type 자동 설정)
+            options.data = new FormData(form);
         } else {
             // JSON으로 전송
-            headers['Content-Type'] = 'application/json';
-            body = JSON.stringify(data);
+            options.data = data;
+            options.headers['Content-Type'] = 'application/json';
         }
 
-        const response = await fetch(action, {
-            method: method.toUpperCase(),
-            headers,
-            body
-        });
-
-        if (!response.ok) {
-            let error;
-            try {
-                error = await response.json();
-            } catch (e) {
-                error = { message: `HTTP ${response.status}: ${response.statusText}` };
-            }
-            throw new Error(error.message || `HTTP ${response.status}`);
-        }
-
-        try {
-            return await response.json();
-        } catch (e) {
-            // 응답이 JSON이 아닌 경우 (예: 204 No Content)
-            return { success: true };
-        }
+        // ApiHandler의 fetchData 사용하여 통합된 처리
+        return await this.router.routeLoader.apiHandler.fetchData(action, component, options);
     }
 
     /**
