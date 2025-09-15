@@ -27,11 +27,19 @@ export class ComponentLoader {
     }
     
     /**
-     * 컴포넌트를 비동기로 로드
+     * 컴포넌트를 비동기로 로드 (캐시 지원)
      */
     async loadComponent(componentName) {
         if (!componentName || typeof componentName !== 'string') {
             throw new Error('Component name must be a non-empty string');
+        }
+        
+        // 캐시에서 컴포넌트 확인
+        const cacheKey = `component_${componentName}`;
+        const cachedComponent = this.router?.cacheManager?.getFromCache(cacheKey);
+        if (cachedComponent) {
+            this.log('debug', `Component '${componentName}' loaded from cache`);
+            return cachedComponent;
         }
         
         // 이미 로딩 중인 경우 기존 Promise 반환
@@ -44,6 +52,13 @@ export class ComponentLoader {
         
         try {
             const component = await loadPromise;
+            
+            // 캐시에 저장
+            if (component && this.router?.cacheManager) {
+                this.router.cacheManager.setCache(cacheKey, component);
+                this.log('debug', `Component '${componentName}' cached successfully`);
+            }
+            
             return component;
         } catch (error) {
             throw error;
@@ -111,20 +126,23 @@ export class ComponentLoader {
     /**
      * 환경에 따른 모든 컴포넌트 로딩 (캐싱 지원)
      */
-    async loadAllComponents() {
-        // 이미 로드된 unifiedComponents가 있으면 반환
-        if (this.unifiedComponents) {
-            this.log('debug', 'Using existing unified components');
-            return this.unifiedComponents;
-        }
+    async loadAllComponents(componentNames = null) {
+        let components;
         
         // 운영 모드: 통합 컴포넌트 로딩 시도
         if (this.config.environment === 'production') {
-            return await this._loadProductionComponents();
+            // 운영 모드에서만 unifiedComponents 캐시 사용
+            if (this.unifiedComponents) {
+                this.log('debug', 'Using existing unified components');
+                return this.unifiedComponents;
+            }
+            components = await this._loadProductionComponents();
+        } else {
+            // 개발 모드: 캐시 없이 개별 컴포넌트 로딩
+            components = await this._loadDevelopmentComponents(componentNames);
         }
         
-        // 개발 모드: 개별 컴포넌트 로딩
-        return await this._loadDevelopmentComponents();
+        return components;
     }
     
     /**
@@ -154,13 +172,19 @@ export class ComponentLoader {
     /**
      * 개발 모드: 개별 컴포넌트 로딩
      */
-    async _loadDevelopmentComponents() {
-        const componentNames = this._getComponentNames();
+    async _loadDevelopmentComponents(componentNames = null) {
+        // 컴포넌트 이름 목록이 제공되지 않으면 폴백 사용
+        const namesToLoad = componentNames || this._getComponentNames();
         const components = {};
         
-        this.log('info', `[DEVELOPMENT] Loading individual components: ${componentNames.join(', ')}`);
+        if (namesToLoad.length === 0) {
+            this.log('info', '[DEVELOPMENT] No components to load');
+            return components;
+        }
         
-        for (const name of componentNames) {
+        this.log('info', `[DEVELOPMENT] Loading individual components: ${namesToLoad.join(', ')}`);
+        
+        for (const name of namesToLoad) {
             try {
                 const component = await this.loadComponent(name);
                 if (component) {
@@ -171,7 +195,6 @@ export class ComponentLoader {
             }
         }
         
-        this.unifiedComponents = components;
         this.log('info', `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
         return components;
     }
@@ -191,6 +214,103 @@ export class ComponentLoader {
         ];
     }
     
+    /**
+     * 템플릿과 레이아웃에서 사용된 컴포넌트 추출
+     */
+    getComponentNames(template, layout = null, layoutName = null) {
+        // 레이아웃 컴포넌트로 초기화 (캐시 활용)
+        const componentSet = layout ? 
+            this._getLayoutComponents(layout, layoutName) : 
+            new Set();
+        
+        // 템플릿에서 컴포넌트 추출
+        if (template) {
+            this._extractComponentsFromContent(template, componentSet);
+        }
+        
+        const components = Array.from(componentSet);
+        this.log('debug', `Discovered ${components.length} components:`, components);
+        
+        return components;
+    }
+    
+    /**
+     * 레이아웃에서 컴포넌트 추출 (캐시 활용)
+     */
+    _getLayoutComponents(layout, layoutName) {
+        if (!layout || typeof layout !== 'string') return new Set();
+        if (!layoutName || typeof layoutName !== 'string') return new Set();
+        
+        // 레이아웃 이름을 캐시 키로 사용
+        const cacheKey = `layout_components_${layoutName}`;
+        
+        // 캐시에서 확인
+        const cachedComponents = this.router?.cacheManager?.getFromCache(cacheKey);
+        if (cachedComponents) {
+            this.log('debug', `Using cached layout components for '${layoutName}'`);
+            return cachedComponents;
+        }
+        
+        // 레이아웃에서 컴포넌트 추출
+        const componentSet = new Set();
+        this._extractComponentsFromContent(layout, componentSet);
+        
+        // 캐시에 저장 (Set 그대로)
+        if (this.router?.cacheManager) {
+            this.router.cacheManager.setCache(cacheKey, componentSet);
+            this.log('debug', `Cached layout components for '${layoutName}': ${Array.from(componentSet).join(', ')}`);
+        }
+        
+        return componentSet;
+    }
+    
+    /**
+     * HTML 컨텐츠에서 Vue 컴포넌트 추출
+     */
+    _extractComponentsFromContent(content, componentSet) {
+        if (!content || typeof content !== 'string') return;
+        
+        // PascalCase 컴포넌트 패턴: <Button>, <Card>, <Modal> 등
+        const pascalPattern = /<([A-Z][a-zA-Z0-9]*)\s*[^>]*>/g;
+        let match;
+        
+        while ((match = pascalPattern.exec(content)) !== null) {
+            const componentName = match[1];
+            
+            // HTML 기본 태그들 제외
+            if (!this._isHtmlTag(componentName)) {
+                componentSet.add(componentName);
+                this.log('debug', `Found component: ${componentName}`);
+            }
+        }
+        
+        // 자체 닫힘 태그도 확인: <Button />
+        const selfClosingPattern = /<([A-Z][a-zA-Z0-9]*)\s*[^>]*\/>/g;
+        while ((match = selfClosingPattern.exec(content)) !== null) {
+            const componentName = match[1];
+            
+            if (!this._isHtmlTag(componentName)) {
+                componentSet.add(componentName);
+                this.log('debug', `Found self-closing component: ${componentName}`);
+            }
+        }
+    }
+    
+    /**
+     * HTML 기본 태그인지 확인
+     */
+    _isHtmlTag(tagName) {
+        const htmlTags = [
+            'div', 'span', 'p', 'a', 'img', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+            'table', 'tr', 'td', 'th', 'form', 'input', 'button', 'select', 'option', 'textarea',
+            'nav', 'header', 'footer', 'main', 'section', 'article', 'aside', 'figure', 'figcaption',
+            'video', 'audio', 'canvas', 'svg', 'iframe', 'script', 'style', 'link', 'meta', 'title',
+            'body', 'html', 'head', 'template', 'slot'
+        ];
+        
+        return htmlTags.includes(tagName.toLowerCase());
+    }
+
     /**
      * 메모리 정리
      */
