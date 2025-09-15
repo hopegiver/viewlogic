@@ -4,6 +4,7 @@
  */
 import { FormHandler } from './FormHandler.js';
 import { ApiHandler } from './ApiHandler.js';
+import { ComponentLoader } from './ComponentLoader.js';
 
 export class RouteLoader {
     constructor(router, options = {}) {
@@ -13,7 +14,6 @@ export class RouteLoader {
             environment: options.environment || 'development',
             useLayout: options.useLayout !== false,
             defaultLayout: options.defaultLayout || 'default',
-            useComponents: options.useComponents !== false,
             debug: options.debug || false
         };
         
@@ -25,6 +25,9 @@ export class RouteLoader {
         
         // ApiHandler 인스턴스 생성
         this.apiHandler = new ApiHandler(router, this.config);
+        
+        // ComponentLoader 인스턴스 생성 (기본으로 활성화)
+        this.componentLoader = new ComponentLoader(router, this.config);
         
         this.log('debug', 'RouteLoader initialized with config:', this.config);
     }
@@ -202,18 +205,18 @@ export class RouteLoader {
         
         // 컴포넌트 로딩 (실패해도 라우터는 계속 작동)
         let loadedComponents = {};
-        if (this.config.useComponents && router.componentLoader) {
+        if (this.componentLoader) {
             try {
                 let componentNames = null;
                 
                 // 개발 모드에서만 동적 컴포넌트 발견
                 if (!isProduction) {
                     const layoutName = script.layout || this.config.defaultLayout;
-                    componentNames = router.componentLoader.getComponentNames(template, layout, layoutName);
+                    componentNames = this.componentLoader.getComponentNames(template, layout, layoutName);
                     this.log('info', `[DEVELOPMENT] Discovered components for route '${routeName}':`, componentNames);
                 }
                 
-                loadedComponents = await router.componentLoader.loadAllComponents(componentNames);
+                loadedComponents = await this.componentLoader.loadAllComponents(componentNames);
                 this.log('debug', `Components loaded successfully for route: ${routeName}`);
             } catch (error) {
                 this.log('warn', `Component loading failed for route '${routeName}', continuing without components:`, error.message);
@@ -338,6 +341,27 @@ export class RouteLoader {
                     } finally {
                         this.$dataLoading = false;
                     }
+                },
+
+                // HTTP 메서드 래퍼들 (ApiHandler 직접 접근)
+                async $get(url, options = {}) {
+                    return await router.routeLoader.apiHandler.get(url, this, options);
+                },
+
+                async $post(url, data, options = {}) {
+                    return await router.routeLoader.apiHandler.post(url, data, this, options);
+                },
+
+                async $put(url, data, options = {}) {
+                    return await router.routeLoader.apiHandler.put(url, data, this, options);
+                },
+
+                async $patch(url, data, options = {}) {
+                    return await router.routeLoader.apiHandler.patch(url, data, this, options);
+                },
+
+                async $delete(url, options = {}) {
+                    return await router.routeLoader.apiHandler.delete(url, this, options);
                 }
             },
             _routeName: routeName
@@ -395,6 +419,12 @@ export class RouteLoader {
         if (this.apiHandler) {
             this.apiHandler.destroy();
             this.apiHandler = null;
+        }
+        
+        // ComponentLoader 정리
+        if (this.componentLoader) {
+            this.componentLoader.dispose();
+            this.componentLoader = null;
         }
         
         this.log('debug', 'RouteLoader destroyed');

@@ -5,7 +5,6 @@ import { CacheManager } from './plugins/CacheManager.js';
 import { QueryManager } from './plugins/QueryManager.js';
 import { RouteLoader } from './core/RouteLoader.js';
 import { ErrorHandler } from './core/ErrorHandler.js';
-import { ComponentLoader } from './core/ComponentLoader.js';
 
 export class ViewLogicRouter {
     constructor(options = {}) {
@@ -18,7 +17,6 @@ export class ViewLogicRouter {
         this.currentHash = '';
         this.currentVueApp = null;
         this.previousVueApp = null; // 이전 Vue 앱 (전환 효과를 위해 보관)
-        this.componentLoader = null; // 컴포넌트 로더 인스턴스
 
         // LoadingManager가 없을 때를 위한 기본 전환 상태
         this.transitionInProgress = false;
@@ -52,7 +50,6 @@ export class ViewLogicRouter {
             environment: 'development',
             routesPath: '/routes',         // 프로덕션 라우트 경로
             enableErrorReporting: true,
-            useComponents: true,
             componentNames: ['Button', 'Modal', 'Card', 'Toast', 'Input', 'Tabs', 'Checkbox', 'Alert', 'DynamicInclude', 'HtmlInclude'],
             useI18n: false,
             defaultLanguage: 'ko',
@@ -195,21 +192,6 @@ export class ViewLogicRouter {
                 this.authManager = new AuthManager(this, this.config);
             }
             
-            if (this.config.useComponents) {
-                try {
-                    this.componentLoader = new ComponentLoader(this, {
-                        ...this.config,
-                        basePath: `${this.config.basePath}/components`,
-                        cache: true,
-                        componentNames: this.config.componentNames
-                    });
-                    await this.componentLoader.loadAllComponents();
-                    this.log('info', 'ComponentLoader initialized successfully');
-                } catch (componentError) {
-                    this.log('warn', 'ComponentLoader initialization failed, continuing without components:', componentError.message);
-                    this.componentLoader = null; // 컴포넌트 로더 비활성화
-                }
-            }
             
             // 2. 라우터 시작
             this.isReady = true;
