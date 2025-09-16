@@ -1482,6 +1482,685 @@ var QueryManager = class {
   }
 };
 
+// src/core/FormHandler.js
+var FormHandler = class {
+  constructor(router, options = {}) {
+    this.router = router;
+    this.config = {
+      debug: options.debug || false,
+      requestTimeout: options.requestTimeout || 3e4,
+      ...options
+    };
+    this.log("debug", "FormHandler initialized");
+  }
+  /**
+   * 로깅 래퍼 메서드
+   */
+  log(level, ...args) {
+    if (this.router?.errorHandler) {
+      this.router.errorHandler.log(level, "FormHandler", ...args);
+    }
+  }
+  /**
+   * 중복 요청 체크
+   */
+  isDuplicateRequest(form) {
+    if (form._isSubmitting) {
+      this.log("debug", "Duplicate request blocked");
+      return true;
+    }
+    return false;
+  }
+  /**
+   * 폼 제출 시작
+   */
+  startFormSubmission(form) {
+    form._isSubmitting = true;
+    form._abortController = new AbortController();
+    form._timeoutId = setTimeout(() => {
+      if (form._isSubmitting) {
+        this.abortFormSubmission(form);
+      }
+    }, this.config.requestTimeout);
+  }
+  /**
+   * 폼 제출 완료
+   */
+  finishFormSubmission(form) {
+    form._isSubmitting = false;
+    if (form._timeoutId) {
+      clearTimeout(form._timeoutId);
+      delete form._timeoutId;
+    }
+    delete form._abortController;
+  }
+  /**
+   * 폼 제출 중단
+   */
+  abortFormSubmission(form) {
+    if (form._abortController) {
+      form._abortController.abort();
+    }
+    this.finishFormSubmission(form);
+  }
+  /**
+   * 자동 폼 바인딩
+   */
+  bindAutoForms(component) {
+    const forms = document.querySelectorAll("form.auto-form, form[action]");
+    forms.forEach((form) => {
+      form.removeEventListener("submit", form._boundSubmitHandler);
+      const boundHandler = (e) => this.handleFormSubmit(e, component);
+      form._boundSubmitHandler = boundHandler;
+      form.addEventListener("submit", boundHandler);
+      this.log("debug", `Form auto-bound: ${form.getAttribute("action")}`);
+    });
+  }
+  /**
+   * 폼 서브밋 핸들러
+   */
+  async handleFormSubmit(event, component) {
+    event.preventDefault();
+    const form = event.target;
+    let action = form.getAttribute("action");
+    const method = form.getAttribute("method") || "POST";
+    const successHandler = form.getAttribute("data-success-handler");
+    const errorHandler = form.getAttribute("data-error-handler");
+    const loadingHandler = form.getAttribute("data-loading-handler");
+    const redirectTo = form.getAttribute("data-redirect");
+    action = this.processActionParams(action, component);
+    if (!this.validateForm(form, component)) {
+      return;
+    }
+    if (this.isDuplicateRequest(form)) {
+      return;
+    }
+    this.startFormSubmission(form);
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    try {
+      if (loadingHandler && component[loadingHandler]) {
+        component[loadingHandler](true, form);
+      }
+      this.log("debug", `Form submitting to: ${action}`, data);
+      const response = await this.submitFormData(action, method, data, form, component, form._abortController.signal);
+      if (successHandler && component[successHandler]) {
+        component[successHandler](response, form);
+      }
+      this.finishFormSubmission(form);
+      if (redirectTo) {
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            component.navigateTo(redirectTo);
+          }, 1e3);
+        });
+      }
+    } catch (error) {
+      if (error.name === "AbortError") {
+        this.log("debug", "Form submission aborted");
+        return;
+      }
+      this.log("warn", "Form submission error:", error);
+      this.finishFormSubmission(form);
+      if (errorHandler && component[errorHandler]) {
+        component[errorHandler](error, form);
+      } else {
+        console.error("Form submission error:", error);
+      }
+    } finally {
+      if (loadingHandler && component[loadingHandler]) {
+        component[loadingHandler](false, form);
+      }
+    }
+  }
+  /**
+   * 액션 파라미터 처리 (ApiHandler 재사용)
+   */
+  processActionParams(actionTemplate, component) {
+    return this.router.routeLoader.apiHandler.processURLParameters(actionTemplate, component);
+  }
+  /**
+   * 폼 데이터 서브밋 (ApiHandler 활용)
+   */
+  async submitFormData(action, method, data, form, component, signal = null) {
+    const hasFile = Array.from(form.elements).some((el) => el.type === "file" && el.files.length > 0);
+    const options = {
+      method: method.toUpperCase(),
+      headers: {},
+      signal
+      // AbortController 신호 추가
+    };
+    if (hasFile) {
+      options.data = new FormData(form);
+    } else {
+      options.data = data;
+      options.headers["Content-Type"] = "application/json";
+    }
+    return await this.router.routeLoader.apiHandler.fetchData(action, component, options);
+  }
+  /**
+   * 클라이언트 사이드 폼 검증
+   */
+  validateForm(form, component) {
+    let isValid = true;
+    const inputs = form.querySelectorAll("input, textarea, select");
+    inputs.forEach((input) => {
+      if (!input.checkValidity()) {
+        isValid = false;
+        input.classList.add("error");
+        return;
+      }
+      const validationFunction = input.getAttribute("data-validation");
+      if (validationFunction) {
+        const isInputValid = this.validateInput(input, validationFunction, component);
+        if (!isInputValid) {
+          isValid = false;
+          input.classList.add("error");
+        } else {
+          input.classList.remove("error");
+        }
+      } else {
+        input.classList.remove("error");
+      }
+    });
+    return isValid;
+  }
+  /**
+   * 개별 입력 검증
+   */
+  validateInput(input, validationFunction, component) {
+    const value = input.value;
+    if (typeof component[validationFunction] === "function") {
+      try {
+        return component[validationFunction](value, input);
+      } catch (error) {
+        this.log("warn", `Validation function '${validationFunction}' error:`, error);
+        return false;
+      }
+    }
+    this.log("warn", `Validation function '${validationFunction}' not found`);
+    return true;
+  }
+  /**
+   * 모든 폼 요청 취소
+   */
+  cancelAllRequests() {
+    const forms = document.querySelectorAll("form");
+    forms.forEach((form) => {
+      if (form._isSubmitting) {
+        this.abortFormSubmission(form);
+      }
+    });
+  }
+  /**
+   * 정리 (메모리 누수 방지)
+   */
+  destroy() {
+    this.cancelAllRequests();
+    const forms = document.querySelectorAll("form.auto-form, form[action]");
+    forms.forEach((form) => {
+      if (form._boundSubmitHandler) {
+        form.removeEventListener("submit", form._boundSubmitHandler);
+        delete form._boundSubmitHandler;
+      }
+      this.cleanupFormState(form);
+    });
+    this.log("debug", "FormHandler destroyed");
+    this.router = null;
+  }
+  /**
+   * 폼 상태 정리
+   */
+  cleanupFormState(form) {
+    delete form._isSubmitting;
+    delete form._abortController;
+    if (form._timeoutId) {
+      clearTimeout(form._timeoutId);
+      delete form._timeoutId;
+    }
+  }
+};
+
+// src/core/ApiHandler.js
+var ApiHandler = class {
+  constructor(router, options = {}) {
+    this.router = router;
+    this.config = {
+      debug: options.debug || false,
+      timeout: options.timeout || 1e4,
+      retries: options.retries || 1,
+      ...options
+    };
+    this.log("debug", "ApiHandler initialized");
+  }
+  /**
+   * 로깅 래퍼 메서드
+   */
+  log(level, ...args) {
+    if (this.router?.errorHandler) {
+      this.router.errorHandler.log(level, "ApiHandler", ...args);
+    }
+  }
+  /**
+   * 컴포넌트 데이터 가져오기 (파라미터 치환 지원)
+   */
+  async fetchData(dataURL, component = null, options = {}) {
+    try {
+      let processedURL = this.processURLParameters(dataURL, component);
+      const queryString = this.router.queryManager?.buildQueryString(this.router.queryManager?.getQueryParams()) || "";
+      const fullURL = queryString ? `${processedURL}?${queryString}` : processedURL;
+      this.log("debug", `Fetching data from: ${fullURL}`);
+      const requestOptions = {
+        method: options.method || "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          ...options.headers
+        },
+        ...options
+      };
+      if (component?.$getToken && component.$getToken()) {
+        requestOptions.headers["Authorization"] = `Bearer ${component.$getToken()}`;
+      }
+      if (options.data && ["POST", "PUT", "PATCH"].includes(requestOptions.method.toUpperCase())) {
+        if (options.data instanceof FormData) {
+          requestOptions.body = options.data;
+          delete requestOptions.headers["Content-Type"];
+        } else {
+          requestOptions.body = JSON.stringify(options.data);
+        }
+      }
+      const response = await fetch(fullURL, requestOptions);
+      if (!response.ok) {
+        let error;
+        try {
+          error = await response.json();
+        } catch (e) {
+          error = { message: `HTTP ${response.status}: ${response.statusText}` };
+        }
+        throw new Error(error.message || `HTTP ${response.status}`);
+      }
+      try {
+        const data = await response.json();
+        if (typeof data !== "object" || data === null) {
+          throw new Error("Invalid data format: expected object");
+        }
+        return data;
+      } catch (e) {
+        return { success: true };
+      }
+    } catch (error) {
+      this.log("error", "Failed to fetch data:", error);
+      throw error;
+    }
+  }
+  /**
+   * 여러 API 엔드포인트에서 데이터 가져오기
+   */
+  async fetchMultipleData(dataConfig, component = null) {
+    if (!dataConfig || typeof dataConfig !== "object") {
+      return {};
+    }
+    const results = {};
+    const errors = {};
+    const promises = Object.entries(dataConfig).map(async ([key, config]) => {
+      try {
+        let url, options = {};
+        if (typeof config === "string") {
+          url = config;
+        } else if (typeof config === "object") {
+          url = config.url;
+          options = { ...config };
+          delete options.url;
+        }
+        if (url) {
+          const data = await this.fetchData(url, component, options);
+          results[key] = data;
+        }
+      } catch (error) {
+        errors[key] = error;
+        this.log("warn", `Failed to fetch data for '${key}':`, error);
+      }
+    });
+    await Promise.all(promises);
+    return { results, errors };
+  }
+  /**
+   * URL에서 파라미터 치환 처리 ({param} 형식)
+   */
+  processURLParameters(url, component = null) {
+    if (!url || typeof url !== "string") return url;
+    let processedURL = url;
+    const paramMatches = url.match(/\{([^}]+)\}/g);
+    if (paramMatches && component) {
+      paramMatches.forEach((match) => {
+        const paramName = match.slice(1, -1);
+        try {
+          let paramValue = null;
+          if (component.getParam) {
+            paramValue = component.getParam(paramName);
+          }
+          if (paramValue === null || paramValue === void 0) {
+            paramValue = component[paramName];
+          }
+          if (paramValue === null || paramValue === void 0) {
+            if (component.$options?.computed?.[paramName]) {
+              paramValue = component[paramName];
+            }
+          }
+          if (paramValue === null || paramValue === void 0) {
+            paramValue = this.router.queryManager?.getParam(paramName);
+          }
+          if (paramValue !== null && paramValue !== void 0) {
+            processedURL = processedURL.replace(
+              match,
+              encodeURIComponent(paramValue)
+            );
+            this.log("debug", `URL parameter resolved: ${paramName} = ${paramValue}`);
+          } else {
+            this.log("warn", `URL parameter '${paramName}' not found, keeping original: ${match}`);
+          }
+        } catch (error) {
+          this.log("warn", `Error processing URL parameter '${paramName}':`, error);
+        }
+      });
+    }
+    return processedURL;
+  }
+  /**
+   * HTTP 메서드별 헬퍼 함수들
+   */
+  async get(url, component = null, options = {}) {
+    return this.fetchData(url, component, { ...options, method: "GET" });
+  }
+  async post(url, data, component = null, options = {}) {
+    return this.fetchData(url, component, { ...options, method: "POST", data });
+  }
+  async put(url, data, component = null, options = {}) {
+    return this.fetchData(url, component, { ...options, method: "PUT", data });
+  }
+  async patch(url, data, component = null, options = {}) {
+    return this.fetchData(url, component, { ...options, method: "PATCH", data });
+  }
+  async delete(url, component = null, options = {}) {
+    return this.fetchData(url, component, { ...options, method: "DELETE" });
+  }
+  /**
+   * 정리 (메모리 누수 방지)
+   */
+  destroy() {
+    this.log("debug", "ApiHandler destroyed");
+    this.router = null;
+  }
+};
+
+// src/core/ComponentLoader.js
+var ComponentLoader = class {
+  constructor(router = null, options = {}) {
+    this.config = {
+      componentsPath: options.componentsPath || "/components",
+      // srcPath 기준 상대 경로
+      debug: options.debug || false,
+      environment: options.environment || "development",
+      ...options
+    };
+    this.router = router;
+    this.loadingPromises = /* @__PURE__ */ new Map();
+    this.unifiedComponents = null;
+  }
+  /**
+   * 로깅 래퍼 메서드
+   */
+  log(level, ...args) {
+    if (this.router?.errorHandler) {
+      this.router.errorHandler.log(level, "ComponentLoader", ...args);
+    }
+  }
+  /**
+   * 컴포넌트를 비동기로 로드 (캐시 지원)
+   */
+  async loadComponent(componentName) {
+    if (!componentName || typeof componentName !== "string") {
+      throw new Error("Component name must be a non-empty string");
+    }
+    const cacheKey = `component_${componentName}`;
+    const cachedComponent = this.router?.cacheManager?.getFromCache(cacheKey);
+    if (cachedComponent) {
+      this.log("debug", `Component '${componentName}' loaded from cache`);
+      return cachedComponent;
+    }
+    if (this.loadingPromises.has(componentName)) {
+      return this.loadingPromises.get(componentName);
+    }
+    const loadPromise = this._loadComponentFromFile(componentName);
+    this.loadingPromises.set(componentName, loadPromise);
+    try {
+      const component = await loadPromise;
+      if (component && this.router?.cacheManager) {
+        this.router.cacheManager.setCache(cacheKey, component);
+        this.log("debug", `Component '${componentName}' cached successfully`);
+      }
+      return component;
+    } catch (error) {
+      throw error;
+    } finally {
+      this.loadingPromises.delete(componentName);
+    }
+  }
+  /**
+   * 파일에서 컴포넌트 로드
+   */
+  async _loadComponentFromFile(componentName) {
+    const componentRelativePath = `${this.config.componentsPath}/${componentName}.js`;
+    let componentPath;
+    if (this.router && this.router.config.srcPath) {
+      const srcPath = this.router.config.srcPath;
+      if (srcPath.startsWith("http")) {
+        const cleanSrcPath = srcPath.endsWith("/") ? srcPath.slice(0, -1) : srcPath;
+        const cleanComponentPath = componentRelativePath.startsWith("/") ? componentRelativePath : `/${componentRelativePath}`;
+        componentPath = `${cleanSrcPath}${cleanComponentPath}`;
+      } else {
+        componentPath = this.router.resolvePath(`${srcPath}${componentRelativePath}`);
+      }
+    } else {
+      componentPath = this.router ? this.router.resolvePath(`/src${componentRelativePath}`) : `/src${componentRelativePath}`;
+    }
+    try {
+      const module = await import(componentPath);
+      const component = module.default;
+      if (!component) {
+        throw new Error(`Component '${componentName}' has no default export`);
+      }
+      if (!component.name) {
+        component.name = componentName;
+      }
+      this.log("debug", `Component '${componentName}' loaded successfully`);
+      return component;
+    } catch (error) {
+      this.log("error", `Failed to load component '${componentName}':`, error);
+      throw new Error(`Component '${componentName}' not found: ${error.message}`);
+    }
+  }
+  /**
+   * 컴포넌트 모듈 클리어
+   */
+  clearComponents() {
+    this.loadingPromises.clear();
+    this.unifiedComponents = null;
+    this.log("debug", "All components cleared");
+  }
+  /**
+   * 환경에 따른 모든 컴포넌트 로딩 (캐싱 지원)
+   */
+  async loadAllComponents(componentNames = null) {
+    let components;
+    if (this.config.environment === "production") {
+      if (this.unifiedComponents) {
+        this.log("debug", "Using existing unified components");
+        return this.unifiedComponents;
+      }
+      components = await this._loadProductionComponents();
+    } else {
+      components = await this._loadDevelopmentComponents(componentNames);
+    }
+    return components;
+  }
+  /**
+   * 운영 모드: 통합 컴포넌트 로딩
+   */
+  async _loadProductionComponents() {
+    try {
+      const componentsPath = `${this.router?.config?.routesPath || "/routes"}/_components.js`;
+      this.log("info", "[PRODUCTION] Loading unified components from:", componentsPath);
+      const componentsModule = await import(componentsPath);
+      if (typeof componentsModule.registerComponents === "function") {
+        this.unifiedComponents = componentsModule.components || {};
+        this.log("info", `[PRODUCTION] Unified components loaded: ${Object.keys(this.unifiedComponents).length} components`);
+        return this.unifiedComponents;
+      } else {
+        throw new Error("registerComponents function not found in components module");
+      }
+    } catch (error) {
+      this.log("warn", "[PRODUCTION] Failed to load unified components:", error.message);
+      this.unifiedComponents = {};
+      return {};
+    }
+  }
+  /**
+   * 개발 모드: 개별 컴포넌트 로딩
+   */
+  async _loadDevelopmentComponents(componentNames = null) {
+    const namesToLoad = componentNames || [];
+    const components = {};
+    if (namesToLoad.length === 0) {
+      this.log("info", "[DEVELOPMENT] No components to load");
+      return components;
+    }
+    this.log("info", `[DEVELOPMENT] Loading individual components: ${namesToLoad.join(", ")}`);
+    for (const name of namesToLoad) {
+      try {
+        const component = await this.loadComponent(name);
+        if (component) {
+          components[name] = component;
+        }
+      } catch (loadError) {
+        this.log("warn", `[DEVELOPMENT] Failed to load component ${name}:`, loadError.message);
+      }
+    }
+    this.log("info", `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
+    return components;
+  }
+  /**
+   * 템플릿과 레이아웃에서 사용된 컴포넌트 추출
+   */
+  getComponentNames(template, layout = null, layoutName = null) {
+    const componentSet = layout ? this._getLayoutComponents(layout, layoutName) : /* @__PURE__ */ new Set();
+    if (template) {
+      this._extractComponentsFromContent(template, componentSet);
+    }
+    const components = Array.from(componentSet);
+    this.log("debug", `Discovered ${components.length} components:`, components);
+    return components;
+  }
+  /**
+   * 레이아웃에서 컴포넌트 추출 (캐시 활용)
+   */
+  _getLayoutComponents(layout, layoutName) {
+    if (!layout || typeof layout !== "string") return /* @__PURE__ */ new Set();
+    if (!layoutName || typeof layoutName !== "string") return /* @__PURE__ */ new Set();
+    const cacheKey = `layout_components_${layoutName}`;
+    const cachedComponents = this.router?.cacheManager?.getFromCache(cacheKey);
+    if (cachedComponents) {
+      this.log("debug", `Using cached layout components for '${layoutName}'`);
+      return cachedComponents;
+    }
+    const componentSet = /* @__PURE__ */ new Set();
+    this._extractComponentsFromContent(layout, componentSet);
+    if (this.router?.cacheManager) {
+      this.router.cacheManager.setCache(cacheKey, componentSet);
+      this.log("debug", `Cached layout components for '${layoutName}': ${Array.from(componentSet).join(", ")}`);
+    }
+    return componentSet;
+  }
+  /**
+   * HTML 컨텐츠에서 Vue 컴포넌트 추출
+   */
+  _extractComponentsFromContent(content, componentSet) {
+    if (!content || typeof content !== "string") return;
+    const componentPattern = /<([A-Z][a-zA-Z0-9]*)(?:\s[^>]*)?\/?>|<\/([A-Z][a-zA-Z0-9]*)\s*>/gs;
+    let match;
+    while ((match = componentPattern.exec(content)) !== null) {
+      const componentName = match[1] || match[2];
+      if (componentName && !this._isHtmlTag(componentName)) {
+        componentSet.add(componentName);
+        this.log("debug", `Found component: ${componentName}`);
+      }
+    }
+  }
+  /**
+   * HTML 기본 태그인지 확인
+   */
+  _isHtmlTag(tagName) {
+    const htmlTags = [
+      "div",
+      "span",
+      "p",
+      "a",
+      "img",
+      "ul",
+      "ol",
+      "li",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "table",
+      "tr",
+      "td",
+      "th",
+      "form",
+      "select",
+      "option",
+      "textarea",
+      "nav",
+      "header",
+      "footer",
+      "main",
+      "section",
+      "article",
+      "aside",
+      "figure",
+      "figcaption",
+      "video",
+      "audio",
+      "canvas",
+      "svg",
+      "iframe",
+      "script",
+      "style",
+      "link",
+      "meta",
+      "title",
+      "body",
+      "html",
+      "head",
+      "template",
+      "slot"
+    ];
+    return htmlTags.includes(tagName);
+  }
+  /**
+   * 메모리 정리
+   */
+  dispose() {
+    this.clearComponents();
+    this.log("debug", "ComponentLoader disposed");
+    this.router = null;
+  }
+};
+
 // src/core/RouteLoader.js
 var RouteLoader = class {
   constructor(router, options = {}) {
@@ -1493,10 +2172,12 @@ var RouteLoader = class {
       environment: options.environment || "development",
       useLayout: options.useLayout !== false,
       defaultLayout: options.defaultLayout || "default",
-      useComponents: options.useComponents !== false,
       debug: options.debug || false
     };
     this.router = router;
+    this.formHandler = new FormHandler(router, this.config);
+    this.apiHandler = new ApiHandler(router, this.config);
+    this.componentLoader = new ComponentLoader(router, this.config);
     this.log("debug", "RouteLoader initialized with config:", this.config);
   }
   /**
@@ -1614,17 +2295,33 @@ ${template}`;
     if (isProduction) {
       template = script.template || this.generateDefaultTemplate(routeName);
     } else {
-      template = await this.loadTemplate(routeName);
-      style = await this.loadStyle(routeName);
-      layout = this.config.useLayout && script.layout !== null ? await this.loadLayout(script.layout || this.config.defaultLayout) : null;
+      const loadPromises = [
+        this.loadTemplate(routeName),
+        this.loadStyle(routeName)
+      ];
+      if (this.config.useLayout && script.layout !== null) {
+        loadPromises.push(this.loadLayout(script.layout || this.config.defaultLayout));
+      } else {
+        loadPromises.push(Promise.resolve(null));
+      }
+      const [loadedTemplate, loadedStyle, loadedLayout] = await Promise.all(loadPromises);
+      template = loadedTemplate;
+      style = loadedStyle;
+      layout = loadedLayout;
       if (layout) {
         template = this.mergeLayoutWithTemplate(routeName, layout, template);
       }
     }
     let loadedComponents = {};
-    if (this.config.useComponents && router.componentLoader) {
+    if (this.componentLoader) {
       try {
-        loadedComponents = await router.componentLoader.loadAllComponents();
+        let componentNames = null;
+        if (!isProduction) {
+          const layoutName = script.layout || this.config.defaultLayout;
+          componentNames = this.componentLoader.getComponentNames(template, layout, layoutName);
+          this.log("info", `[DEVELOPMENT] Discovered components for route '${routeName}':`, componentNames);
+        }
+        loadedComponents = await this.componentLoader.loadAllComponents(componentNames);
         this.log("debug", `Components loaded successfully for route: ${routeName}`);
       } catch (error) {
         this.log("warn", `Component loading failed for route '${routeName}', continuing without components:`, error.message);
@@ -1666,14 +2363,10 @@ ${template}`;
           await script.mounted.call(this);
         }
         if (script.dataURL) {
-          if (typeof script.dataURL === "string") {
-            await this.$fetchData();
-          } else if (typeof script.dataURL === "object") {
-            await this.$fetchMultipleData();
-          }
+          await this.$fetchData();
         }
         await this.$nextTick();
-        this.$bindAutoForms();
+        router.routeLoader.formHandler.bindAutoForms(this);
       },
       methods: {
         ...script.methods,
@@ -1702,245 +2395,52 @@ ${template}`;
         $removeToken: (storage) => router.authManager?.removeAccessToken(storage) || null,
         $getAuthCookie: () => router.authManager?.getAuthCookie() || null,
         $getCookie: (name) => router.authManager?.getCookieValue(name) || null,
-        // 데이터 fetch (단일 API 또는 특정 API)
-        async $fetchData(apiName) {
-          if (!script.dataURL) return;
+        // 데이터 fetch (ApiHandler 래퍼)
+        async $fetchData(dataConfig = null) {
+          const configToUse = dataConfig || script.dataURL;
+          if (!configToUse) return null;
           this.$dataLoading = true;
           try {
-            if (typeof script.dataURL === "string") {
-              const data = await router.routeLoader.fetchComponentData(script.dataURL);
-              if (router.errorHandler) router.errorHandler.debug("RouteLoader", `Data fetched for ${routeName}:`, data);
+            if (typeof configToUse === "string") {
+              const data = await router.routeLoader.apiHandler.fetchData(configToUse, this);
               Object.assign(this, data);
               this.$emit("data-loaded", data);
-            } else if (typeof script.dataURL === "object" && apiName) {
-              const url = script.dataURL[apiName];
-              if (url) {
-                const data = await router.routeLoader.fetchComponentData(url);
-                if (router.errorHandler) router.errorHandler.debug("RouteLoader", `Data fetched for ${routeName}.${apiName}:`, data);
-                this[apiName] = data;
-                this.$emit("data-loaded", { [apiName]: data });
+              return data;
+            } else if (typeof configToUse === "object") {
+              const { results, errors } = await router.routeLoader.apiHandler.fetchMultipleData(configToUse, this);
+              Object.assign(this, results);
+              if (Object.keys(results).length > 0) {
+                this.$emit("data-loaded", results);
               }
-            } else {
-              await this.$fetchMultipleData();
+              if (Object.keys(errors).length > 0) {
+                this.$emit("data-error", errors);
+              }
+              return results;
             }
+            return null;
           } catch (error) {
             if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Failed to fetch data for ${routeName}:`, error);
             this.$emit("data-error", error);
+            throw error;
           } finally {
             this.$dataLoading = false;
           }
         },
-        // 다중 API 데이터 fetch
-        async $fetchMultipleData() {
-          if (!script.dataURL || typeof script.dataURL !== "object") return;
-          const dataURLs = script.dataURL;
-          this.$dataLoading = true;
-          try {
-            const promises = Object.entries(dataURLs).map(async ([key, url]) => {
-              try {
-                const data = await router.routeLoader.fetchComponentData(url);
-                return { key, data, success: true };
-              } catch (error) {
-                if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Failed to fetch ${key} for ${routeName}:`, error);
-                return { key, error, success: false };
-              }
-            });
-            const results = await Promise.all(promises);
-            const successfulResults = {};
-            const errors = {};
-            results.forEach(({ key, data, error, success }) => {
-              if (success) {
-                this[key] = data;
-                successfulResults[key] = data;
-              } else {
-                errors[key] = error;
-              }
-            });
-            if (router.errorHandler) router.errorHandler.debug("RouteLoader", `Multiple data fetched for ${routeName}:`, successfulResults);
-            if (Object.keys(successfulResults).length > 0) {
-              this.$emit("data-loaded", successfulResults);
-            }
-            if (Object.keys(errors).length > 0) {
-              this.$emit("data-error", errors);
-            }
-          } catch (error) {
-            if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Failed to fetch multiple data for ${routeName}:`, error);
-            this.$emit("data-error", error);
-          } finally {
-            this.$dataLoading = false;
-          }
+        // HTTP 메서드 래퍼들 (ApiHandler 직접 접근)
+        async $get(url, options = {}) {
+          return await router.routeLoader.apiHandler.get(url, this, options);
         },
-        // 전체 데이터 새로고침 (명시적 메서드)
-        async $fetchAllData() {
-          if (typeof script.dataURL === "string") {
-            await this.$fetchData();
-          } else if (typeof script.dataURL === "object") {
-            await this.$fetchMultipleData();
-          }
+        async $post(url, data, options = {}) {
+          return await router.routeLoader.apiHandler.post(url, data, this, options);
         },
-        // 🆕 자동 폼 바인딩 메서드
-        $bindAutoForms() {
-          const forms = document.querySelectorAll("form.auto-form, form[action]");
-          forms.forEach((form) => {
-            form.removeEventListener("submit", form._boundSubmitHandler);
-            const boundHandler = (e) => this.$handleFormSubmit(e);
-            form._boundSubmitHandler = boundHandler;
-            form.addEventListener("submit", boundHandler);
-            if (router.errorHandler) router.errorHandler.debug("RouteLoader", `Form auto-bound: ${form.getAttribute("action")}`);
-          });
+        async $put(url, data, options = {}) {
+          return await router.routeLoader.apiHandler.put(url, data, this, options);
         },
-        // 🆕 폼 서브밋 핸들러
-        async $handleFormSubmit(event) {
-          event.preventDefault();
-          const form = event.target;
-          let action = form.getAttribute("action");
-          const method = form.getAttribute("method") || "POST";
-          const successHandler = form.getAttribute("data-success-handler");
-          const errorHandler = form.getAttribute("data-error-handler");
-          const loadingHandler = form.getAttribute("data-loading-handler");
-          const redirectTo = form.getAttribute("data-redirect");
-          try {
-            if (loadingHandler && this[loadingHandler]) {
-              this[loadingHandler](true, form);
-            }
-            action = this.$processActionParams(action);
-            if (!this.$validateForm(form)) {
-              return;
-            }
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-            if (router.errorHandler) router.errorHandler.debug("RouteLoader", `Form submitting to: ${action}`, data);
-            const response = await this.$submitFormData(action, method, data, form);
-            if (successHandler && this[successHandler]) {
-              this[successHandler](response, form);
-            }
-            if (redirectTo) {
-              setTimeout(() => {
-                this.navigateTo(redirectTo);
-              }, 1e3);
-            }
-          } catch (error) {
-            if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Form submission error:`, error);
-            if (errorHandler && this[errorHandler]) {
-              this[errorHandler](error, form);
-            } else {
-              console.error("Form submission error:", error);
-            }
-          } finally {
-            if (loadingHandler && this[loadingHandler]) {
-              this[loadingHandler](false, form);
-            }
-          }
+        async $patch(url, data, options = {}) {
+          return await router.routeLoader.apiHandler.patch(url, data, this, options);
         },
-        // 🆕 액션 파라미터 처리 메서드 (간단한 템플릿 치환)
-        $processActionParams(actionTemplate) {
-          let processedAction = actionTemplate;
-          const paramMatches = actionTemplate.match(/\{([^}]+)\}/g);
-          if (paramMatches) {
-            paramMatches.forEach((match) => {
-              const paramName = match.slice(1, -1);
-              try {
-                let paramValue = null;
-                paramValue = this.getParam(paramName);
-                if (paramValue === null || paramValue === void 0) {
-                  paramValue = this[paramName];
-                }
-                if (paramValue === null || paramValue === void 0) {
-                  if (this.$options.computed && this.$options.computed[paramName]) {
-                    paramValue = this[paramName];
-                  }
-                }
-                if (paramValue !== null && paramValue !== void 0) {
-                  processedAction = processedAction.replace(
-                    match,
-                    encodeURIComponent(paramValue)
-                  );
-                  if (router.errorHandler) router.errorHandler.debug("RouteLoader", `Parameter resolved: ${paramName} = ${paramValue}`);
-                } else {
-                  if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Parameter '${paramName}' not found in component data, computed, or route params`);
-                }
-              } catch (error) {
-                if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Error processing parameter '${paramName}':`, error);
-              }
-            });
-          }
-          return processedAction;
-        },
-        // 🆕 폼 데이터 서브밋
-        async $submitFormData(action, method, data, form) {
-          const hasFile = Array.from(form.elements).some((el) => el.type === "file" && el.files.length > 0);
-          const headers = {
-            "Accept": "application/json",
-            // 인증 토큰 자동 추가
-            ...this.$getToken() && {
-              "Authorization": `Bearer ${this.$getToken()}`
-            }
-          };
-          let body;
-          if (hasFile) {
-            body = new FormData(form);
-          } else {
-            headers["Content-Type"] = "application/json";
-            body = JSON.stringify(data);
-          }
-          const response = await fetch(action, {
-            method: method.toUpperCase(),
-            headers,
-            body
-          });
-          if (!response.ok) {
-            let error;
-            try {
-              error = await response.json();
-            } catch (e) {
-              error = { message: `HTTP ${response.status}: ${response.statusText}` };
-            }
-            throw new Error(error.message || `HTTP ${response.status}`);
-          }
-          try {
-            return await response.json();
-          } catch (e) {
-            return { success: true };
-          }
-        },
-        // 🆕 클라이언트 사이드 폼 검증
-        $validateForm(form) {
-          let isValid = true;
-          const inputs = form.querySelectorAll("input, textarea, select");
-          inputs.forEach((input) => {
-            if (!input.checkValidity()) {
-              isValid = false;
-              input.classList.add("error");
-              return;
-            }
-            const validationFunction = input.getAttribute("data-validation");
-            if (validationFunction) {
-              const isInputValid = this.$validateInput(input, validationFunction);
-              if (!isInputValid) {
-                isValid = false;
-                input.classList.add("error");
-              } else {
-                input.classList.remove("error");
-              }
-            } else {
-              input.classList.remove("error");
-            }
-          });
-          return isValid;
-        },
-        // 🆕 개별 입력 검증
-        $validateInput(input, validationFunction) {
-          const value = input.value;
-          if (typeof this[validationFunction] === "function") {
-            try {
-              return this[validationFunction](value, input);
-            } catch (error) {
-              if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Validation function '${validationFunction}' error:`, error);
-              return false;
-            }
-          }
-          if (router.errorHandler) router.errorHandler.warn("RouteLoader", `Validation function '${validationFunction}' not found`);
-          return true;
+        async $delete(url, options = {}) {
+          return await router.routeLoader.apiHandler.delete(url, this, options);
         }
       },
       _routeName: routeName
@@ -1964,61 +2464,6 @@ ${template}`;
     return `<div class="route-${routeName}"><h1>Route: ${routeName}</h1></div>`;
   }
   /**
-   * 컴포넌트 데이터 가져오기
-   */
-  async fetchComponentData(dataURL) {
-    try {
-      const queryString = this.router.queryManager?.buildQueryString(this.router.queryManager?.getQueryParams()) || "";
-      const fullURL = queryString ? `${dataURL}?${queryString}` : dataURL;
-      this.log("debug", `Fetching data from: ${fullURL}`);
-      const response = await fetch(fullURL, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        }
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      if (typeof data !== "object" || data === null) {
-        throw new Error("Invalid data format: expected object");
-      }
-      return data;
-    } catch (error) {
-      this.log("error", "Failed to fetch component data:", error);
-      throw error;
-    }
-  }
-  /**
-   * 캐시 무효화
-   */
-  invalidateCache(routeName) {
-    if (this.router.cacheManager) {
-      this.router.cacheManager.invalidateComponentCache(routeName);
-    }
-    this.log("debug", `Cache invalidated for route: ${routeName}`);
-  }
-  /**
-   * 통계 정보 반환
-   */
-  getStats() {
-    return {
-      environment: this.config.environment,
-      srcPath: this.config.srcPath,
-      routesPath: this.config.routesPath,
-      useLayout: this.config.useLayout,
-      useComponents: this.config.useComponents
-    };
-  }
-  /**
-   * 페이지 제목 생성
-   */
-  generatePageTitle(routeName) {
-    return this.toPascalCase(routeName).replace(/([A-Z])/g, " $1").trim();
-  }
-  /**
    * 로깅 래퍼 메서드
    */
   log(level, ...args) {
@@ -2030,6 +2475,18 @@ ${template}`;
    * 정리 (메모리 누수 방지)
    */
   destroy() {
+    if (this.formHandler) {
+      this.formHandler.destroy();
+      this.formHandler = null;
+    }
+    if (this.apiHandler) {
+      this.apiHandler.destroy();
+      this.apiHandler = null;
+    }
+    if (this.componentLoader) {
+      this.componentLoader.dispose();
+      this.componentLoader = null;
+    }
     this.log("debug", "RouteLoader destroyed");
     this.router = null;
   }
@@ -2306,176 +2763,6 @@ var ErrorHandler = class {
   }
 };
 
-// src/core/ComponentLoader.js
-var ComponentLoader = class {
-  constructor(router = null, options = {}) {
-    this.config = {
-      componentsPath: options.componentsPath || "/components",
-      // srcPath 기준 상대 경로
-      debug: options.debug || false,
-      environment: options.environment || "development",
-      ...options
-    };
-    this.router = router;
-    this.loadingPromises = /* @__PURE__ */ new Map();
-    this.unifiedComponents = null;
-  }
-  /**
-   * 로깅 래퍼 메서드
-   */
-  log(level, ...args) {
-    if (this.router?.errorHandler) {
-      this.router.errorHandler.log(level, "ComponentLoader", ...args);
-    }
-  }
-  /**
-   * 컴포넌트를 비동기로 로드
-   */
-  async loadComponent(componentName) {
-    if (!componentName || typeof componentName !== "string") {
-      throw new Error("Component name must be a non-empty string");
-    }
-    if (this.loadingPromises.has(componentName)) {
-      return this.loadingPromises.get(componentName);
-    }
-    const loadPromise = this._loadComponentFromFile(componentName);
-    this.loadingPromises.set(componentName, loadPromise);
-    try {
-      const component = await loadPromise;
-      return component;
-    } catch (error) {
-      throw error;
-    } finally {
-      this.loadingPromises.delete(componentName);
-    }
-  }
-  /**
-   * 파일에서 컴포넌트 로드
-   */
-  async _loadComponentFromFile(componentName) {
-    const componentRelativePath = `${this.config.componentsPath}/${componentName}.js`;
-    let componentPath;
-    if (this.router && this.router.config.srcPath) {
-      const srcPath = this.router.config.srcPath;
-      if (srcPath.startsWith("http")) {
-        const cleanSrcPath = srcPath.endsWith("/") ? srcPath.slice(0, -1) : srcPath;
-        const cleanComponentPath = componentRelativePath.startsWith("/") ? componentRelativePath : `/${componentRelativePath}`;
-        componentPath = `${cleanSrcPath}${cleanComponentPath}`;
-      } else {
-        componentPath = this.router.resolvePath(`${srcPath}${componentRelativePath}`);
-      }
-    } else {
-      componentPath = this.router ? this.router.resolvePath(`/src${componentRelativePath}`) : `/src${componentRelativePath}`;
-    }
-    try {
-      const module = await import(componentPath);
-      const component = module.default;
-      if (!component) {
-        throw new Error(`Component '${componentName}' has no default export`);
-      }
-      if (!component.name) {
-        component.name = componentName;
-      }
-      this.log("debug", `Component '${componentName}' loaded successfully`);
-      return component;
-    } catch (error) {
-      this.log("error", `Failed to load component '${componentName}':`, error);
-      throw new Error(`Component '${componentName}' not found: ${error.message}`);
-    }
-  }
-  /**
-   * 컴포넌트 모듈 클리어
-   */
-  clearComponents() {
-    this.loadingPromises.clear();
-    this.unifiedComponents = null;
-    this.log("debug", "All components cleared");
-  }
-  /**
-   * 환경에 따른 모든 컴포넌트 로딩 (캐싱 지원)
-   */
-  async loadAllComponents() {
-    if (this.unifiedComponents) {
-      this.log("debug", "Using existing unified components");
-      return this.unifiedComponents;
-    }
-    if (this.config.environment === "production") {
-      return await this._loadProductionComponents();
-    }
-    return await this._loadDevelopmentComponents();
-  }
-  /**
-   * 운영 모드: 통합 컴포넌트 로딩
-   */
-  async _loadProductionComponents() {
-    try {
-      const componentsPath = `${this.router?.config?.routesPath || "/routes"}/_components.js`;
-      this.log("info", "[PRODUCTION] Loading unified components from:", componentsPath);
-      const componentsModule = await import(componentsPath);
-      if (typeof componentsModule.registerComponents === "function") {
-        this.unifiedComponents = componentsModule.components || {};
-        this.log("info", `[PRODUCTION] Unified components loaded: ${Object.keys(this.unifiedComponents).length} components`);
-        return this.unifiedComponents;
-      } else {
-        throw new Error("registerComponents function not found in components module");
-      }
-    } catch (error) {
-      this.log("warn", "[PRODUCTION] Failed to load unified components:", error.message);
-      this.unifiedComponents = {};
-      return {};
-    }
-  }
-  /**
-   * 개발 모드: 개별 컴포넌트 로딩
-   */
-  async _loadDevelopmentComponents() {
-    const componentNames = this._getComponentNames();
-    const components = {};
-    this.log("info", `[DEVELOPMENT] Loading individual components: ${componentNames.join(", ")}`);
-    for (const name of componentNames) {
-      try {
-        const component = await this.loadComponent(name);
-        if (component) {
-          components[name] = component;
-        }
-      } catch (loadError) {
-        this.log("warn", `[DEVELOPMENT] Failed to load component ${name}:`, loadError.message);
-      }
-    }
-    this.unifiedComponents = components;
-    this.log("info", `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
-    return components;
-  }
-  /**
-   * 컴포넌트 이름 목록 가져오기
-   */
-  _getComponentNames() {
-    if (Array.isArray(this.config.componentNames) && this.config.componentNames.length > 0) {
-      return [...this.config.componentNames];
-    }
-    return [
-      "Button",
-      "Modal",
-      "Card",
-      "Toast",
-      "Input",
-      "Tabs",
-      "Checkbox",
-      "Alert",
-      "DynamicInclude",
-      "HtmlInclude"
-    ];
-  }
-  /**
-   * 메모리 정리
-   */
-  dispose() {
-    this.clearComponents();
-    this.log("debug", "ComponentLoader disposed");
-    this.router = null;
-  }
-};
-
 // src/viewlogic-router.js
 var ViewLogicRouter = class {
   constructor(options = {}) {
@@ -2484,7 +2771,6 @@ var ViewLogicRouter = class {
     this.currentHash = "";
     this.currentVueApp = null;
     this.previousVueApp = null;
-    this.componentLoader = null;
     this.transitionInProgress = false;
     this.isReady = false;
     this.readyPromise = null;
@@ -2511,8 +2797,6 @@ var ViewLogicRouter = class {
       routesPath: "/routes",
       // 프로덕션 라우트 경로
       enableErrorReporting: true,
-      useComponents: true,
-      componentNames: ["Button", "Modal", "Card", "Toast", "Input", "Tabs", "Checkbox", "Alert", "DynamicInclude", "HtmlInclude"],
       useI18n: false,
       defaultLanguage: "ko",
       i18nPath: "/i18n",
@@ -2620,21 +2904,6 @@ var ViewLogicRouter = class {
       }
       if (this.config.authEnabled) {
         this.authManager = new AuthManager(this, this.config);
-      }
-      if (this.config.useComponents) {
-        try {
-          this.componentLoader = new ComponentLoader(this, {
-            ...this.config,
-            basePath: `${this.config.basePath}/components`,
-            cache: true,
-            componentNames: this.config.componentNames
-          });
-          await this.componentLoader.loadAllComponents();
-          this.log("info", "ComponentLoader initialized successfully");
-        } catch (componentError) {
-          this.log("warn", "ComponentLoader initialization failed, continuing without components:", componentError.message);
-          this.componentLoader = null;
-        }
       }
       this.isReady = true;
       this.init();

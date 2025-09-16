@@ -50,7 +50,6 @@ export class ViewLogicRouter {
             environment: 'development',
             routesPath: '/routes',         // 프로덕션 라우트 경로
             enableErrorReporting: true,
-            componentNames: ['Button', 'Modal', 'Card', 'Toast', 'Input', 'Tabs', 'Checkbox', 'Alert', 'DynamicInclude', 'HtmlInclude'],
             useI18n: false,
             defaultLanguage: 'ko',
             i18nPath: '/i18n',            // 다국어 파일 경로

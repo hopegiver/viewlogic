@@ -7,6 +7,7 @@ export class FormHandler {
         this.router = router;
         this.config = {
             debug: options.debug || false,
+            requestTimeout: options.requestTimeout || 30000,
             ...options
         };
         
@@ -20,6 +21,57 @@ export class FormHandler {
         if (this.router?.errorHandler) {
             this.router.errorHandler.log(level, 'FormHandler', ...args);
         }
+    }
+
+
+    /**
+     * 중복 요청 체크
+     */
+    isDuplicateRequest(form) {
+        if (form._isSubmitting) {
+            this.log('debug', 'Duplicate request blocked');
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 폼 제출 시작
+     */
+    startFormSubmission(form) {
+        form._isSubmitting = true;
+        form._abortController = new AbortController();
+        
+        // 타임아웃 설정
+        form._timeoutId = setTimeout(() => {
+            if (form._isSubmitting) {
+                this.abortFormSubmission(form);
+            }
+        }, this.config.requestTimeout);
+    }
+
+    /**
+     * 폼 제출 완료
+     */
+    finishFormSubmission(form) {
+        form._isSubmitting = false;
+        
+        if (form._timeoutId) {
+            clearTimeout(form._timeoutId);
+            delete form._timeoutId;
+        }
+        
+        delete form._abortController;
+    }
+
+    /**
+     * 폼 제출 중단
+     */
+    abortFormSubmission(form) {
+        if (form._abortController) {
+            form._abortController.abort();
+        }
+        this.finishFormSubmission(form);
     }
 
     /**
@@ -57,43 +109,63 @@ export class FormHandler {
         const loadingHandler = form.getAttribute('data-loading-handler');
         const redirectTo = form.getAttribute('data-redirect');
 
+        // 액션 URL에 가변 파라미터 처리
+        action = this.processActionParams(action, component);
+
+        // 클라이언트 사이드 검증
+        if (!this.validateForm(form, component)) {
+            return;
+        }
+
+        // 중복 요청 체크
+        if (this.isDuplicateRequest(form)) {
+            return;
+        }
+
+        // 폼 제출 시작
+        this.startFormSubmission(form);
+
+        // FormData 생성
+        const formData = new FormData(form);
+        const data = Object.fromEntries(formData.entries());
+
         try {
             // 로딩 시작
             if (loadingHandler && component[loadingHandler]) {
                 component[loadingHandler](true, form);
             }
 
-            // 액션 URL에 가변 파라미터 처리
-            action = this.processActionParams(action, component);
-
-            // 클라이언트 사이드 검증
-            if (!this.validateForm(form, component)) {
-                return;
-            }
-
-            // FormData 생성
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-
             this.log('debug', `Form submitting to: ${action}`, data);
 
-            // API 호출
-            const response = await this.submitFormData(action, method, data, form, component);
+            // API 호출 (AbortController 신호 포함)
+            const response = await this.submitFormData(action, method, data, form, component, form._abortController.signal);
             
             // 성공 핸들러 호출
             if (successHandler && component[successHandler]) {
                 component[successHandler](response, form);
             }
 
-            // 자동 리다이렉트
+            // 폼 제출 완료 (성공)
+            this.finishFormSubmission(form);
+
+            // 자동 리다이렉트 (requestAnimationFrame 사용으로 부드러운 전환)
             if (redirectTo) {
-                setTimeout(() => {
-                    component.navigateTo(redirectTo);
-                }, 1000); // 1초 후 리다이렉트
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        component.navigateTo(redirectTo);
+                    }, 1000);
+                });
             }
 
         } catch (error) {
-            this.log('warn', `Form submission error:`, error);
+            // AbortError는 의도적인 취소이므로 특별 처리
+            if (error.name === 'AbortError') {
+                this.log('debug', 'Form submission aborted');
+                return;
+            }
+
+            this.log('warn', 'Form submission error:', error);
+            this.finishFormSubmission(form);
             
             // 에러 핸들러 호출
             if (errorHandler && component[errorHandler]) {
@@ -101,6 +173,7 @@ export class FormHandler {
             } else {
                 console.error('Form submission error:', error);
             }
+            
         } finally {
             // 로딩 종료
             if (loadingHandler && component[loadingHandler]) {
@@ -108,6 +181,7 @@ export class FormHandler {
             }
         }
     }
+
 
     /**
      * 액션 파라미터 처리 (ApiHandler 재사용)
@@ -120,14 +194,15 @@ export class FormHandler {
     /**
      * 폼 데이터 서브밋 (ApiHandler 활용)
      */
-    async submitFormData(action, method, data, form, component) {
+    async submitFormData(action, method, data, form, component, signal = null) {
         // 파일 업로드 체크
         const hasFile = Array.from(form.elements).some(el => el.type === 'file' && el.files.length > 0);
         
         // ApiHandler를 사용하여 일관된 API 호출 및 에러 처리
         const options = {
             method: method.toUpperCase(),
-            headers: {}
+            headers: {},
+            signal: signal // AbortController 신호 추가
         };
 
         if (hasFile) {
@@ -198,9 +273,24 @@ export class FormHandler {
     }
 
     /**
+     * 모든 폼 요청 취소
+     */
+    cancelAllRequests() {
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+            if (form._isSubmitting) {
+                this.abortFormSubmission(form);
+            }
+        });
+    }
+
+    /**
      * 정리 (메모리 누수 방지)
      */
     destroy() {
+        // 모든 진행 중인 요청 취소
+        this.cancelAllRequests();
+        
         // 등록된 이벤트 리스너들 정리
         const forms = document.querySelectorAll('form.auto-form, form[action]');
         forms.forEach(form => {
@@ -208,9 +298,27 @@ export class FormHandler {
                 form.removeEventListener('submit', form._boundSubmitHandler);
                 delete form._boundSubmitHandler;
             }
+            
+            // 폼 상태 정리
+            this.cleanupFormState(form);
         });
+        
+        // WeakMap 정리 (자동 가비지 컬렉션됨)
         
         this.log('debug', 'FormHandler destroyed');
         this.router = null;
+    }
+
+    /**
+     * 폼 상태 정리
+     */
+    cleanupFormState(form) {
+        delete form._isSubmitting;
+        delete form._abortController;
+        
+        if (form._timeoutId) {
+            clearTimeout(form._timeoutId);
+            delete form._timeoutId;
+        }
     }
 }

@@ -174,7 +174,7 @@ export class ComponentLoader {
      */
     async _loadDevelopmentComponents(componentNames = null) {
         // 컴포넌트 이름 목록이 제공되지 않으면 폴백 사용
-        const namesToLoad = componentNames || this._getComponentNames();
+        const namesToLoad = componentNames || [];
         const components = {};
         
         if (namesToLoad.length === 0) {
@@ -197,21 +197,6 @@ export class ComponentLoader {
         
         this.log('info', `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
         return components;
-    }
-    
-    /**
-     * 컴포넌트 이름 목록 가져오기
-     */
-    _getComponentNames() {
-        if (Array.isArray(this.config.componentNames) && this.config.componentNames.length > 0) {
-            return [...this.config.componentNames];
-        }
-        
-        // 폴백: 기존 하드코딩 목록
-        return [
-            'Button', 'Modal', 'Card', 'Toast', 'Input', 'Tabs',
-            'Checkbox', 'Alert', 'DynamicInclude', 'HtmlInclude'
-        ];
     }
     
     /**
