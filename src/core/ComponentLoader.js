@@ -270,28 +270,19 @@ export class ComponentLoader {
     _extractComponentsFromContent(content, componentSet) {
         if (!content || typeof content !== 'string') return;
         
-        // PascalCase 컴포넌트 패턴: <Button>, <Card>, <Modal> 등
-        const pascalPattern = /<([A-Z][a-zA-Z0-9]*)\s*[^>]*>/g;
+        // 더 효율적인 패턴: PascalCase 컴포넌트 태그 추출
+        // 시작 태그 <Component>와 자체 닫힘 태그 <Component/>를 모두 감지
+        // dotAll 플래그(s)로 개행 문자도 처리
+        const componentPattern = /<([A-Z][a-zA-Z0-9]*)(?:\s[^>]*)?\/?>|<\/([A-Z][a-zA-Z0-9]*)\s*>/gs;
         let match;
         
-        while ((match = pascalPattern.exec(content)) !== null) {
-            const componentName = match[1];
+        while ((match = componentPattern.exec(content)) !== null) {
+            // match[1]은 시작/자체닫힘 태그, match[2]는 닫는 태그
+            const componentName = match[1] || match[2];
             
-            // HTML 기본 태그들 제외
-            if (!this._isHtmlTag(componentName)) {
+            if (componentName && !this._isHtmlTag(componentName)) {
                 componentSet.add(componentName);
                 this.log('debug', `Found component: ${componentName}`);
-            }
-        }
-        
-        // 자체 닫힘 태그도 확인: <Button />
-        const selfClosingPattern = /<([A-Z][a-zA-Z0-9]*)\s*[^>]*\/>/g;
-        while ((match = selfClosingPattern.exec(content)) !== null) {
-            const componentName = match[1];
-            
-            if (!this._isHtmlTag(componentName)) {
-                componentSet.add(componentName);
-                this.log('debug', `Found self-closing component: ${componentName}`);
             }
         }
     }
@@ -302,13 +293,13 @@ export class ComponentLoader {
     _isHtmlTag(tagName) {
         const htmlTags = [
             'div', 'span', 'p', 'a', 'img', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-            'table', 'tr', 'td', 'th', 'form', 'input', 'button', 'select', 'option', 'textarea',
+            'table', 'tr', 'td', 'th', 'form', 'select', 'option', 'textarea',
             'nav', 'header', 'footer', 'main', 'section', 'article', 'aside', 'figure', 'figcaption',
             'video', 'audio', 'canvas', 'svg', 'iframe', 'script', 'style', 'link', 'meta', 'title',
             'body', 'html', 'head', 'template', 'slot'
         ];
         
-        return htmlTags.includes(tagName.toLowerCase());
+        return htmlTags.includes(tagName);
     }
 
     /**
