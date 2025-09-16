@@ -22,7 +22,7 @@ export class ErrorHandler {
             debug: 3
         };
         
-        this.log('info', 'ErrorHandler', 'ErrorHandler initialized with config:', this.config);
+        this.log('debug', 'ErrorHandler', 'ErrorHandler initialized with config:', this.config);
     }
 
     /**

@@ -2666,8 +2666,8 @@ var ErrorHandler = class {
       userAgent: navigator.userAgent,
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       routerConfig: {
-        environment: this.router.config.environment,
-        mode: this.router.config.mode
+        environment: this.router?.config?.environment || "unknown",
+        mode: this.router?.config?.mode || "unknown"
       }
     };
     this.error("ErrorHandler", "\uB77C\uC6B0\uD130 \uC5D0\uB7EC \uB9AC\uD3EC\uD2B8:", errorReport);
@@ -3158,7 +3158,7 @@ var ViewLogicRouter = class {
         manager.destroy();
       }
     });
-    this.cacheManager?.clearAll();
+    this.cacheManager?.clearCache();
     const appElement = document.getElementById("app");
     if (appElement) {
       appElement.innerHTML = "";
