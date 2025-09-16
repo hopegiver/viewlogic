@@ -44,3 +44,6 @@ temp/
 # OS files
 Thumbs.db
 Desktop.ini
+
+# Examples (use separate template repository)
+examples/

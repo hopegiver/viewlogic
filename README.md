@@ -69,6 +69,8 @@ router.mount('#app');
 
 ## 📦 Installation
 
+### Quick Start (Recommended)
+
 Create a new ViewLogic project with our complete template:
 
 ```bash
@@ -77,7 +79,27 @@ cd my-app
 # Ready to go! No additional setup needed
 ```
 
-Or manually install the router only:
+### Alternative: Clone Template Repository
+
+You can also clone the [viewlogic-template](https://github.com/hopegiver/viewlogic-template) repository directly:
+
+```bash
+git clone https://github.com/hopegiver/viewlogic-template.git my-app
+cd my-app
+npm install
+npm run dev
+```
+
+The template repository includes:
+- Complete project structure with examples
+- Pre-configured development environment
+- Sample views, logic, and components
+- Ready-to-use layouts and styles
+- Development and build scripts
+
+### Manual Installation
+
+Or install just the router package:
 ```bash
 npm install viewlogic
 ```
