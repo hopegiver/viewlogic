@@ -223,6 +223,21 @@ export class ApiHandler {
     }
 
     /**
+     * 컴포넌트에 바인딩된 API 객체 생성
+     */
+    bindToComponent(component) {
+        return {
+            get: (url, options = {}) => this.get(url, component, options),
+            post: (url, data, options = {}) => this.post(url, data, component, options),
+            put: (url, data, options = {}) => this.put(url, data, component, options),
+            patch: (url, data, options = {}) => this.patch(url, data, component, options),
+            delete: (url, options = {}) => this.delete(url, component, options),
+            fetchData: (url, options = {}) => this.fetchData(url, component, options),
+            fetchMultipleData: (dataConfig) => this.fetchMultipleData(dataConfig, component)
+        };
+    }
+
+    /**
      * 정리 (메모리 누수 방지)
      */
     destroy() {

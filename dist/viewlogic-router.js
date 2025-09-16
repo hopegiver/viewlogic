@@ -1886,6 +1886,20 @@ var ApiHandler = class {
     return this.fetchData(url, component, { ...options, method: "DELETE" });
   }
   /**
+   * 컴포넌트에 바인딩된 API 객체 생성
+   */
+  bindToComponent(component) {
+    return {
+      get: (url, options = {}) => this.get(url, component, options),
+      post: (url, data, options = {}) => this.post(url, data, component, options),
+      put: (url, data, options = {}) => this.put(url, data, component, options),
+      patch: (url, data, options = {}) => this.patch(url, data, component, options),
+      delete: (url, options = {}) => this.delete(url, component, options),
+      fetchData: (url, options = {}) => this.fetchData(url, component, options),
+      fetchMultipleData: (dataConfig) => this.fetchMultipleData(dataConfig, component)
+    };
+  }
+  /**
    * 정리 (메모리 누수 방지)
    */
   destroy() {
@@ -2359,6 +2373,7 @@ ${template}`;
         }
       },
       async mounted() {
+        this.$api = router.routeLoader.apiHandler.bindToComponent(this);
         if (script.mounted) {
           await script.mounted.call(this);
         }
@@ -2426,22 +2441,8 @@ ${template}`;
             this.$dataLoading = false;
           }
         },
-        // HTTP 메서드 래퍼들 (ApiHandler 직접 접근)
-        async $get(url, options = {}) {
-          return await router.routeLoader.apiHandler.get(url, this, options);
-        },
-        async $post(url, data, options = {}) {
-          return await router.routeLoader.apiHandler.post(url, data, this, options);
-        },
-        async $put(url, data, options = {}) {
-          return await router.routeLoader.apiHandler.put(url, data, this, options);
-        },
-        async $patch(url, data, options = {}) {
-          return await router.routeLoader.apiHandler.patch(url, data, this, options);
-        },
-        async $delete(url, options = {}) {
-          return await router.routeLoader.apiHandler.delete(url, this, options);
-        }
+        // API 호출을 위한 바인딩된 객체 (mounted에서 초기화됨)
+        $api: null
       },
       _routeName: routeName
     };

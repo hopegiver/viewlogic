@@ -257,6 +257,9 @@ export class RouteLoader {
                 }
             },
             async mounted() {
+                // API 객체 초기화
+                this.$api = router.routeLoader.apiHandler.bindToComponent(this);
+                
                 if (script.mounted) {
                     await script.mounted.call(this);
                 }
@@ -343,26 +346,8 @@ export class RouteLoader {
                     }
                 },
 
-                // HTTP 메서드 래퍼들 (ApiHandler 직접 접근)
-                async $get(url, options = {}) {
-                    return await router.routeLoader.apiHandler.get(url, this, options);
-                },
-
-                async $post(url, data, options = {}) {
-                    return await router.routeLoader.apiHandler.post(url, data, this, options);
-                },
-
-                async $put(url, data, options = {}) {
-                    return await router.routeLoader.apiHandler.put(url, data, this, options);
-                },
-
-                async $patch(url, data, options = {}) {
-                    return await router.routeLoader.apiHandler.patch(url, data, this, options);
-                },
-
-                async $delete(url, options = {}) {
-                    return await router.routeLoader.apiHandler.delete(url, this, options);
-                }
+                // API 호출을 위한 바인딩된 객체 (mounted에서 초기화됨)
+                $api: null
             },
             _routeName: routeName
         };
