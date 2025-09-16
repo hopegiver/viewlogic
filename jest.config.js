@@ -14,13 +14,20 @@ export default {
         '^.+\\.js$': 'babel-jest'
     },
     
-    // Test file patterns - only run simple tests for now
+    // Test file patterns
     testMatch: [
-        '<rootDir>/test/simple.test.js'
+        '<rootDir>/test/**/*.test.js'
     ],
-    
-    // Coverage collection - disabled for now
-    collectCoverage: false,
+
+    // Coverage collection
+    collectCoverage: true,
+    collectCoverageFrom: [
+        'src/**/*.js',
+        '!src/**/*.min.js',
+        '!src/**/index.js'
+    ],
+    coverageDirectory: 'coverage',
+    coverageReporters: ['text', 'lcov', 'html'],
     
     // Clear mocks between tests
     clearMocks: true,
@@ -32,5 +39,8 @@ export default {
     verbose: true,
     
     // Test timeout
-    testTimeout: 5000
+    testTimeout: 10000,
+
+    // Setup files
+    setupFilesAfterEnv: ['<rootDir>/test/setup.js']
 };

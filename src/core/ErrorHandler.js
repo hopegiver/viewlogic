@@ -214,8 +214,8 @@ export class ErrorHandler {
             userAgent: navigator.userAgent,
             timestamp: new Date().toISOString(),
             routerConfig: {
-                environment: this.router.config.environment,
-                mode: this.router.config.mode
+                environment: this.router?.config?.environment || 'unknown',
+                mode: this.router?.config?.mode || 'unknown'
             }
         };
         
