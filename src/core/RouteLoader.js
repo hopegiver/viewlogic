@@ -344,10 +344,7 @@ export class RouteLoader {
                     } finally {
                         this.$dataLoading = false;
                     }
-                },
-
-                // API 호출을 위한 바인딩된 객체 (mounted에서 초기화됨)
-                $api: null
+                }
             },
             _routeName: routeName
         };

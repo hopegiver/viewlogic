@@ -1,4 +1,4 @@
-# ViewLogic Router v1.1.1 - API Documentation
+# ViewLogic Router v1.2.1 - API Documentation
 
 > Complete API reference for ViewLogic Router - A revolutionary Vue 3 routing system
 
@@ -76,13 +76,26 @@ export default {
             title: 'Example Page'
         };
     },
-    mounted() {
+    async mounted() {
         // Data already loaded from dataURL
         console.log(this.data);
+        
+        // Use $api for additional requests
+        const userInfo = await this.$api.get('/api/user/profile');
+        this.userInfo = userInfo;
     },
     methods: {
         handleClick() {
             this.navigateTo('other-page', { id: 123 });
+        },
+        
+        async saveData() {
+            try {
+                await this.$api.post('/api/save', { title: this.title });
+                this.$toast('Data saved successfully!', 'success');
+            } catch (error) {
+                this.$toast('Failed to save data', 'error');
+            }
         }
     }
 };
@@ -131,4 +144,4 @@ Found an error or want to improve the documentation?
 
 ---
 
-**ViewLogic Router v1.1.1** | Generated on: 2024-09-12 | [Edit this page](https://github.com/hopegiver/viewlogic/edit/master/docs/index.md)
+**ViewLogic Router v1.2.1** | Generated on: 2025-09-16 | [Edit this page](https://github.com/hopegiver/viewlogic/edit/master/docs/index.md)

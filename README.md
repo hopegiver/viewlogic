@@ -338,10 +338,15 @@ const current = router.getCurrentRoute();
 // In route components - global methods automatically available:
 export default {
     dataURL: '/api/products', // Auto-fetch data
-    mounted() {
+    async mounted() {
         const id = this.getParam('id');           // Get parameter
         this.navigateTo('detail', { id });        // Navigate
         console.log('Data loaded:', this.products); // From dataURL
+        
+        // New $api pattern for RESTful API calls
+        const user = await this.$api.get('/api/users/{userId}');
+        await this.$api.post('/api/analytics', { pageView: 'products' });
+        
         if (this.$isAuthenticated()) { /* auth check */ }
         const text = this.$t('welcome.message');   // i18n
     }
@@ -351,9 +356,9 @@ export default {
 ### Key Global Methods (Auto-available in all route components)
 - **Navigation**: `navigateTo()`, `getCurrentRoute()`
 - **Parameters**: `getParams()`, `getParam(key, defaultValue)`
-- **Data Fetching**: `$fetchData()`, `$fetchAllData()` (with dataURL)
+- **Data Fetching**: `$fetchData()` (with dataURL), `$api.get()`, `$api.post()`, `$api.put()`, `$api.patch()`, `$api.delete()`
 - **Authentication**: `$isAuthenticated()`, `$getToken()`, `$logout()`
-- **Forms**: Auto-binding with `action` attribute and `{param}` templates
+- **Forms**: Auto-binding with `action` attribute, duplicate prevention, validation
 - **i18n**: `$t(key, params)` for translations
 
 ### Auto-Injected Properties
@@ -659,9 +664,98 @@ export default {
 - ✅ **Built-in Security** - HTML sanitization included
 - ✅ **Zero Setup** - Works immediately without configuration
 
-## 📝 Automatic Form Handling with Variable Parameters
+## 🔥 RESTful API Calls with $api Pattern
 
-ViewLogic Router includes revolutionary automatic form handling that eliminates the need for manual form submission logic. Just define your forms with `action` attributes and the router handles the rest!
+ViewLogic introduces a clean, RESTful API calling pattern with automatic parameter substitution and authentication handling.
+
+### Basic API Usage
+
+```javascript
+// src/logic/user-profile.js
+export default {
+    name: 'UserProfile',
+    
+    async mounted() {
+        try {
+            // GET request with automatic parameter substitution
+            const user = await this.$api.get('/api/users/{userId}');
+            
+            // POST request with data
+            const response = await this.$api.post('/api/users/{userId}/posts', {
+                title: 'New Post',
+                content: 'Post content here'
+            });
+            
+            // PUT request for updates
+            await this.$api.put('/api/users/{userId}', {
+                name: user.name,
+                email: user.email
+            });
+            
+            // DELETE request
+            await this.$api.delete('/api/posts/{postId}');
+            
+        } catch (error) {
+            console.error('API call failed:', error);
+            this.handleError(error);
+        }
+    }
+};
+```
+
+### Advanced API Features
+
+```javascript
+export default {
+    methods: {
+        async handleUserActions() {
+            // With custom headers
+            const data = await this.$api.get('/api/protected-data', {
+                headers: { 'X-Custom-Header': 'value' }
+            });
+            
+            // File upload with FormData
+            const formData = new FormData();
+            formData.append('file', this.selectedFile);
+            await this.$api.post('/api/upload', formData);
+            
+            // With query parameters (automatically added from current route)
+            // URL: /users?id=123 → API call includes ?id=123
+            const result = await this.$api.get('/api/user-data');
+        },
+        
+        // Error handling patterns
+        async safeApiCall() {
+            try {
+                const user = await this.$api.get('/api/users/{userId}');
+                this.user = user;
+                
+            } catch (error) {
+                if (error.message.includes('404')) {
+                    this.showError('User not found');
+                } else if (error.message.includes('401')) {
+                    this.navigateTo('login');
+                } else {
+                    this.showError('Something went wrong');
+                }
+            }
+        }
+    }
+};
+```
+
+### Key $api Features
+
+- **🎯 Parameter Substitution**: `{userId}` automatically replaced with component data or route params
+- **🔐 Auto Authentication**: Authorization headers automatically added when token is available  
+- **📄 Smart Data Handling**: JSON and FormData automatically detected and processed
+- **🔗 Query Integration**: Current route query parameters automatically included
+- **⚡ Error Standardization**: Consistent error format across all API calls
+- **🚀 RESTful Pattern**: Clean `get()`, `post()`, `put()`, `patch()`, `delete()` methods
+
+## 📝 Advanced Form Handling with Smart Features
+
+ViewLogic Router includes revolutionary automatic form handling with duplicate prevention, validation, and error handling. Just define your forms with `action` attributes and the router handles everything!
 
 ### Basic Form Handling
 
@@ -683,14 +777,81 @@ ViewLogic Router includes revolutionary automatic form handling that eliminates 
 export default {
     name: 'ContactPage',
     mounted() {
-        // Forms are automatically bound - no additional code needed!
-        // Form submission will automatically POST to /api/contact
-        console.log('Form handling is automatic!');
+        // Forms are automatically bound with smart features:
+        // ✅ Duplicate submission prevention
+        // ✅ Automatic validation
+        // ✅ Loading state management
+        // ✅ Error handling
+        console.log('Smart form handling is automatic!');
     }
 };
 ```
 
-### Variable Parameter Forms - 🆕 Revolutionary!
+### Smart Form Features - 🆕 Enhanced!
+
+ViewLogic FormHandler now includes advanced features for production-ready applications:
+
+```html
+<!-- Smart form with all features -->
+<form action="/api/users/{userId}/update" method="PUT" 
+      class="auto-form"
+      data-success-handler="handleSuccess"
+      data-error-handler="handleError"
+      data-loading-handler="handleLoading"
+      data-redirect="/profile">
+    
+    <input type="text" name="name" required 
+           data-validation="validateName">
+    <input type="email" name="email" required>
+    <button type="submit">Update Profile</button>
+</form>
+```
+
+```javascript
+export default {
+    methods: {
+        // Custom validation
+        validateName(value) {
+            return value.length >= 2 && value.length <= 50;
+        },
+        
+        // Success handler
+        handleSuccess(response, form) {
+            this.showToast('Profile updated successfully!', 'success');
+            // Automatic redirect to /profile happens after this
+        },
+        
+        // Error handler with smart error detection
+        handleError(error, form) {
+            if (error.message.includes('validation')) {
+                this.showToast('Please check your input', 'warning');
+            } else {
+                this.showToast('Update failed. Please try again.', 'error');
+            }
+        },
+        
+        // Loading state handler
+        handleLoading(isLoading, form) {
+            const button = form.querySelector('button[type="submit"]');
+            button.disabled = isLoading;
+            button.textContent = isLoading ? 'Updating...' : 'Update Profile';
+        }
+    }
+};
+```
+
+### Key Form Features
+
+- **🚫 Duplicate Prevention**: Automatic duplicate submission blocking
+- **⏱️ Timeout Management**: 30-second default timeout with abort capability
+- **✅ Built-in Validation**: HTML5 + custom validation functions
+- **🔄 Loading States**: Automatic loading state management
+- **🎯 Smart Error Handling**: Network vs validation error distinction
+- **📄 File Upload Support**: Automatic FormData vs JSON detection
+- **🔀 Auto Redirect**: Post-success navigation
+- **🏷️ Parameter Substitution**: Dynamic URL parameter replacement
+
+### Variable Parameter Forms - Revolutionary!
 
 The most powerful feature is **variable parameter support** in action URLs. You can use simple template syntax to inject dynamic values:
 

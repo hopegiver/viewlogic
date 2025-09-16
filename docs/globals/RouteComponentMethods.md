@@ -154,6 +154,210 @@ export default {
 };
 ```
 
+## API Methods ($api)
+
+### $api Object
+
+A unified API interface for making HTTP requests with automatic parameter substitution, authentication, and error handling.
+
+```javascript
+this.$api: {
+    get(url: string, options?: object): Promise<object>
+    post(url: string, data?: object, options?: object): Promise<object>
+    put(url: string, data?: object, options?: object): Promise<object>
+    patch(url: string, data?: object, options?: object): Promise<object>
+    delete(url: string, options?: object): Promise<object>
+    fetchData(url: string, options?: object): Promise<object>
+    fetchMultipleData(dataConfig: object): Promise<object>
+}
+```
+
+### $api.get()
+
+Make GET requests with automatic parameter handling.
+
+```javascript
+export default {
+    data() {
+        return {
+            userId: this.getParam('userId', 1),
+            products: []
+        };
+    },
+    async mounted() {
+        try {
+            // Basic GET request
+            const products = await this.$api.get('/api/products');
+            this.products = products.data;
+            
+            // GET with parameters substitution
+            const user = await this.$api.get('/api/users/{userId}');
+            this.user = user;
+            
+            // GET with custom options
+            const data = await this.$api.get('/api/data', {
+                headers: { 'X-Custom-Header': 'value' }
+            });
+        } catch (error) {
+            console.error('API Error:', error);
+        }
+    }
+};
+```
+
+### $api.post()
+
+Make POST requests with automatic data handling.
+
+```javascript
+export default {
+    methods: {
+        async createUser(userData) {
+            try {
+                const response = await this.$api.post('/api/users', userData);
+                this.$toast('User created successfully!', 'success');
+                return response;
+            } catch (error) {
+                this.$toast('Failed to create user', 'error');
+                throw error;
+            }
+        },
+        
+        async uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                // FormData is automatically handled
+                const response = await this.$api.post('/api/upload', formData);
+                return response;
+            } catch (error) {
+                console.error('Upload failed:', error);
+            }
+        }
+    }
+};
+```
+
+### $api.put()
+
+Make PUT requests for updates.
+
+```javascript
+export default {
+    methods: {
+        async updateUser(userId, updates) {
+            try {
+                const response = await this.$api.put(`/api/users/${userId}`, updates);
+                this.$toast('User updated successfully!', 'success');
+                return response;
+            } catch (error) {
+                this.$toast('Failed to update user', 'error');
+                throw error;
+            }
+        }
+    }
+};
+```
+
+### $api.patch()
+
+Make PATCH requests for partial updates.
+
+```javascript
+export default {
+    methods: {
+        async updateUserStatus(status) {
+            try {
+                const userId = this.getParam('userId');
+                const response = await this.$api.patch('/api/users/{userId}/status', {
+                    status: status,
+                    updatedAt: new Date().toISOString()
+                });
+                return response;
+            } catch (error) {
+                console.error('Status update failed:', error);
+            }
+        }
+    }
+};
+```
+
+### $api.delete()
+
+Make DELETE requests.
+
+```javascript
+export default {
+    methods: {
+        async deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user?')) {
+                return;
+            }
+            
+            try {
+                await this.$api.delete(`/api/users/${userId}`);
+                this.$toast('User deleted successfully!', 'success');
+                this.navigateTo('users');
+            } catch (error) {
+                this.$toast('Failed to delete user', 'error');
+            }
+        }
+    }
+};
+```
+
+### $api.fetchData()
+
+Alias for get() method with additional parameter processing.
+
+```javascript
+export default {
+    methods: {
+        async loadUserData() {
+            try {
+                const data = await this.$api.fetchData('/api/users/{userId}/profile');
+                Object.assign(this, data);
+            } catch (error) {
+                console.error('Failed to load user data:', error);
+            }
+        }
+    }
+};
+```
+
+### $api.fetchMultipleData()
+
+Fetch data from multiple endpoints in parallel.
+
+```javascript
+export default {
+    methods: {
+        async loadDashboardData() {
+            const dataConfig = {
+                user: '/api/users/{userId}',
+                orders: '/api/users/{userId}/orders',
+                analytics: '/api/analytics/user/{userId}'
+            };
+            
+            try {
+                const { results, errors } = await this.$api.fetchMultipleData(dataConfig);
+                
+                // Handle successful results
+                Object.assign(this, results);
+                
+                // Handle any errors
+                if (Object.keys(errors).length > 0) {
+                    console.error('Some API calls failed:', errors);
+                }
+            } catch (error) {
+                console.error('Dashboard data loading failed:', error);
+            }
+        }
+    }
+};
+```
+
 ## Data Fetching Methods
 
 ### $fetchData()
@@ -161,11 +365,11 @@ export default {
 Fetch data from the component's configured dataURL.
 
 ```javascript
-$fetchData(apiName?: string): Promise<void>
+$fetchData(dataConfig?: string | object): Promise<object>
 ```
 
 **Parameters:**
-- `apiName`: For multiple API configurations, specify which API to fetch
+- `dataConfig`: Optional override for dataURL configuration
 
 **Single API Example:**
 
@@ -192,67 +396,41 @@ export default {
         stats: '/api/stats'
     },
     methods: {
-        async refreshProducts() {
-            await this.$fetchData('products');
-        },
-        
-        async refreshStats() {
-            await this.$fetchData('stats');
-        }
-    }
-};
-```
-
-### $fetchMultipleData()
-
-Fetch data from all configured APIs in parallel.
-
-```javascript
-$fetchMultipleData(): Promise<void>
-```
-
-**Example:**
-
-```javascript
-export default {
-    dataURL: {
-        orders: '/api/orders',
-        customers: '/api/customers',
-        analytics: '/api/analytics'
-    },
-    methods: {
-        async refreshDashboard() {
-            this.$dataLoading = true;
-            await this.$fetchMultipleData();
+        async refreshData() {
+            const { results, errors } = await this.$fetchData();
             
-            // All data is now available
-            console.log('Orders:', this.orders);
-            console.log('Customers:', this.customers);
-            console.log('Analytics:', this.analytics);
+            // Data is automatically assigned to component
+            console.log('Products:', this.products);
+            console.log('Categories:', this.categories);
+            console.log('Stats:', this.stats);
         }
     }
 };
 ```
 
-### $fetchAllData()
-
-Fetch all available data (works with both single and multiple API configurations).
-
-```javascript
-$fetchAllData(): Promise<void>
-```
-
-**Example:**
+### Error Handling with APIs
 
 ```javascript
 export default {
     methods: {
-        async reloadAllData() {
+        async handleApiError() {
             try {
-                await this.$fetchAllData();
-                this.$toast('Data refreshed successfully!', 'success');
+                const data = await this.$api.get('/api/sensitive-data');
+                this.processData(data);
             } catch (error) {
-                this.$toast('Failed to refresh data', 'error');
+                // Automatic error handling patterns
+                if (error.message.includes('401')) {
+                    this.$toast('Please log in again', 'warning');
+                    this.$logout();
+                } else if (error.message.includes('403')) {
+                    this.$toast('Access denied', 'error');
+                    this.navigateTo('home');
+                } else if (error.message.includes('404')) {
+                    this.$toast('Data not found', 'warning');
+                } else {
+                    this.$toast('An error occurred', 'error');
+                    console.error('API Error:', error);
+                }
             }
         }
     }
@@ -671,6 +849,7 @@ export default {
 |----------------|------------------|----------------------|
 | Navigation | ✅ | - |
 | Parameters | ✅ | - |
+| API Methods ($api) | ✅ | - |
 | Data Fetching | ✅ | Requires `dataURL` |
 | Authentication | ✅ | Requires `authEnabled: true` |
 | Internationalization | ✅ | Requires `useI18n: true` |
