@@ -1,0 +1,120 @@
+{
+  "project": {
+    "name": "ViewLogic Router",
+    "version": "1.2.2",
+    "description": "Vue 3 routing system with file-based routing, zero-build development, and view-logic separation",
+    "main": "dist/viewlogic-router.umd.js",
+    "module": "src/viewlogic-router.js"
+  },
+  "architecture": {
+    "main_entry": "src/viewlogic-router.js",
+    "core_files": {
+      "main_router": "src/viewlogic-router.js",
+      "api_handler": "src/core/ApiHandler.js",
+      "component_loader": "src/core/ComponentLoader.js",
+      "form_handler": "src/core/FormHandler.js",
+      "route_loader": "src/core/RouteLoader.js",
+      "error_handler": "src/core/ErrorHandler.js"
+    },
+    "plugins": {
+      "auth_manager": "src/plugins/AuthManager.js",
+      "cache_manager": "src/plugins/CacheManager.js",
+      "i18n_manager": "src/plugins/I18nManager.js",
+      "query_manager": "src/plugins/QueryManager.js"
+    }
+  },
+  "key_features": {
+    "view_logic_separation": "Complete separation between View (HTML) and Logic (JS)",
+    "zero_build_dev": "No build step required in development",
+    "auto_data_fetching": "dataURL automatically fetches and assigns data",
+    "query_routing": "Everything is query-based (/users?id=123)",
+    "api_pattern": "$api object with CRUD methods",
+    "variable_parameters": "Dynamic {param} substitution in URLs and forms"
+  },
+  "development": {
+    "commands": {
+      "dev": "npm run dev",
+      "build": "npm run build", 
+      "test": "npm run test",
+      "test:watch": "npm run test:watch",
+      "test:coverage": "npm run test:coverage",
+      "serve": "npm run serve",
+      "examples": "npm run examples"
+    },
+    "build_tools": {
+      "bundler": "Rollup",
+      "babel": "@babel/core",
+      "test": "Jest with jsdom",
+      "dev_server": "http-server"
+    }
+  },
+  "routing_system": {
+    "file_based": "Automatic route discovery from file structure",
+    "history_mode": "Built-in history routing support",
+    "i18n": "Internationalization with language switching",
+    "subfolder_support": "Deployment in subfolders with basePath",
+    "query_parameters": "All routing based on query params, not path params"
+  },
+  "data_handling": {
+    "fetching": "Automatic API calls via dataURL property",
+    "forms": "Variable parameter forms with {param} substitution",
+    "state": "Reactive data binding with Vue 3 composition API",
+    "caching": "Built-in response caching system",
+    "auth": "Automatic token injection and management"
+  },
+  "api_patterns": {
+    "$api_methods": ["get()", "post()", "put()", "patch()", "delete()"],
+    "parameter_substitution": "Automatic {paramName} replacement in URLs",
+    "authentication": "Auto token injection from AuthManager",
+    "error_handling": "Built-in error handling and retry logic"
+  },
+  "component_structure": {
+    "view_files": ".html templates in views/ directory",
+    "logic_files": ".js components with same name",
+    "data_binding": "Automatic binding between view and logic",
+    "lifecycle": "Standard Vue 3 composition API lifecycle"
+  },
+  "initialization_pattern": {
+    "constructor": "new ViewLogicRouter(options)",
+    "main_class": "ViewLogicRouter",
+    "key_methods": ["init()", "handleRouteChange()", "_buildConfig()"],
+    "vue_integration": "Mounts Vue apps dynamically based on routes"
+  },
+  "configuration_options": {
+    "basePath": "Application base path (default: '/')",
+    "srcPath": "Source files path (default: '/src')",
+    "mode": "Routing mode (default: 'hash')",
+    "cacheMode": "Cache mode (default: 'memory')",
+    "cacheTTL": "Cache TTL in ms (default: 300000)",
+    "useI18n": "Enable internationalization (default: false)",
+    "defaultLanguage": "Default language (default: 'ko')",
+    "i18nPath": "I18n files path (default: '/i18n')",
+    "authEnabled": "Enable authentication (default: false)",
+    "loginRoute": "Login route name (default: 'login')",
+    "protectedRoutes": "Array of protected route names",
+    "environment": "Environment mode (default: 'development')",
+    "logLevel": "Logging level (default: 'info')"
+  },
+  "examples_structure": {
+    "entry": "examples/index.html",
+    "views": "examples/src/views/ - .html templates",
+    "logic": "examples/src/logic/ - .js component logic",
+    "components": "examples/src/components/ - Reusable UI components",
+    "layouts": "examples/src/layouts/ - Layout templates",
+    "styles": "examples/src/styles/ - Page-specific CSS files",
+    "css": "examples/css/ - Global CSS files"
+  },
+  "common_patterns": {
+    "route_definition": "File-based: views/page.html + logic/page.js",
+    "data_fetching": "dataURL property for automatic API calls",
+    "form_handling": "action attribute with {param} substitution",
+    "component_usage": "Import from components/ directory",
+    "i18n_usage": "Language switching with built-in manager"
+  },
+  "debugging_info": {
+    "dev_mode": "Use npm run dev for development",
+    "test_server": "npm run serve for local testing",
+    "examples_server": "npm run examples for example testing",
+    "debug_config": "Enable debug: true in router options"
+  }
+}
