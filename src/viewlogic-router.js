@@ -5,6 +5,7 @@ import { CacheManager } from './plugins/CacheManager.js';
 import { QueryManager } from './plugins/QueryManager.js';
 import { RouteLoader } from './core/RouteLoader.js';
 import { ErrorHandler } from './core/ErrorHandler.js';
+import { StateHandler } from './core/StateHandler.js';
 
 export class ViewLogicRouter {
     constructor(options = {}) {
@@ -160,6 +161,7 @@ export class ViewLogicRouter {
             // 1. 매니저 초기화 (동기)
             // 항상 필요한 매니저들
             this.cacheManager = new CacheManager(this, this.config);
+            this.stateHandler = new StateHandler(this);
             this.routeLoader = new RouteLoader(this, this.config);
             this.queryManager = new QueryManager(this);
             this.errorHandler = new ErrorHandler(this, this.config);

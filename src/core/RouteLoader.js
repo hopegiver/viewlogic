@@ -302,7 +302,19 @@ export class RouteLoader {
                 $removeToken: (storage) => router.authManager?.removeAccessToken(storage) || null,
                 $getAuthCookie: () => router.authManager?.getAuthCookie() || null,
                 $getCookie: (name) => router.authManager?.getCookieValue(name) || null,
-                
+
+                // 상태 관리
+                $state: {
+                    get: (key, defaultValue) => router.stateHandler?.get(key, defaultValue),
+                    set: (key, value) => router.stateHandler?.set(key, value),
+                    has: (key) => router.stateHandler?.has(key) || false,
+                    delete: (key) => router.stateHandler?.delete(key) || false,
+                    update: (updates) => router.stateHandler?.update(updates),
+                    watch: (key, callback) => router.stateHandler?.watch(key, callback),
+                    unwatch: (key, callback) => router.stateHandler?.unwatch(key, callback),
+                    getAll: () => router.stateHandler?.getAll() || {}
+                },
+
                 // 데이터 fetch (ApiHandler 래퍼)
                 async $fetchData(dataConfig = null) {
                     // dataConfig가 제공되면 사용, 아니면 script.dataURL 사용
