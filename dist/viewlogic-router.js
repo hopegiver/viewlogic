@@ -9,13 +9,8 @@ var I18nManager = class {
   constructor(router, options = {}) {
     this.config = {
       enabled: options.useI18n !== void 0 ? options.useI18n : true,
-      defaultLanguage: options.defaultLanguage || "ko",
-      fallbackLanguage: options.defaultLanguage || "ko",
-      cacheKey: options.cacheKey || "viewlogic_lang",
-      dataCacheKey: options.dataCacheKey || "viewlogic_i18n_data",
-      cacheVersion: options.cacheVersion || "1.0.0",
-      enableDataCache: options.enableDataCache !== false,
-      debug: options.debug || false
+      defaultLanguage: options.defaultLanguage || "en",
+      fallbackLanguage: options.defaultLanguage || "en"
     };
     this.router = router;
     this.messages = /* @__PURE__ */ new Map();
@@ -33,10 +28,6 @@ var I18nManager = class {
       return;
     }
     this.loadLanguageFromCache();
-    if (this.config.debug) {
-      this.config.enableDataCache = false;
-      this.log("debug", "Data cache disabled in debug mode");
-    }
     if (!this.messages.has(this.currentLanguage)) {
       try {
         await this.loadMessages(this.currentLanguage);
@@ -54,7 +45,7 @@ var I18nManager = class {
    */
   loadLanguageFromCache() {
     try {
-      const cachedLang = localStorage.getItem(this.config.cacheKey);
+      const cachedLang = this.router.cacheManager?.get("viewlogic_lang");
       if (cachedLang && this.isValidLanguage(cachedLang)) {
         this.currentLanguage = cachedLang;
         this.log("debug", "Language loaded from cache:", cachedLang);
@@ -118,7 +109,7 @@ var I18nManager = class {
    */
   saveLanguageToCache(language) {
     try {
-      localStorage.setItem(this.config.cacheKey, language);
+      this.router.cacheManager?.set("viewlogic_lang", language);
       this.log("debug", "Language saved to cache:", language);
     } catch (error) {
       this.log("warn", "Failed to save language to cache:", error);
@@ -156,12 +147,11 @@ var I18nManager = class {
    * 파일에서 메시지 로드 (캐싱 지원)
    */
   async _loadMessagesFromFile(language) {
-    if (this.config.enableDataCache) {
-      const cachedData = this.getDataFromCache(language);
-      if (cachedData) {
-        this.log("debug", "Messages loaded from cache:", language);
-        return cachedData;
-      }
+    const cacheKey = `i18n_${language}`;
+    const cachedData = this.router.cacheManager?.get(cacheKey);
+    if (cachedData) {
+      this.log("debug", "Messages loaded from cache:", language);
+      return cachedData;
     }
     try {
       const i18nPath = `${this.router.config.i18nPath}/${language}.json`;
@@ -170,9 +160,7 @@ var I18nManager = class {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const messages = await response.json();
-      if (this.config.enableDataCache) {
-        this.saveDataToCache(language, messages);
-      }
+      this.router.cacheManager?.set(cacheKey, messages);
       return messages;
     } catch (error) {
       this.log("error", "Failed to load messages file for:", language, error);
@@ -187,51 +175,6 @@ var I18nManager = class {
       }
       this.log("warn", `No messages available for language: ${language}, using empty fallback`);
       return {};
-    }
-  }
-  /**
-   * 언어 데이터를 캐시에서 가져오기
-   */
-  getDataFromCache(language) {
-    try {
-      const cacheKey = `${this.config.dataCacheKey}_${language}_${this.config.cacheVersion}`;
-      const cachedItem = localStorage.getItem(cacheKey);
-      if (cachedItem) {
-        const { data, timestamp, version } = JSON.parse(cachedItem);
-        if (version !== this.config.cacheVersion) {
-          this.log("debug", "Cache version mismatch, clearing:", language);
-          localStorage.removeItem(cacheKey);
-          return null;
-        }
-        const now = Date.now();
-        const maxAge = 24 * 60 * 60 * 1e3;
-        if (now - timestamp > maxAge) {
-          this.log("debug", "Cache expired, removing:", language);
-          localStorage.removeItem(cacheKey);
-          return null;
-        }
-        return data;
-      }
-    } catch (error) {
-      this.log("warn", "Failed to read from cache:", error);
-    }
-    return null;
-  }
-  /**
-   * 언어 데이터를 캐시에 저장
-   */
-  saveDataToCache(language, data) {
-    try {
-      const cacheKey = `${this.config.dataCacheKey}_${language}_${this.config.cacheVersion}`;
-      const cacheItem = {
-        data,
-        timestamp: Date.now(),
-        version: this.config.cacheVersion
-      };
-      localStorage.setItem(cacheKey, JSON.stringify(cacheItem));
-      this.log("debug", "Data saved to cache:", language);
-    } catch (error) {
-      this.log("warn", "Failed to save to cache:", error);
     }
   }
   /**
@@ -285,12 +228,6 @@ var I18nManager = class {
   plural(key, count, params = {}) {
     const pluralKey = count === 1 ? `${key}.singular` : `${key}.plural`;
     return this.t(pluralKey, { ...params, count });
-  }
-  /**
-   * 사용 가능한 언어 목록
-   */
-  getAvailableLanguages() {
-    return ["ko", "en"];
   }
   /**
    * 언어 변경 이벤트 리스너 등록
@@ -376,48 +313,15 @@ var I18nManager = class {
     }
   }
   /**
-   * 캐시 초기화 (버전 변경 시 사용)
+   * 캐시 초기화
    */
   clearCache() {
     try {
-      const keys = Object.keys(localStorage);
-      const cacheKeys = keys.filter((key) => key.startsWith(this.config.dataCacheKey));
-      cacheKeys.forEach((key) => {
-        localStorage.removeItem(key);
-      });
-      this.log("debug", "Cache cleared, removed", cacheKeys.length, "items");
+      const clearedCount = this.router.cacheManager?.deleteByPattern("i18n_");
+      this.log("debug", "Cache cleared, removed", clearedCount, "items");
     } catch (error) {
       this.log("warn", "Failed to clear cache:", error);
     }
-  }
-  /**
-   * 캐시 상태 확인
-   */
-  getCacheInfo() {
-    const info = {
-      enabled: this.config.enableDataCache,
-      version: this.config.cacheVersion,
-      languages: {}
-    };
-    try {
-      const keys = Object.keys(localStorage);
-      const cacheKeys = keys.filter((key) => key.startsWith(this.config.dataCacheKey));
-      cacheKeys.forEach((key) => {
-        const match = key.match(new RegExp(`${this.config.dataCacheKey}_(w+)_(.+)`));
-        if (match) {
-          const [, language, version] = match;
-          const cachedItem = JSON.parse(localStorage.getItem(key));
-          info.languages[language] = {
-            version,
-            timestamp: cachedItem.timestamp,
-            age: Date.now() - cachedItem.timestamp
-          };
-        }
-      });
-    } catch (error) {
-      this.log("warn", "Failed to get cache info:", error);
-    }
-    return info;
   }
   /**
    * 시스템 초기화 (현재 언어의 메시지 로드)
@@ -450,13 +354,9 @@ var AuthManager = class {
       publicRoutes: options.publicRoutes || ["login", "register", "home"],
       checkAuthFunction: options.checkAuthFunction || null,
       redirectAfterLogin: options.redirectAfterLogin || "home",
-      // 쿠키/스토리지 설정
       authCookieName: options.authCookieName || "authToken",
-      authFallbackCookieNames: options.authFallbackCookieNames || ["accessToken", "token", "jwt"],
-      authStorage: options.authStorage || "cookie",
-      authCookieOptions: options.authCookieOptions || {},
-      authSkipValidation: options.authSkipValidation || false,
-      debug: options.debug || false
+      authStorage: options.authStorage || "localStorage",
+      authSkipValidation: options.authSkipValidation || false
     };
     this.router = router;
     this.eventListeners = /* @__PURE__ */ new Map();
@@ -498,7 +398,7 @@ var AuthManager = class {
         return { allowed: false, reason: "custom_auth_error", error };
       }
     }
-    const isAuthenticated = this.isUserAuthenticated();
+    const isAuthenticated = this.isAuthenticated();
     return {
       allowed: isAuthenticated,
       reason: isAuthenticated ? "authenticated" : "not_authenticated",
@@ -506,56 +406,40 @@ var AuthManager = class {
     };
   }
   /**
+   * JWT 토큰 검증
+   */
+  isTokenValid(token) {
+    if (!token) return false;
+    try {
+      if (token.includes(".")) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.exp && Date.now() >= payload.exp * 1e3) {
+          return false;
+        }
+      }
+      return true;
+    } catch (error) {
+      this.log("warn", "Token validation failed:", error);
+      return false;
+    }
+  }
+  /**
    * 사용자 인증 상태 확인
    */
-  isUserAuthenticated() {
+  isAuthenticated() {
     this.log("debug", "\u{1F50D} Checking user authentication status");
-    const token = localStorage.getItem("authToken") || localStorage.getItem("accessToken");
-    if (token) {
-      try {
-        if (token.includes(".")) {
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          if (payload.exp && Date.now() >= payload.exp * 1e3) {
-            this.log("debug", "localStorage token expired, removing...");
-            localStorage.removeItem("authToken");
-            localStorage.removeItem("accessToken");
-            return false;
-          }
-        }
-        this.log("debug", "\u2705 Valid token found in localStorage");
-        return true;
-      } catch (error) {
-        this.log("warn", "Invalid token in localStorage:", error);
-      }
+    const token = this.getAccessToken();
+    if (!token) {
+      this.log("debug", "\u274C No token found");
+      return false;
     }
-    const sessionToken = sessionStorage.getItem("authToken") || sessionStorage.getItem("accessToken");
-    if (sessionToken) {
-      this.log("debug", "\u2705 Token found in sessionStorage");
-      return true;
+    if (!this.isTokenValid(token)) {
+      this.log("debug", "Token expired, removing...");
+      this.removeAccessToken();
+      return false;
     }
-    const authCookie = this.getAuthCookie();
-    if (authCookie) {
-      try {
-        if (authCookie.includes(".")) {
-          const payload = JSON.parse(atob(authCookie.split(".")[1]));
-          if (payload.exp && Date.now() >= payload.exp * 1e3) {
-            this.log("debug", "Cookie token expired, removing...");
-            this.removeAuthCookie();
-            return false;
-          }
-        }
-        this.log("debug", "\u2705 Valid token found in cookies");
-        return true;
-      } catch (error) {
-        this.log("warn", "Cookie token validation failed:", error);
-      }
-    }
-    if (window.user || window.isAuthenticated) {
-      this.log("debug", "\u2705 Global authentication variable found");
-      return true;
-    }
-    this.log("debug", "\u274C No valid authentication found");
-    return false;
+    this.log("debug", "\u2705 Valid token found");
+    return true;
   }
   /**
    * 공개 라우트인지 확인
@@ -581,18 +465,7 @@ var AuthManager = class {
    * 인증 쿠키 가져오기
    */
   getAuthCookie() {
-    const primaryCookie = this.getCookieValue(this.config.authCookieName);
-    if (primaryCookie) {
-      return primaryCookie;
-    }
-    for (const cookieName of this.config.authFallbackCookieNames) {
-      const cookieValue = this.getCookieValue(cookieName);
-      if (cookieValue) {
-        this.log("debug", `Found auth token in fallback cookie: ${cookieName}`);
-        return cookieValue;
-      }
-    }
-    return null;
+    return this.getCookieValue(this.config.authCookieName);
   }
   /**
    * 쿠키 값 가져오기
@@ -609,24 +482,18 @@ var AuthManager = class {
    * 인증 쿠키 제거
    */
   removeAuthCookie() {
-    const cookiesToRemove = [this.config.authCookieName, ...this.config.authFallbackCookieNames];
-    cookiesToRemove.forEach((cookieName) => {
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${window.location.pathname};`;
-    });
-    this.log("debug", "Auth cookies removed");
+    document.cookie = `${this.config.authCookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+    this.log("debug", "Auth cookie removed");
   }
   /**
    * 액세스 토큰 가져오기
    */
   getAccessToken() {
-    let token = localStorage.getItem("authToken") || localStorage.getItem("accessToken");
+    let token = localStorage.getItem("authToken");
     if (token) return token;
-    token = sessionStorage.getItem("authToken") || sessionStorage.getItem("accessToken");
+    token = sessionStorage.getItem("authToken");
     if (token) return token;
-    token = this.getAuthCookie();
-    if (token) return token;
-    return null;
+    return this.getAuthCookie();
   }
   /**
    * 액세스 토큰 설정
@@ -642,17 +509,9 @@ var AuthManager = class {
       skipValidation = this.config.authSkipValidation
     } = options;
     try {
-      if (!skipValidation && token.includes(".")) {
-        try {
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          if (payload.exp && Date.now() >= payload.exp * 1e3) {
-            this.log("warn", "\u274C Token is expired");
-            return false;
-          }
-          this.log("debug", "\u2705 JWT token validated");
-        } catch (error) {
-          this.log("warn", "\u26A0\uFE0F JWT validation failed, but proceeding:", error.message);
-        }
+      if (!skipValidation && !this.isTokenValid(token)) {
+        this.log("warn", "\u274C Token is expired or invalid");
+        return false;
       }
       switch (storage) {
         case "localStorage":
@@ -664,7 +523,7 @@ var AuthManager = class {
           this.log("debug", "Token saved to sessionStorage");
           break;
         case "cookie":
-          this.setAuthCookie(token, cookieOptions);
+          this.setAuthCookie(token);
           break;
         default:
           localStorage.setItem("authToken", token);
@@ -684,41 +543,25 @@ var AuthManager = class {
   /**
    * 인증 쿠키 설정
    */
-  setAuthCookie(token, options = {}) {
-    const {
-      cookieName = this.config.authCookieName,
-      secure = window.location.protocol === "https:",
-      sameSite = "Strict",
-      path = "/",
-      domain = null
-    } = options;
-    let cookieString = `${cookieName}=${encodeURIComponent(token)}; path=${path}`;
+  setAuthCookie(token) {
+    const secure = window.location.protocol === "https:";
+    let cookieString = `${this.config.authCookieName}=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
     if (secure) {
       cookieString += "; Secure";
     }
-    if (sameSite) {
-      cookieString += `; SameSite=${sameSite}`;
-    }
-    if (domain) {
-      cookieString += `; Domain=${domain}`;
-    }
-    try {
-      if (token.includes(".")) {
-        try {
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          if (payload.exp) {
-            const expireDate = new Date(payload.exp * 1e3);
-            cookieString += `; Expires=${expireDate.toUTCString()}`;
-          }
-        } catch (error) {
-          this.log("Could not extract expiration from JWT token");
+    if (token.includes(".")) {
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        if (payload.exp) {
+          const expireDate = new Date(payload.exp * 1e3);
+          cookieString += `; Expires=${expireDate.toUTCString()}`;
         }
+      } catch (error) {
+        this.log("warn", "Could not extract expiration from JWT token");
       }
-    } catch (error) {
-      this.log("Token processing error:", error);
     }
     document.cookie = cookieString;
-    this.log(`Auth cookie set: ${cookieName}`);
+    this.log("debug", "Auth cookie set");
   }
   /**
    * 토큰 제거
@@ -739,9 +582,7 @@ var AuthManager = class {
       case "all":
       default:
         localStorage.removeItem("authToken");
-        localStorage.removeItem("accessToken");
         sessionStorage.removeItem("authToken");
-        sessionStorage.removeItem("accessToken");
         this.removeAuthCookie();
         break;
     }
@@ -751,7 +592,7 @@ var AuthManager = class {
   /**
    * 로그인 성공 처리
    */
-  handleLoginSuccess(targetRoute = null) {
+  loginSuccess(targetRoute = null) {
     const redirectRoute = targetRoute || this.config.redirectAfterLogin;
     this.log(`\u{1F389} Login success, redirecting to: ${redirectRoute}`);
     this.emitAuthEvent("login_success", { targetRoute: redirectRoute });
@@ -763,11 +604,9 @@ var AuthManager = class {
   /**
    * 로그아웃 처리
    */
-  handleLogout() {
+  logout() {
     this.log("\u{1F44B} Logging out user");
     this.removeAccessToken();
-    if (window.user) window.user = null;
-    if (window.isAuthenticated) window.isAuthenticated = false;
     this.emitAuthEvent("logout", {});
     if (this.router && typeof this.router.navigateTo === "function") {
       this.router.navigateTo(this.config.loginRoute);
@@ -824,7 +663,7 @@ var AuthManager = class {
   getAuthStats() {
     return {
       enabled: this.config.enabled,
-      isAuthenticated: this.isUserAuthenticated(),
+      isAuthenticated: this.isAuthenticated(),
       hasToken: !!this.getAccessToken(),
       protectedRoutesCount: this.config.protectedRoutes.length,
       protectedPrefixesCount: this.config.protectedPrefixes.length,
@@ -850,9 +689,8 @@ var CacheManager = class {
       // 'memory' 또는 'lru'
       cacheTTL: options.cacheTTL || 3e5,
       // 5분 (밀리초)
-      maxCacheSize: options.maxCacheSize || 50,
+      maxCacheSize: options.maxCacheSize || 50
       // LRU 캐시 최대 크기
-      debug: options.debug || false
     };
     this.router = router;
     this.cache = /* @__PURE__ */ new Map();
@@ -871,7 +709,7 @@ var CacheManager = class {
   /**
    * 캐시에 값 저장
    */
-  setCache(key, value) {
+  set(key, value) {
     const now = Date.now();
     if (this.config.cacheMode === "lru") {
       if (this.cache.size >= this.config.maxCacheSize && !this.cache.has(key)) {
@@ -895,7 +733,7 @@ var CacheManager = class {
   /**
    * 캐시에서 값 가져오기
    */
-  getFromCache(key) {
+  get(key) {
     const now = Date.now();
     const timestamp = this.cacheTimestamps.get(key);
     if (timestamp && now - timestamp > this.config.cacheTTL) {
@@ -928,13 +766,13 @@ var CacheManager = class {
   /**
    * 캐시에 키가 있는지 확인
    */
-  hasCache(key) {
-    return this.cache.has(key) && this.getFromCache(key) !== null;
+  has(key) {
+    return this.cache.has(key) && this.get(key) !== null;
   }
   /**
    * 특정 키 패턴의 캐시 삭제
    */
-  invalidateByPattern(pattern) {
+  deleteByPattern(pattern) {
     const keysToDelete = [];
     for (const key of this.cache.keys()) {
       if (key.includes(pattern) || key.startsWith(pattern)) {
@@ -951,13 +789,13 @@ var CacheManager = class {
         }
       }
     });
-    this.log("debug", `\u{1F9F9} Invalidated ${keysToDelete.length} cache entries matching: ${pattern}`);
+    this.log("debug", `\u{1F9F9} Deleted ${keysToDelete.length} cache entries matching: ${pattern}`);
     return keysToDelete.length;
   }
   /**
-   * 특정 컴포넌트 캐시 무효화
+   * 특정 컴포넌트 캐시 삭제
    */
-  invalidateComponentCache(routeName) {
+  deleteComponent(routeName) {
     const patterns = [
       `component_${routeName}`,
       `script_${routeName}`,
@@ -967,27 +805,27 @@ var CacheManager = class {
     ];
     let totalInvalidated = 0;
     patterns.forEach((pattern) => {
-      totalInvalidated += this.invalidateByPattern(pattern);
+      totalInvalidated += this.deleteByPattern(pattern);
     });
-    this.log(`\u{1F504} Invalidated component cache for route: ${routeName} (${totalInvalidated} entries)`);
+    this.log(`\u{1F504} Deleted component cache for route: ${routeName} (${totalInvalidated} entries)`);
     return totalInvalidated;
   }
   /**
    * 모든 컴포넌트 캐시 삭제
    */
-  clearComponentCache() {
+  deleteAllComponents() {
     const componentPatterns = ["component_", "script_", "template_", "style_", "layout_"];
     let totalCleared = 0;
     componentPatterns.forEach((pattern) => {
-      totalCleared += this.invalidateByPattern(pattern);
+      totalCleared += this.deleteByPattern(pattern);
     });
-    this.log(`\u{1F9FD} Cleared all component caches (${totalCleared} entries)`);
+    this.log(`\u{1F9FD} Deleted all component caches (${totalCleared} entries)`);
     return totalCleared;
   }
   /**
    * 전체 캐시 삭제
    */
-  clearCache() {
+  clearAll() {
     const size = this.cache.size;
     this.cache.clear();
     this.cacheTimestamps.clear();
@@ -998,7 +836,7 @@ var CacheManager = class {
   /**
    * 만료된 캐시 항목들 정리
    */
-  cleanExpiredCache() {
+  cleanExpired() {
     const now = Date.now();
     const expiredKeys = [];
     for (const [key, timestamp] of this.cacheTimestamps.entries()) {
@@ -1024,15 +862,15 @@ var CacheManager = class {
   /**
    * 캐시 통계 정보
    */
-  getCacheStats() {
+  getStats() {
     return {
       size: this.cache.size,
       maxSize: this.config.maxCacheSize,
       mode: this.config.cacheMode,
       ttl: this.config.cacheTTL,
       memoryUsage: this.getMemoryUsage(),
-      hitRatio: this.getHitRatio(),
-      categories: this.getCategorizedStats()
+      hitRatio: this.getHitRate(),
+      categories: this.getStatsByCategory()
     };
   }
   /**
@@ -1059,14 +897,14 @@ var CacheManager = class {
   /**
    * 히트 비율 계산 (간단한 추정)
    */
-  getHitRatio() {
+  getHitRate() {
     const ratio = this.cache.size > 0 ? Math.min(this.cache.size / this.config.maxCacheSize, 1) : 0;
     return Math.round(ratio * 100);
   }
   /**
    * 카테고리별 캐시 통계
    */
-  getCategorizedStats() {
+  getStatsByCategory() {
     const categories = {
       components: 0,
       scripts: 0,
@@ -1088,14 +926,14 @@ var CacheManager = class {
   /**
    * 캐시 키 목록 반환
    */
-  getCacheKeys() {
+  getKeys() {
     return Array.from(this.cache.keys());
   }
   /**
    * 특정 패턴의 캐시 키들 반환
    */
-  getCacheKeysByPattern(pattern) {
-    return this.getCacheKeys().filter(
+  getKeysByPattern(pattern) {
+    return this.getKeys().filter(
       (key) => key.includes(pattern) || key.startsWith(pattern)
     );
   }
@@ -1107,7 +945,7 @@ var CacheManager = class {
       clearInterval(this.cleanupInterval);
     }
     this.cleanupInterval = setInterval(() => {
-      this.cleanExpiredCache();
+      this.cleanExpired();
     }, interval);
     this.log(`\u{1F916} Auto cleanup started (interval: ${interval}ms)`);
   }
@@ -1126,27 +964,18 @@ var CacheManager = class {
    */
   destroy() {
     this.stopAutoCleanup();
-    this.clearCache();
+    this.clearAll();
     this.log("debug", "CacheManager destroyed");
   }
 };
 
 // src/plugins/QueryManager.js
 var QueryManager = class {
-  constructor(router, options = {}) {
-    this.config = {
-      enableParameterValidation: options.enableParameterValidation !== false,
-      logSecurityWarnings: options.logSecurityWarnings !== false,
-      maxParameterLength: options.maxParameterLength || 1e3,
-      maxArraySize: options.maxArraySize || 100,
-      maxParameterCount: options.maxParameterCount || 50,
-      allowedKeyPattern: options.allowedKeyPattern || /^[a-zA-Z0-9_\-]+$/,
-      debug: options.debug || false
-    };
+  constructor(router) {
     this.router = router;
     this.currentQueryParams = {};
     this.currentRouteParams = {};
-    this.log("info", "QueryManager initialized with config:", this.config);
+    this.log("debug", "QueryManager initialized");
   }
   /**
    * 로깅 래퍼 메서드
@@ -1157,97 +986,6 @@ var QueryManager = class {
     }
   }
   /**
-   * 파라미터 값 sanitize (XSS, SQL Injection 방어)
-   */
-  sanitizeParameter(value) {
-    if (typeof value !== "string") return value;
-    let sanitized = value.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "").replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "").replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "").replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, "").replace(/<link\b[^<]*>/gi, "").replace(/<meta\b[^<]*>/gi, "").replace(/javascript:/gi, "").replace(/vbscript:/gi, "").replace(/data:/gi, "").replace(/on\w+\s*=/gi, "").replace(/expression\s*\(/gi, "").replace(/url\s*\(/gi, "");
-    const sqlPatterns = [
-      /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute|sp_|xp_)\b)/gi,
-      /(;|\||&|\*|%|<|>)/g,
-      // 위험한 특수문자
-      /(--|\/\*|\*\/)/g,
-      // SQL 주석
-      /(\bor\b.*\b=\b|\band\b.*\b=\b)/gi,
-      // OR/AND 조건문
-      /('.*'|".*")/g,
-      // 따옴표로 둘러싸인 문자열
-      /(\\\w+)/g
-      // 백슬래시 이스케이프
-    ];
-    for (const pattern of sqlPatterns) {
-      sanitized = sanitized.replace(pattern, "");
-    }
-    sanitized = sanitized.replace(/[<>'"&]{2,}/g, "");
-    if (sanitized.length > this.config.maxParameterLength) {
-      sanitized = sanitized.substring(0, this.config.maxParameterLength);
-    }
-    return sanitized.trim();
-  }
-  /**
-   * 파라미터 유효성 검증
-   */
-  validateParameter(key, value) {
-    if (!this.config.enableParameterValidation) {
-      return true;
-    }
-    if (typeof key !== "string" || key.length === 0) {
-      return false;
-    }
-    if (!this.config.allowedKeyPattern.test(key)) {
-      if (this.config.logSecurityWarnings) {
-        console.warn(`Invalid parameter key format: ${key}`);
-      }
-      return false;
-    }
-    if (key.length > 50) {
-      if (this.config.logSecurityWarnings) {
-        console.warn(`Parameter key too long: ${key}`);
-      }
-      return false;
-    }
-    if (value !== null && value !== void 0) {
-      if (typeof value === "string") {
-        if (value.length > this.config.maxParameterLength) {
-          if (this.config.logSecurityWarnings) {
-            console.warn(`Parameter value too long for key: ${key}`);
-          }
-          return false;
-        }
-        const dangerousPatterns = [
-          /<script|<iframe|<object|<embed/gi,
-          /javascript:|vbscript:|data:/gi,
-          /union.*select|insert.*into|delete.*from/gi,
-          /\.\.\//g,
-          // 경로 탐색 공격
-          /[<>'"&]{3,}/g
-          // 연속된 특수문자
-        ];
-        for (const pattern of dangerousPatterns) {
-          if (pattern.test(value)) {
-            if (this.config.logSecurityWarnings) {
-              console.warn(`Dangerous pattern detected in parameter ${key}:`, value);
-            }
-            return false;
-          }
-        }
-      } else if (Array.isArray(value)) {
-        if (value.length > this.config.maxArraySize) {
-          if (this.config.logSecurityWarnings) {
-            console.warn(`Parameter array too large for key: ${key}`);
-          }
-          return false;
-        }
-        for (const item of value) {
-          if (!this.validateParameter(`${key}[]`, item)) {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-  /**
    * 쿼리스트링 파싱
    */
   parseQueryString(queryString) {
@@ -1255,55 +993,21 @@ var QueryManager = class {
     if (!queryString) return params;
     const pairs = queryString.split("&");
     for (const pair of pairs) {
+      const [rawKey, rawValue] = pair.split("=");
+      if (!rawKey) continue;
       try {
-        const [rawKey, rawValue] = pair.split("=");
-        if (!rawKey) continue;
-        let key, value;
-        try {
-          key = decodeURIComponent(rawKey);
-          value = rawValue ? decodeURIComponent(rawValue) : "";
-        } catch (e) {
-          this.log("warn", "Failed to decode URI component:", pair);
-          continue;
-        }
-        if (!this.validateParameter(key, value)) {
-          this.log("warn", `Parameter rejected by security filter: ${key}`);
-          continue;
-        }
-        const sanitizedValue = this.sanitizeParameter(value);
+        const key = decodeURIComponent(rawKey);
+        const value = rawValue ? decodeURIComponent(rawValue) : "";
         if (key.endsWith("[]")) {
           const arrayKey = key.slice(0, -2);
-          if (!this.validateParameter(arrayKey, [])) {
-            continue;
-          }
           if (!params[arrayKey]) params[arrayKey] = [];
-          if (params[arrayKey].length < this.config.maxArraySize) {
-            params[arrayKey].push(sanitizedValue);
-          } else {
-            if (this.config.logSecurityWarnings) {
-              console.warn(`Array parameter ${arrayKey} size limit exceeded`);
-            }
-          }
+          params[arrayKey].push(value);
         } else {
-          params[key] = sanitizedValue;
+          params[key] = value;
         }
       } catch (error) {
-        this.log("error", "Error parsing query parameter:", pair, error);
+        this.log("warn", "Failed to decode query parameter:", pair);
       }
-    }
-    const paramCount = Object.keys(params).length;
-    if (paramCount > this.config.maxParameterCount) {
-      if (this.config.logSecurityWarnings) {
-        console.warn(`Too many parameters (${paramCount}). Limiting to first ${this.config.maxParameterCount}.`);
-      }
-      const limitedParams = {};
-      let count = 0;
-      for (const [key, value] of Object.entries(params)) {
-        if (count >= this.config.maxParameterCount) break;
-        limitedParams[key] = value;
-        count++;
-      }
-      return limitedParams;
     }
     return params;
   }
@@ -1358,34 +1062,15 @@ var QueryManager = class {
    */
   setQueryParams(params, replace = false) {
     if (!params || typeof params !== "object") {
-      console.warn("Invalid parameters object provided to setQueryParams");
+      this.log("warn", "Invalid parameters object provided to setQueryParams");
       return;
     }
     const currentParams = replace ? {} : { ...this.currentQueryParams };
-    const sanitizedParams = {};
     for (const [key, value] of Object.entries(params)) {
-      if (!this.validateParameter(key, value)) {
-        console.warn(`Parameter ${key} rejected by security filter`);
-        continue;
-      }
-      if (value !== void 0 && value !== null) {
-        if (Array.isArray(value)) {
-          sanitizedParams[key] = value.map((item) => this.sanitizeParameter(item));
-        } else {
-          sanitizedParams[key] = this.sanitizeParameter(value);
-        }
-      }
-    }
-    Object.assign(currentParams, sanitizedParams);
-    for (const [key, value] of Object.entries(currentParams)) {
-      if (value === void 0 || value === null || value === "") {
+      if (value !== void 0 && value !== null && value !== "") {
+        currentParams[key] = value;
+      } else {
         delete currentParams[key];
-      }
-    }
-    const paramCount = Object.keys(currentParams).length;
-    if (paramCount > this.config.maxParameterCount) {
-      if (this.config.logSecurityWarnings) {
-        console.warn(`Too many parameters after update (${paramCount}). Some parameters may be dropped.`);
       }
     }
     this.currentQueryParams = currentParams;
@@ -1466,8 +1151,6 @@ var QueryManager = class {
   getStats() {
     return {
       currentParams: Object.keys(this.currentQueryParams).length,
-      maxAllowed: this.config.maxParameterCount,
-      validationEnabled: this.config.enableParameterValidation,
       currentQueryString: this.buildQueryString(this.currentQueryParams)
     };
   }
@@ -1938,7 +1621,7 @@ var ComponentLoader = class {
       throw new Error("Component name must be a non-empty string");
     }
     const cacheKey = `component_${componentName}`;
-    const cachedComponent = this.router?.cacheManager?.getFromCache(cacheKey);
+    const cachedComponent = this.router?.cacheManager?.get(cacheKey);
     if (cachedComponent) {
       this.log("debug", `Component '${componentName}' loaded from cache`);
       return cachedComponent;
@@ -1951,7 +1634,7 @@ var ComponentLoader = class {
     try {
       const component = await loadPromise;
       if (component && this.router?.cacheManager) {
-        this.router.cacheManager.setCache(cacheKey, component);
+        this.router.cacheManager.set(cacheKey, component);
         this.log("debug", `Component '${componentName}' cached successfully`);
       }
       return component;
@@ -2025,11 +1708,11 @@ var ComponentLoader = class {
   async _loadProductionComponents() {
     try {
       const componentsPath = `${this.router?.config?.routesPath || "/routes"}/_components.js`;
-      this.log("info", "[PRODUCTION] Loading unified components from:", componentsPath);
+      this.log("debug", "[PRODUCTION] Loading unified components from:", componentsPath);
       const componentsModule = await import(componentsPath);
       if (typeof componentsModule.registerComponents === "function") {
         this.unifiedComponents = componentsModule.components || {};
-        this.log("info", `[PRODUCTION] Unified components loaded: ${Object.keys(this.unifiedComponents).length} components`);
+        this.log("debug", `[PRODUCTION] Unified components loaded: ${Object.keys(this.unifiedComponents).length} components`);
         return this.unifiedComponents;
       } else {
         throw new Error("registerComponents function not found in components module");
@@ -2047,10 +1730,10 @@ var ComponentLoader = class {
     const namesToLoad = componentNames || [];
     const components = {};
     if (namesToLoad.length === 0) {
-      this.log("info", "[DEVELOPMENT] No components to load");
+      this.log("debug", "[DEVELOPMENT] No components to load");
       return components;
     }
-    this.log("info", `[DEVELOPMENT] Loading individual components: ${namesToLoad.join(", ")}`);
+    this.log("debug", `[DEVELOPMENT] Loading individual components: ${namesToLoad.join(", ")}`);
     for (const name of namesToLoad) {
       try {
         const component = await this.loadComponent(name);
@@ -2061,7 +1744,7 @@ var ComponentLoader = class {
         this.log("warn", `[DEVELOPMENT] Failed to load component ${name}:`, loadError.message);
       }
     }
-    this.log("info", `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
+    this.log("debug", `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
     return components;
   }
   /**
@@ -2083,7 +1766,7 @@ var ComponentLoader = class {
     if (!layout || typeof layout !== "string") return /* @__PURE__ */ new Set();
     if (!layoutName || typeof layoutName !== "string") return /* @__PURE__ */ new Set();
     const cacheKey = `layout_components_${layoutName}`;
-    const cachedComponents = this.router?.cacheManager?.getFromCache(cacheKey);
+    const cachedComponents = this.router?.cacheManager?.get(cacheKey);
     if (cachedComponents) {
       this.log("debug", `Using cached layout components for '${layoutName}'`);
       return cachedComponents;
@@ -2091,7 +1774,7 @@ var ComponentLoader = class {
     const componentSet = /* @__PURE__ */ new Set();
     this._extractComponentsFromContent(layout, componentSet);
     if (this.router?.cacheManager) {
-      this.router.cacheManager.setCache(cacheKey, componentSet);
+      this.router.cacheManager.set(cacheKey, componentSet);
       this.log("debug", `Cached layout components for '${layoutName}': ${Array.from(componentSet).join(", ")}`);
     }
     return componentSet;
@@ -2298,7 +1981,7 @@ ${template}`;
    */
   async createVueComponent(routeName) {
     const cacheKey = `component_${routeName}`;
-    const cached = this.router.cacheManager?.getFromCache(cacheKey);
+    const cached = this.router.cacheManager?.get(cacheKey);
     if (cached) {
       return cached;
     }
@@ -2333,7 +2016,7 @@ ${template}`;
         if (!isProduction) {
           const layoutName = script.layout || this.config.defaultLayout;
           componentNames = this.componentLoader.getComponentNames(template, layout, layoutName);
-          this.log("info", `[DEVELOPMENT] Discovered components for route '${routeName}':`, componentNames);
+          this.log("debug", `[DEVELOPMENT] Discovered components for route '${routeName}':`, componentNames);
         }
         loadedComponents = await this.componentLoader.loadAllComponents(componentNames);
         this.log("debug", `Components loaded successfully for route: ${routeName}`);
@@ -2401,15 +2084,26 @@ ${template}`;
           }
         },
         // 인증 관련
-        $isAuthenticated: () => router.authManager?.isUserAuthenticated() || false,
-        $logout: () => router.authManager ? router.navigateTo(router.authManager.handleLogout()) : null,
-        $loginSuccess: (target) => router.authManager ? router.navigateTo(router.authManager.handleLoginSuccess(target)) : null,
+        $isAuthenticated: () => router.authManager?.isAuthenticated() || false,
+        $logout: () => router.authManager ? router.navigateTo(router.authManager.logout()) : null,
+        $loginSuccess: (target) => router.authManager ? router.navigateTo(router.authManager.loginSuccess(target)) : null,
         $checkAuth: (route) => router.authManager ? router.authManager.checkAuthentication(route) : Promise.resolve({ allowed: true, reason: "auth_disabled" }),
         $getToken: () => router.authManager?.getAccessToken() || null,
         $setToken: (token, options) => router.authManager?.setAccessToken(token, options) || false,
         $removeToken: (storage) => router.authManager?.removeAccessToken(storage) || null,
         $getAuthCookie: () => router.authManager?.getAuthCookie() || null,
         $getCookie: (name) => router.authManager?.getCookieValue(name) || null,
+        // 상태 관리
+        $state: {
+          get: (key, defaultValue) => router.stateHandler?.get(key, defaultValue),
+          set: (key, value) => router.stateHandler?.set(key, value),
+          has: (key) => router.stateHandler?.has(key) || false,
+          delete: (key) => router.stateHandler?.delete(key) || false,
+          update: (updates) => router.stateHandler?.update(updates),
+          watch: (key, callback) => router.stateHandler?.watch(key, callback),
+          unwatch: (key, callback) => router.stateHandler?.unwatch(key, callback),
+          getAll: () => router.stateHandler?.getAll() || {}
+        },
         // 데이터 fetch (ApiHandler 래퍼)
         async $fetchData(dataConfig = null) {
           const configToUse = dataConfig || script.dataURL;
@@ -2447,7 +2141,7 @@ ${template}`;
     if (!isProduction && style) {
       component._style = style;
     }
-    this.router.cacheManager?.setCache(cacheKey, component);
+    this.router.cacheManager?.set(cacheKey, component);
     return component;
   }
   /**
@@ -2507,7 +2201,7 @@ var ErrorHandler = class {
       info: 2,
       debug: 3
     };
-    this.log("info", "ErrorHandler", "ErrorHandler initialized with config:", this.config);
+    this.log("debug", "ErrorHandler", "ErrorHandler initialized with config:", this.config);
   }
   /**
    * 라우트 에러 처리
@@ -2762,6 +2456,146 @@ var ErrorHandler = class {
   }
 };
 
+// src/core/StateHandler.js
+var StateHandler = class {
+  constructor(router) {
+    this.router = router;
+    this.state = {};
+    this.listeners = /* @__PURE__ */ new Map();
+    this.log("debug", "StateHandler initialized");
+  }
+  /**
+   * 로깅 래퍼 메서드
+   */
+  log(level, ...args) {
+    if (this.router?.errorHandler) {
+      this.router.errorHandler.log(level, "StateHandler", ...args);
+    }
+  }
+  /**
+   * 상태 값 설정
+   */
+  set(key, value) {
+    const oldValue = this.state[key];
+    this.state[key] = value;
+    this.emitChange(key, value, oldValue);
+    this.log("debug", `State set: ${key}`, value);
+    return value;
+  }
+  /**
+   * 상태 값 가져오기
+   */
+  get(key, defaultValue = void 0) {
+    const value = this.state.hasOwnProperty(key) ? this.state[key] : defaultValue;
+    this.log("debug", `State get: ${key}`, value);
+    return value;
+  }
+  /**
+   * 상태 존재 확인
+   */
+  has(key) {
+    return this.state.hasOwnProperty(key);
+  }
+  /**
+   * 상태 삭제
+   */
+  delete(key) {
+    if (this.has(key)) {
+      const oldValue = this.state[key];
+      delete this.state[key];
+      this.emitChange(key, void 0, oldValue);
+      this.log("debug", `State deleted: ${key}`);
+      return true;
+    }
+    return false;
+  }
+  /**
+   * 모든 상태 초기화
+   */
+  clear() {
+    const keys = Object.keys(this.state);
+    this.state = {};
+    keys.forEach((key) => {
+      this.emitChange(key, void 0, this.state[key]);
+    });
+    this.log("debug", "All state cleared");
+    return keys.length;
+  }
+  /**
+   * 여러 상태 한 번에 설정
+   */
+  update(updates) {
+    if (!updates || typeof updates !== "object") {
+      this.log("warn", "Invalid updates object provided");
+      return;
+    }
+    Object.entries(updates).forEach(([key, value]) => {
+      this.set(key, value);
+    });
+  }
+  /**
+   * 모든 상태 반환
+   */
+  getAll() {
+    return { ...this.state };
+  }
+  /**
+   * 상태 변경 리스너 등록
+   */
+  watch(key, callback) {
+    if (!this.listeners.has(key)) {
+      this.listeners.set(key, []);
+    }
+    this.listeners.get(key).push(callback);
+    this.log("debug", `Watcher added for: ${key}`);
+  }
+  /**
+   * 상태 변경 리스너 제거
+   */
+  unwatch(key, callback) {
+    if (this.listeners.has(key)) {
+      const callbacks = this.listeners.get(key);
+      const index = callbacks.indexOf(callback);
+      if (index > -1) {
+        callbacks.splice(index, 1);
+        this.log("debug", `Watcher removed for: ${key}`);
+      }
+    }
+  }
+  /**
+   * 상태 변경 이벤트 발생
+   */
+  emitChange(key, newValue, oldValue) {
+    if (this.listeners.has(key)) {
+      this.listeners.get(key).forEach((callback) => {
+        try {
+          callback(newValue, oldValue, key);
+        } catch (error) {
+          this.log("error", "State watcher error:", error);
+        }
+      });
+    }
+  }
+  /**
+   * 상태 통계
+   */
+  getStats() {
+    return {
+      stateCount: Object.keys(this.state).length,
+      watcherCount: Array.from(this.listeners.values()).reduce((sum, arr) => sum + arr.length, 0),
+      keys: Object.keys(this.state)
+    };
+  }
+  /**
+   * 정리 (메모리 누수 방지)
+   */
+  destroy() {
+    this.state = {};
+    this.listeners.clear();
+    this.log("debug", "StateHandler destroyed");
+  }
+};
+
 // src/viewlogic-router.js
 var ViewLogicRouter = class {
   constructor(options = {}) {
@@ -2809,16 +2643,8 @@ var ViewLogicRouter = class {
       checkAuthFunction: null,
       redirectAfterLogin: "home",
       authCookieName: "authToken",
-      authFallbackCookieNames: ["accessToken", "token", "jwt"],
-      authStorage: "cookie",
-      authCookieOptions: {},
-      authSkipValidation: false,
-      enableParameterValidation: true,
-      maxParameterLength: 1e3,
-      maxParameterCount: 50,
-      maxArraySize: 100,
-      allowedKeyPattern: /^[a-zA-Z0-9_-]+$/,
-      logSecurityWarnings: true
+      authStorage: "localStorage",
+      authSkipValidation: false
     };
     const config = { ...defaults, ...options };
     config.srcPath = this.resolvePath(config.srcPath, config.basePath);
@@ -2885,8 +2711,9 @@ var ViewLogicRouter = class {
   async initialize() {
     try {
       this.cacheManager = new CacheManager(this, this.config);
+      this.stateHandler = new StateHandler(this);
       this.routeLoader = new RouteLoader(this, this.config);
-      this.queryManager = new QueryManager(this, this.config);
+      this.queryManager = new QueryManager(this);
       this.errorHandler = new ErrorHandler(this, this.config);
       if (this.config.useI18n) {
         try {
@@ -3158,7 +2985,7 @@ var ViewLogicRouter = class {
         manager.destroy();
       }
     });
-    this.cacheManager?.clearCache();
+    this.cacheManager?.clearAll();
     const appElement = document.getElementById("app");
     if (appElement) {
       appElement.innerHTML = "";
