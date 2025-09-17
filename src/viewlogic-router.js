@@ -65,13 +65,7 @@ export class ViewLogicRouter {
             authFallbackCookieNames: ['accessToken', 'token', 'jwt'],
             authStorage: 'cookie',
             authCookieOptions: {},
-            authSkipValidation: false,
-            enableParameterValidation: true,
-            maxParameterLength: 1000,
-            maxParameterCount: 50,
-            maxArraySize: 100,
-            allowedKeyPattern: /^[a-zA-Z0-9_-]+$/,
-            logSecurityWarnings: true
+            authSkipValidation: false
         };
         
         const config = { ...defaults, ...options };
@@ -169,7 +163,7 @@ export class ViewLogicRouter {
             // 항상 필요한 매니저들
             this.cacheManager = new CacheManager(this, this.config);
             this.routeLoader = new RouteLoader(this, this.config);
-            this.queryManager = new QueryManager(this, this.config);
+            this.queryManager = new QueryManager(this);
             this.errorHandler = new ErrorHandler(this, this.config);
             
             // 조건부 매니저들
