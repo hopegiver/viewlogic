@@ -293,9 +293,9 @@ export class RouteLoader {
                 },
 
                 // 인증 관련
-                $isAuthenticated: () => router.authManager?.isUserAuthenticated() || false,
-                $logout: () => router.authManager ? router.navigateTo(router.authManager.handleLogout()) : null,
-                $loginSuccess: (target) => router.authManager ? router.navigateTo(router.authManager.handleLoginSuccess(target)) : null,
+                $isAuthenticated: () => router.authManager?.isAuthenticated() || false,
+                $logout: () => router.authManager ? router.navigateTo(router.authManager.logout()) : null,
+                $loginSuccess: (target) => router.authManager ? router.navigateTo(router.authManager.loginSuccess(target)) : null,
                 $checkAuth: (route) => router.authManager ? router.authManager.checkAuthentication(route) : Promise.resolve({ allowed: true, reason: 'auth_disabled' }),
                 $getToken: () => router.authManager?.getAccessToken() || null,
                 $setToken: (token, options) => router.authManager?.setAccessToken(token, options) || false,

@@ -6,13 +6,8 @@ export class I18nManager {
     constructor(router, options = {}) {
         this.config = {
             enabled: options.useI18n !== undefined ? options.useI18n : true,
-            defaultLanguage: options.defaultLanguage || 'ko',
-            fallbackLanguage: options.defaultLanguage || 'ko',
-            cacheKey: options.cacheKey || 'viewlogic_lang',
-            dataCacheKey: options.dataCacheKey || 'viewlogic_i18n_data',
-            cacheVersion: options.cacheVersion || '1.0.0',
-            enableDataCache: options.enableDataCache !== false,
-            debug: options.debug || false
+            defaultLanguage: options.defaultLanguage || 'en',
+            fallbackLanguage: options.defaultLanguage || 'en'
         };
         
         // 라우터 인스턴스 참조 (필요시 언어 변경 시 라우터 상태 업데이트)
@@ -41,13 +36,7 @@ export class I18nManager {
         
         // 캐시에서 언어 설정 로드
         this.loadLanguageFromCache();
-        
-        // 개발 모드에서는 캐시 비활성화
-        if (this.config.debug) {
-            this.config.enableDataCache = false;
-            this.log('debug', 'Data cache disabled in debug mode');
-        }
-        
+
         // 초기 언어 파일 자동 로드 (아직 로드되지 않은 경우에만)
         if (!this.messages.has(this.currentLanguage)) {
             try {
@@ -68,7 +57,7 @@ export class I18nManager {
      */
     loadLanguageFromCache() {
         try {
-            const cachedLang = this.router.cacheManager?.get(this.config.cacheKey);
+            const cachedLang = this.router.cacheManager?.get('viewlogic_lang');
             if (cachedLang && this.isValidLanguage(cachedLang)) {
                 this.currentLanguage = cachedLang;
                 this.log('debug', 'Language loaded from cache:', cachedLang);
@@ -152,7 +141,7 @@ export class I18nManager {
      */
     saveLanguageToCache(language) {
         try {
-            this.router.cacheManager?.set(this.config.cacheKey, language);
+            this.router.cacheManager?.set('viewlogic_lang', language);
             this.log('debug', 'Language saved to cache:', language);
         } catch (error) {
             this.log('warn', 'Failed to save language to cache:', error);
@@ -199,14 +188,13 @@ export class I18nManager {
      */
     async _loadMessagesFromFile(language) {
         // 캐시에서 먼저 시도
-        if (this.config.enableDataCache) {
-            const cachedData = this.getDataFromCache(language);
-            if (cachedData) {
-                this.log('debug', 'Messages loaded from cache:', language);
-                return cachedData;
-            }
+        const cacheKey = `i18n_${language}`;
+        const cachedData = this.router.cacheManager?.get(cacheKey);
+        if (cachedData) {
+            this.log('debug', 'Messages loaded from cache:', language);
+            return cachedData;
         }
-        
+
         try {
             // JSON 파일로 변경 - config의 i18nPath 사용
             const i18nPath = `${this.router.config.i18nPath}/${language}.json`;
@@ -215,16 +203,14 @@ export class I18nManager {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const messages = await response.json();
-            
+
             // 캐시에 저장
-            if (this.config.enableDataCache) {
-                this.saveDataToCache(language, messages);
-            }
-            
+            this.router.cacheManager?.set(cacheKey, messages);
+
             return messages;
         } catch (error) {
             this.log('error', 'Failed to load messages file for:', language, error);
-            
+
             // 폴백 언어 시도
             if (language !== this.config.fallbackLanguage) {
                 this.log('info', 'Trying fallback language:', this.config.fallbackLanguage);
@@ -236,56 +222,13 @@ export class I18nManager {
                     return {};
                 }
             }
-            
+
             // 마지막 폴백: 빈 객체 반환
             this.log('warn', `No messages available for language: ${language}, using empty fallback`);
             return {};
         }
     }
     
-    /**
-     * 언어 데이터를 캐시에서 가져오기
-     */
-    getDataFromCache(language) {
-        try {
-            const cacheKey = `i18n_${language}_${this.config.cacheVersion}`;
-            const cachedData = this.router.cacheManager?.get(cacheKey);
-
-            if (cachedData) {
-                // 버전 확인
-                if (cachedData.version !== this.config.cacheVersion) {
-                    this.log('debug', 'Cache version mismatch, clearing:', language);
-                    this.router.cacheManager?.delete?.(cacheKey);
-                    return null;
-                }
-
-                return cachedData.data;
-            }
-        } catch (error) {
-            this.log('warn', 'Failed to read from cache:', error);
-        }
-
-        return null;
-    }
-    
-    /**
-     * 언어 데이터를 캐시에 저장
-     */
-    saveDataToCache(language, data) {
-        try {
-            const cacheKey = `i18n_${language}_${this.config.cacheVersion}`;
-            const cacheItem = {
-                data,
-                timestamp: Date.now(),
-                version: this.config.cacheVersion
-            };
-
-            this.router.cacheManager?.set(cacheKey, cacheItem);
-            this.log('debug', 'Data saved to cache:', language);
-        } catch (error) {
-            this.log('warn', 'Failed to save to cache:', error);
-        }
-    }
 
     /**
      * 메시지 번역
@@ -351,12 +294,6 @@ export class I18nManager {
         return this.t(pluralKey, { ...params, count });
     }
 
-    /**
-     * 사용 가능한 언어 목록
-     */
-    getAvailableLanguages() {
-        return ['ko', 'en']; // 추후 동적으로 로드하도록 변경 가능
-    }
 
     /**
      * 언어 변경 이벤트 리스너 등록
@@ -453,60 +390,15 @@ export class I18nManager {
     }
     
     /**
-     * 캐시 초기화 (버전 변경 시 사용)
+     * 캐시 초기화
      */
     clearCache() {
         try {
-            if (!this.router.cacheManager?.deleteByPattern) {
-                this.log('warn', 'CacheManager does not support pattern deletion');
-                return;
-            }
-
-            const clearedCount = this.router.cacheManager.deleteByPattern('i18n_');
+            const clearedCount = this.router.cacheManager?.deleteByPattern('i18n_');
             this.log('debug', 'Cache cleared, removed', clearedCount, 'items');
         } catch (error) {
             this.log('warn', 'Failed to clear cache:', error);
         }
-    }
-    
-    /**
-     * 캐시 상태 확인
-     */
-    getCacheInfo() {
-        const info = {
-            enabled: this.config.enableDataCache,
-            version: this.config.cacheVersion,
-            languages: {}
-        };
-
-        try {
-            if (!this.router.cacheManager?.getKeysByPattern) {
-                this.log('warn', 'CacheManager does not support pattern search');
-                return info;
-            }
-
-            const cacheKeys = this.router.cacheManager.getKeysByPattern('i18n_');
-
-            cacheKeys.forEach(key => {
-                const match = key.match(/^i18n_(\w+)_(.+)$/);
-                if (match) {
-                    const [, language, version] = match;
-                    const cachedItem = this.router.cacheManager.get(key);
-
-                    if (cachedItem) {
-                        info.languages[language] = {
-                            version,
-                            timestamp: cachedItem.timestamp,
-                            age: Date.now() - cachedItem.timestamp
-                        };
-                    }
-                }
-            });
-        } catch (error) {
-            this.log('warn', 'Failed to get cache info:', error);
-        }
-
-        return info;
     }
     
     /**

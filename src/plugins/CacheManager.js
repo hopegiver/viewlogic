@@ -7,8 +7,7 @@ export class CacheManager {
         this.config = {
             cacheMode: options.cacheMode || 'memory', // 'memory' 또는 'lru'
             cacheTTL: options.cacheTTL || 300000, // 5분 (밀리초)
-            maxCacheSize: options.maxCacheSize || 50, // LRU 캐시 최대 크기
-            debug: options.debug || false
+            maxCacheSize: options.maxCacheSize || 50 // LRU 캐시 최대 크기
         };
         
         // 라우터 인스턴스 참조 (필요시 라우터 상태 확인용)

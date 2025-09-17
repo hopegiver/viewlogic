@@ -62,9 +62,7 @@ export class ViewLogicRouter {
             checkAuthFunction: null,
             redirectAfterLogin: 'home',
             authCookieName: 'authToken',
-            authFallbackCookieNames: ['accessToken', 'token', 'jwt'],
-            authStorage: 'cookie',
-            authCookieOptions: {},
+            authStorage: 'localStorage',
             authSkipValidation: false
         };
         

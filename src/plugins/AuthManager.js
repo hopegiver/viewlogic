@@ -12,13 +12,9 @@ export class AuthManager {
             publicRoutes: options.publicRoutes || ['login', 'register', 'home'],
             checkAuthFunction: options.checkAuthFunction || null,
             redirectAfterLogin: options.redirectAfterLogin || 'home',
-            // 쿠키/스토리지 설정
             authCookieName: options.authCookieName || 'authToken',
-            authFallbackCookieNames: options.authFallbackCookieNames || ['accessToken', 'token', 'jwt'],
-            authStorage: options.authStorage || 'cookie',
-            authCookieOptions: options.authCookieOptions || {},
-            authSkipValidation: options.authSkipValidation || false,
-            debug: options.debug || false
+            authStorage: options.authStorage || 'localStorage',
+            authSkipValidation: options.authSkipValidation || false
         };
         
         // 라우터 인스턴스 참조 (필수 의존성)
@@ -77,7 +73,7 @@ export class AuthManager {
         }
 
         // 기본 인증 확인
-        const isAuthenticated = this.isUserAuthenticated();
+        const isAuthenticated = this.isAuthenticated();
         return {
             allowed: isAuthenticated, 
             reason: isAuthenticated ? 'authenticated' : 'not_authenticated',
@@ -86,65 +82,45 @@ export class AuthManager {
     }
 
     /**
+     * JWT 토큰 검증
+     */
+    isTokenValid(token) {
+        if (!token) return false;
+
+        try {
+            if (token.includes('.')) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.exp && Date.now() >= payload.exp * 1000) {
+                    return false; // 만료됨
+                }
+            }
+            return true;
+        } catch (error) {
+            this.log('warn', 'Token validation failed:', error);
+            return false;
+        }
+    }
+
+    /**
      * 사용자 인증 상태 확인
      */
-    isUserAuthenticated() {
+    isAuthenticated() {
         this.log('debug', '🔍 Checking user authentication status');
 
-        // 1. localStorage 확인
-        const token = localStorage.getItem('authToken') || localStorage.getItem('accessToken');
-        if (token) {
-            try {
-                if (token.includes('.')) {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    if (payload.exp && Date.now() >= payload.exp * 1000) {
-                        this.log('debug', 'localStorage token expired, removing...');
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('accessToken');
-                        return false;
-                    }
-                }
-                this.log('debug', '✅ Valid token found in localStorage');
-                return true;
-            } catch (error) {
-                this.log('warn', 'Invalid token in localStorage:', error);
-            }
+        const token = this.getAccessToken();
+        if (!token) {
+            this.log('debug', '❌ No token found');
+            return false;
         }
 
-        // 2. sessionStorage 확인
-        const sessionToken = sessionStorage.getItem('authToken') || sessionStorage.getItem('accessToken');
-        if (sessionToken) {
-            this.log('debug', '✅ Token found in sessionStorage');
-            return true;
+        if (!this.isTokenValid(token)) {
+            this.log('debug', 'Token expired, removing...');
+            this.removeAccessToken();
+            return false;
         }
 
-        // 3. 쿠키 확인
-        const authCookie = this.getAuthCookie();
-        if (authCookie) {
-            try {
-                if (authCookie.includes('.')) {
-                    const payload = JSON.parse(atob(authCookie.split('.')[1]));
-                    if (payload.exp && Date.now() >= payload.exp * 1000) {
-                        this.log('debug', 'Cookie token expired, removing...');
-                        this.removeAuthCookie();
-                        return false;
-                    }
-                }
-                this.log('debug', '✅ Valid token found in cookies');
-                return true;
-            } catch (error) {
-                this.log('warn', 'Cookie token validation failed:', error);
-            }
-        }
-
-        // 4. 전역 변수 확인 (레거시 지원)
-        if (window.user || window.isAuthenticated) {
-            this.log('debug', '✅ Global authentication variable found');
-            return true;
-        }
-
-        this.log('debug', '❌ No valid authentication found');
-        return false;
+        this.log('debug', '✅ Valid token found');
+        return true;
     }
 
     /**
@@ -177,22 +153,7 @@ export class AuthManager {
      * 인증 쿠키 가져오기
      */
     getAuthCookie() {
-        // 주 쿠키 이름 확인
-        const primaryCookie = this.getCookieValue(this.config.authCookieName);
-        if (primaryCookie) {
-            return primaryCookie;
-        }
-
-        // 대체 쿠키 이름들 확인
-        for (const cookieName of this.config.authFallbackCookieNames) {
-            const cookieValue = this.getCookieValue(cookieName);
-            if (cookieValue) {
-                this.log('debug', `Found auth token in fallback cookie: ${cookieName}`);
-                return cookieValue;
-            }
-        }
-
-        return null;
+        return this.getCookieValue(this.config.authCookieName);
     }
 
     /**
@@ -211,34 +172,24 @@ export class AuthManager {
      * 인증 쿠키 제거
      */
     removeAuthCookie() {
-        const cookiesToRemove = [this.config.authCookieName, ...this.config.authFallbackCookieNames];
-        
-        cookiesToRemove.forEach(cookieName => {
-            // 현재 경로와 루트 경로에서 모두 제거
-            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=${window.location.pathname};`;
-        });
-        
-        this.log('debug', 'Auth cookies removed');
+        document.cookie = `${this.config.authCookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        this.log('debug', 'Auth cookie removed');
     }
 
     /**
      * 액세스 토큰 가져오기
      */
     getAccessToken() {
-        // localStorage 확인
-        let token = localStorage.getItem('authToken') || localStorage.getItem('accessToken');
+        // localStorage 우선 확인
+        let token = localStorage.getItem('authToken');
         if (token) return token;
 
         // sessionStorage 확인
-        token = sessionStorage.getItem('authToken') || sessionStorage.getItem('accessToken');
+        token = sessionStorage.getItem('authToken');
         if (token) return token;
 
         // 쿠키 확인
-        token = this.getAuthCookie();
-        if (token) return token;
-
-        return null;
+        return this.getAuthCookie();
     }
 
     /**
@@ -258,17 +209,9 @@ export class AuthManager {
 
         try {
             // JWT 토큰 검증 (옵션)
-            if (!skipValidation && token.includes('.')) {
-                try {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    if (payload.exp && Date.now() >= payload.exp * 1000) {
-                        this.log('warn', '❌ Token is expired');
-                        return false;
-                    }
-                    this.log('debug', '✅ JWT token validated');
-                } catch (error) {
-                    this.log('warn', '⚠️ JWT validation failed, but proceeding:', error.message);
-                }
+            if (!skipValidation && !this.isTokenValid(token)) {
+                this.log('warn', '❌ Token is expired or invalid');
+                return false;
             }
 
             // 스토리지별 저장
@@ -284,11 +227,10 @@ export class AuthManager {
                     break;
 
                 case 'cookie':
-                    this.setAuthCookie(token, cookieOptions);
+                    this.setAuthCookie(token);
                     break;
 
                 default:
-                    // 기본값: localStorage
                     localStorage.setItem('authToken', token);
                     this.log('debug', 'Token saved to localStorage (default)');
             }
@@ -310,48 +252,29 @@ export class AuthManager {
     /**
      * 인증 쿠키 설정
      */
-    setAuthCookie(token, options = {}) {
-        const {
-            cookieName = this.config.authCookieName,
-            secure = window.location.protocol === 'https:',
-            sameSite = 'Strict',
-            path = '/',
-            domain = null
-        } = options;
-
-        let cookieString = `${cookieName}=${encodeURIComponent(token)}; path=${path}`;
+    setAuthCookie(token) {
+        const secure = window.location.protocol === 'https:';
+        let cookieString = `${this.config.authCookieName}=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
 
         if (secure) {
             cookieString += '; Secure';
         }
 
-        if (sameSite) {
-            cookieString += `; SameSite=${sameSite}`;
-        }
-
-        if (domain) {
-            cookieString += `; Domain=${domain}`;
-        }
-
         // JWT에서 만료 시간 추출
-        try {
-            if (token.includes('.')) {
-                try {
-                    const payload = JSON.parse(atob(token.split('.')[1]));
-                    if (payload.exp) {
-                        const expireDate = new Date(payload.exp * 1000);
-                        cookieString += `; Expires=${expireDate.toUTCString()}`;
-                    }
-                } catch (error) {
-                    this.log('Could not extract expiration from JWT token');
+        if (token.includes('.')) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.exp) {
+                    const expireDate = new Date(payload.exp * 1000);
+                    cookieString += `; Expires=${expireDate.toUTCString()}`;
                 }
+            } catch (error) {
+                this.log('warn', 'Could not extract expiration from JWT token');
             }
-        } catch (error) {
-            this.log('Token processing error:', error);
         }
 
         document.cookie = cookieString;
-        this.log(`Auth cookie set: ${cookieName}`);
+        this.log('debug', 'Auth cookie set');
     }
 
     /**
@@ -376,9 +299,7 @@ export class AuthManager {
             case 'all':
             default:
                 localStorage.removeItem('authToken');
-                localStorage.removeItem('accessToken');
                 sessionStorage.removeItem('authToken');
-                sessionStorage.removeItem('accessToken');
                 this.removeAuthCookie();
                 break;
         }
@@ -390,7 +311,7 @@ export class AuthManager {
     /**
      * 로그인 성공 처리
      */
-    handleLoginSuccess(targetRoute = null) {
+    loginSuccess(targetRoute = null) {
         const redirectRoute = targetRoute || this.config.redirectAfterLogin;
         
         this.log(`🎉 Login success, redirecting to: ${redirectRoute}`);
@@ -408,15 +329,12 @@ export class AuthManager {
     /**
      * 로그아웃 처리
      */
-    handleLogout() {
+    logout() {
         this.log('👋 Logging out user');
         
         // 모든 저장소에서 토큰 제거
         this.removeAccessToken();
         
-        // 전역 변수 정리
-        if (window.user) window.user = null;
-        if (window.isAuthenticated) window.isAuthenticated = false;
         
         this.emitAuthEvent('logout', {});
         
@@ -485,7 +403,7 @@ export class AuthManager {
     getAuthStats() {
         return {
             enabled: this.config.enabled,
-            isAuthenticated: this.isUserAuthenticated(),
+            isAuthenticated: this.isAuthenticated(),
             hasToken: !!this.getAccessToken(),
             protectedRoutesCount: this.config.protectedRoutes.length,
             protectedPrefixesCount: this.config.protectedPrefixes.length,
