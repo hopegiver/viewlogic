@@ -26,7 +26,7 @@ ViewLogic Router revolutionizes Vue development with two fundamental core princi
 
 ## ✨ Key Features
 
-- 🚀 **Ultra-Lightweight** - Complete routing system in just 15.5KB gzipped (56KB minified) with zero dependencies
+- 🚀 **Ultra-Lightweight** - Complete routing system with zero dependencies and optimized codebase
 - 🔄 **Multiple API Support** - Parallel data fetching from multiple APIs with named data storage  
 - 📝 **Automatic Form Handling** - Revolutionary form submission with `{paramName}` variable parameters
 - 🛠️ **Built-in Components** - Preloaded UI components including revolutionary DynamicInclude & HtmlInclude
@@ -46,7 +46,7 @@ ViewLogic Router revolutionizes Vue development with two fundamental core princi
 - ✅ RESTful API client with parameter substitution
 - ✅ Component loading and management
 - ✅ Error handling and logging system
-- ✅ Query parameter management and validation
+- ✅ Query parameter management
 - ✅ Layout system with slot-based composition
 
 ### Zero Dependencies
@@ -296,15 +296,7 @@ const config = {
     ],
     authCookieOptions: {},                // Custom cookie options
     authSkipValidation: false,            // Skip auth validation entirely
-    
-    // Security & Validation
-    enableParameterValidation: true,       // Enable parameter validation
-    maxParameterLength: 1000,             // Max length per parameter
-    maxParameterCount: 50,                // Max number of parameters
-    maxArraySize: 100,                    // Max array size in parameters
-    allowedKeyPattern: /^[a-zA-Z0-9_-]+$/, // Allowed parameter key pattern
-    logSecurityWarnings: true,             // Log security-related warnings
-    
+
     // Development & Debugging
     logLevel: 'info',                     // 'debug', 'info', 'warn', 'error'
     enableErrorReporting: true,           // Enable error reporting system
