@@ -161,7 +161,7 @@ export class RouteLoader {
     async createVueComponent(routeName) {
         // 캐시된 Vue 컴포넌트가 있는지 확인
         const cacheKey = `component_${routeName}`;
-        const cached = this.router.cacheManager?.getFromCache(cacheKey);
+        const cached = this.router.cacheManager?.get(cacheKey);
         if (cached) {
             return cached;
         }
@@ -355,7 +355,7 @@ export class RouteLoader {
         }
         
         // 캐시에 저장
-        this.router.cacheManager?.setCache(cacheKey, component);
+        this.router.cacheManager?.set(cacheKey, component);
         
         return component;
     }

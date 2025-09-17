@@ -62,14 +62,14 @@ describe('CacheManager', () => {
         test('should set and get cache items', () => {
             const testData = { content: 'test content' };
             
-            cacheManager.setCache('test-key', testData);
-            const result = cacheManager.getFromCache('test-key');
+            cacheManager.set('test-key', testData);
+            const result = cacheManager.get('test-key');
             
             expect(result).toEqual(testData);
         });
 
         test('should return null for non-existent keys', () => {
-            const result = cacheManager.getFromCache('non-existent');
+            const result = cacheManager.get('non-existent');
             
             expect(result).toBeNull();
         });
@@ -310,7 +310,7 @@ describe('CacheManager', () => {
             // Fast-forward to expire items
             jest.advanceTimersByTime(6000);
             
-            cacheManager.cleanupExpired();
+            cacheManager.cleanExpired();
             
             expect(cacheManager.get('key1')).toBeNull();
             expect(cacheManager.get('key2')).toBeNull();

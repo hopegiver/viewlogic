@@ -34,7 +34,7 @@ export class CacheManager {
     /**
      * 캐시에 값 저장
      */
-    setCache(key, value) {
+    set(key, value) {
         const now = Date.now();
         
         if (this.config.cacheMode === 'lru') {
@@ -67,7 +67,7 @@ export class CacheManager {
     /**
      * 캐시에서 값 가져오기
      */
-    getFromCache(key) {
+    get(key) {
         const now = Date.now();
         const timestamp = this.cacheTimestamps.get(key);
         
@@ -110,14 +110,14 @@ export class CacheManager {
     /**
      * 캐시에 키가 있는지 확인
      */
-    hasCache(key) {
-        return this.cache.has(key) && this.getFromCache(key) !== null;
+    has(key) {
+        return this.cache.has(key) && this.get(key) !== null;
     }
     
     /**
      * 특정 키 패턴의 캐시 삭제
      */
-    invalidateByPattern(pattern) {
+    deleteByPattern(pattern) {
         const keysToDelete = [];
         
         for (const key of this.cache.keys()) {
@@ -138,14 +138,14 @@ export class CacheManager {
             }
         });
         
-        this.log('debug', `🧹 Invalidated ${keysToDelete.length} cache entries matching: ${pattern}`);
+        this.log('debug', `🧹 Deleted ${keysToDelete.length} cache entries matching: ${pattern}`);
         return keysToDelete.length;
     }
     
     /**
-     * 특정 컴포넌트 캐시 무효화
+     * 특정 컴포넌트 캐시 삭제
      */
-    invalidateComponentCache(routeName) {
+    deleteComponent(routeName) {
         const patterns = [
             `component_${routeName}`,
             `script_${routeName}`,
@@ -156,32 +156,32 @@ export class CacheManager {
         
         let totalInvalidated = 0;
         patterns.forEach(pattern => {
-            totalInvalidated += this.invalidateByPattern(pattern);
+            totalInvalidated += this.deleteByPattern(pattern);
         });
         
-        this.log(`🔄 Invalidated component cache for route: ${routeName} (${totalInvalidated} entries)`);
+        this.log(`🔄 Deleted component cache for route: ${routeName} (${totalInvalidated} entries)`);
         return totalInvalidated;
     }
     
     /**
      * 모든 컴포넌트 캐시 삭제
      */
-    clearComponentCache() {
+    deleteAllComponents() {
         const componentPatterns = ['component_', 'script_', 'template_', 'style_', 'layout_'];
         let totalCleared = 0;
         
         componentPatterns.forEach(pattern => {
-            totalCleared += this.invalidateByPattern(pattern);
+            totalCleared += this.deleteByPattern(pattern);
         });
         
-        this.log(`🧽 Cleared all component caches (${totalCleared} entries)`);
+        this.log(`🧽 Deleted all component caches (${totalCleared} entries)`);
         return totalCleared;
     }
     
     /**
      * 전체 캐시 삭제
      */
-    clearCache() {
+    clearAll() {
         const size = this.cache.size;
         this.cache.clear();
         this.cacheTimestamps.clear();
@@ -194,7 +194,7 @@ export class CacheManager {
     /**
      * 만료된 캐시 항목들 정리
      */
-    cleanExpiredCache() {
+    cleanExpired() {
         const now = Date.now();
         const expiredKeys = [];
         
@@ -226,15 +226,15 @@ export class CacheManager {
     /**
      * 캐시 통계 정보
      */
-    getCacheStats() {
+    getStats() {
         return {
             size: this.cache.size,
             maxSize: this.config.maxCacheSize,
             mode: this.config.cacheMode,
             ttl: this.config.cacheTTL,
             memoryUsage: this.getMemoryUsage(),
-            hitRatio: this.getHitRatio(),
-            categories: this.getCategorizedStats()
+            hitRatio: this.getHitRate(),
+            categories: this.getStatsByCategory()
         };
     }
     
@@ -268,7 +268,7 @@ export class CacheManager {
     /**
      * 히트 비율 계산 (간단한 추정)
      */
-    getHitRatio() {
+    getHitRate() {
         // 실제 히트/미스 추적을 위해서는 별도의 카운터가 필요
         // 현재는 캐시 크기 기반 추정치 반환
         const ratio = this.cache.size > 0 ? Math.min(this.cache.size / this.config.maxCacheSize, 1) : 0;
@@ -278,7 +278,7 @@ export class CacheManager {
     /**
      * 카테고리별 캐시 통계
      */
-    getCategorizedStats() {
+    getStatsByCategory() {
         const categories = {
             components: 0,
             scripts: 0,
@@ -303,15 +303,15 @@ export class CacheManager {
     /**
      * 캐시 키 목록 반환
      */
-    getCacheKeys() {
+    getKeys() {
         return Array.from(this.cache.keys());
     }
     
     /**
      * 특정 패턴의 캐시 키들 반환
      */
-    getCacheKeysByPattern(pattern) {
-        return this.getCacheKeys().filter(key => 
+    getKeysByPattern(pattern) {
+        return this.getKeys().filter(key => 
             key.includes(pattern) || key.startsWith(pattern)
         );
     }
@@ -325,7 +325,7 @@ export class CacheManager {
         }
         
         this.cleanupInterval = setInterval(() => {
-            this.cleanExpiredCache();
+            this.cleanExpired();
         }, interval);
         
         this.log(`🤖 Auto cleanup started (interval: ${interval}ms)`);
@@ -347,7 +347,7 @@ export class CacheManager {
      */
     destroy() {
         this.stopAutoCleanup();
-        this.clearCache();
+        this.clearAll();
         this.log('debug', 'CacheManager destroyed');
     }
 }

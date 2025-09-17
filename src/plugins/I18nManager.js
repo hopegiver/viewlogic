@@ -68,7 +68,7 @@ export class I18nManager {
      */
     loadLanguageFromCache() {
         try {
-            const cachedLang = localStorage.getItem(this.config.cacheKey);
+            const cachedLang = this.router.cacheManager?.get(this.config.cacheKey);
             if (cachedLang && this.isValidLanguage(cachedLang)) {
                 this.currentLanguage = cachedLang;
                 this.log('debug', 'Language loaded from cache:', cachedLang);
@@ -152,7 +152,7 @@ export class I18nManager {
      */
     saveLanguageToCache(language) {
         try {
-            localStorage.setItem(this.config.cacheKey, language);
+            this.router.cacheManager?.set(this.config.cacheKey, language);
             this.log('debug', 'Language saved to cache:', language);
         } catch (error) {
             this.log('warn', 'Failed to save language to cache:', error);
@@ -248,35 +248,23 @@ export class I18nManager {
      */
     getDataFromCache(language) {
         try {
-            const cacheKey = `${this.config.dataCacheKey}_${language}_${this.config.cacheVersion}`;
-            const cachedItem = localStorage.getItem(cacheKey);
-            
-            if (cachedItem) {
-                const { data, timestamp, version } = JSON.parse(cachedItem);
-                
+            const cacheKey = `i18n_${language}_${this.config.cacheVersion}`;
+            const cachedData = this.router.cacheManager?.get(cacheKey);
+
+            if (cachedData) {
                 // 버전 확인
-                if (version !== this.config.cacheVersion) {
+                if (cachedData.version !== this.config.cacheVersion) {
                     this.log('debug', 'Cache version mismatch, clearing:', language);
-                    localStorage.removeItem(cacheKey);
+                    this.router.cacheManager?.delete?.(cacheKey);
                     return null;
                 }
-                
-                // TTL 확인 (24시간)
-                const now = Date.now();
-                const maxAge = 24 * 60 * 60 * 1000; // 24시간
-                
-                if (now - timestamp > maxAge) {
-                    this.log('debug', 'Cache expired, removing:', language);
-                    localStorage.removeItem(cacheKey);
-                    return null;
-                }
-                
-                return data;
+
+                return cachedData.data;
             }
         } catch (error) {
             this.log('warn', 'Failed to read from cache:', error);
         }
-        
+
         return null;
     }
     
@@ -285,14 +273,14 @@ export class I18nManager {
      */
     saveDataToCache(language, data) {
         try {
-            const cacheKey = `${this.config.dataCacheKey}_${language}_${this.config.cacheVersion}`;
+            const cacheKey = `i18n_${language}_${this.config.cacheVersion}`;
             const cacheItem = {
                 data,
                 timestamp: Date.now(),
                 version: this.config.cacheVersion
             };
-            
-            localStorage.setItem(cacheKey, JSON.stringify(cacheItem));
+
+            this.router.cacheManager?.set(cacheKey, cacheItem);
             this.log('debug', 'Data saved to cache:', language);
         } catch (error) {
             this.log('warn', 'Failed to save to cache:', error);
@@ -469,14 +457,13 @@ export class I18nManager {
      */
     clearCache() {
         try {
-            const keys = Object.keys(localStorage);
-            const cacheKeys = keys.filter(key => key.startsWith(this.config.dataCacheKey));
-            
-            cacheKeys.forEach(key => {
-                localStorage.removeItem(key);
-            });
-            
-            this.log('debug', 'Cache cleared, removed', cacheKeys.length, 'items');
+            if (!this.router.cacheManager?.deleteByPattern) {
+                this.log('warn', 'CacheManager does not support pattern deletion');
+                return;
+            }
+
+            const clearedCount = this.router.cacheManager.deleteByPattern('i18n_');
+            this.log('debug', 'Cache cleared, removed', clearedCount, 'items');
         } catch (error) {
             this.log('warn', 'Failed to clear cache:', error);
         }
@@ -491,28 +478,34 @@ export class I18nManager {
             version: this.config.cacheVersion,
             languages: {}
         };
-        
+
         try {
-            const keys = Object.keys(localStorage);
-            const cacheKeys = keys.filter(key => key.startsWith(this.config.dataCacheKey));
-            
+            if (!this.router.cacheManager?.getKeysByPattern) {
+                this.log('warn', 'CacheManager does not support pattern search');
+                return info;
+            }
+
+            const cacheKeys = this.router.cacheManager.getKeysByPattern('i18n_');
+
             cacheKeys.forEach(key => {
-                const match = key.match(new RegExp(`${this.config.dataCacheKey}_(\w+)_(.+)`));
+                const match = key.match(/^i18n_(\w+)_(.+)$/);
                 if (match) {
                     const [, language, version] = match;
-                    const cachedItem = JSON.parse(localStorage.getItem(key));
-                    
-                    info.languages[language] = {
-                        version,
-                        timestamp: cachedItem.timestamp,
-                        age: Date.now() - cachedItem.timestamp
-                    };
+                    const cachedItem = this.router.cacheManager.get(key);
+
+                    if (cachedItem) {
+                        info.languages[language] = {
+                            version,
+                            timestamp: cachedItem.timestamp,
+                            age: Date.now() - cachedItem.timestamp
+                        };
+                    }
                 }
             });
         } catch (error) {
             this.log('warn', 'Failed to get cache info:', error);
         }
-        
+
         return info;
     }
     

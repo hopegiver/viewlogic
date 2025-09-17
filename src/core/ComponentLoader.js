@@ -36,7 +36,7 @@ export class ComponentLoader {
         
         // 캐시에서 컴포넌트 확인
         const cacheKey = `component_${componentName}`;
-        const cachedComponent = this.router?.cacheManager?.getFromCache(cacheKey);
+        const cachedComponent = this.router?.cacheManager?.get(cacheKey);
         if (cachedComponent) {
             this.log('debug', `Component '${componentName}' loaded from cache`);
             return cachedComponent;
@@ -55,7 +55,7 @@ export class ComponentLoader {
             
             // 캐시에 저장
             if (component && this.router?.cacheManager) {
-                this.router.cacheManager.setCache(cacheKey, component);
+                this.router.cacheManager.set(cacheKey, component);
                 this.log('debug', `Component '${componentName}' cached successfully`);
             }
             
@@ -230,7 +230,7 @@ export class ComponentLoader {
         const cacheKey = `layout_components_${layoutName}`;
         
         // 캐시에서 확인
-        const cachedComponents = this.router?.cacheManager?.getFromCache(cacheKey);
+        const cachedComponents = this.router?.cacheManager?.get(cacheKey);
         if (cachedComponents) {
             this.log('debug', `Using cached layout components for '${layoutName}'`);
             return cachedComponents;
@@ -242,7 +242,7 @@ export class ComponentLoader {
         
         // 캐시에 저장 (Set 그대로)
         if (this.router?.cacheManager) {
-            this.router.cacheManager.setCache(cacheKey, componentSet);
+            this.router.cacheManager.set(cacheKey, componentSet);
             this.log('debug', `Cached layout components for '${layoutName}': ${Array.from(componentSet).join(', ')}`);
         }
         

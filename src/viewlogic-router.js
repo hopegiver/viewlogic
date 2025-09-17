@@ -569,7 +569,7 @@ export class ViewLogicRouter {
         });
         
         // 캐시 클리어
-        this.cacheManager?.clearCache();
+        this.cacheManager?.clearAll();
         
         // DOM 정리
         const appElement = document.getElementById('app');
