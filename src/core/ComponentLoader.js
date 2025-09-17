@@ -151,13 +151,13 @@ export class ComponentLoader {
     async _loadProductionComponents() {
         try {
             const componentsPath = `${this.router?.config?.routesPath || '/routes'}/_components.js`;
-            this.log('info', '[PRODUCTION] Loading unified components from:', componentsPath);
+            this.log('debug', '[PRODUCTION] Loading unified components from:', componentsPath);
             
             const componentsModule = await import(componentsPath);
             
             if (typeof componentsModule.registerComponents === 'function') {
                 this.unifiedComponents = componentsModule.components || {};
-                this.log('info', `[PRODUCTION] Unified components loaded: ${Object.keys(this.unifiedComponents).length} components`);
+                this.log('debug', `[PRODUCTION] Unified components loaded: ${Object.keys(this.unifiedComponents).length} components`);
                 return this.unifiedComponents;
             } else {
                 throw new Error('registerComponents function not found in components module');
@@ -178,11 +178,11 @@ export class ComponentLoader {
         const components = {};
         
         if (namesToLoad.length === 0) {
-            this.log('info', '[DEVELOPMENT] No components to load');
+            this.log('debug', '[DEVELOPMENT] No components to load');
             return components;
         }
         
-        this.log('info', `[DEVELOPMENT] Loading individual components: ${namesToLoad.join(', ')}`);
+        this.log('debug', `[DEVELOPMENT] Loading individual components: ${namesToLoad.join(', ')}`);
         
         for (const name of namesToLoad) {
             try {
@@ -195,7 +195,7 @@ export class ComponentLoader {
             }
         }
         
-        this.log('info', `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
+        this.log('debug', `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
         return components;
     }
     

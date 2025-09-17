@@ -89,7 +89,6 @@ export default {
                 }
                 
                 this.dynamicComponent = Vue.markRaw(component);
-                console.log(`DynamicInclude: ${this.page} component loaded successfully`);
                 
             } catch (err) {
                 // 간단한 에러 로깅 (라우터 비중단)
@@ -115,7 +114,6 @@ export default {
                     style.textContent = css;
                     style.setAttribute('data-route', routeName);
                     document.head.appendChild(style);
-                    console.log(`DynamicInclude: Style applied for ${routeName}`);
                 }
             } catch (err) {
                 console.warn(`DynamicInclude: Failed to apply style for ${routeName}:`, err.message);

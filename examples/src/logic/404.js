@@ -52,13 +52,5 @@ export default {
                 this.navigateTo('home');
             }
         }
-    },
-    mounted() {
-        // 404 페이지 방문 추적
-        console.warn('404 페이지 방문:', {
-            requestedUrl: this.requestedUrl,
-            timestamp: new Date().toISOString(),
-            referrer: document.referrer
-        });
     }
 }

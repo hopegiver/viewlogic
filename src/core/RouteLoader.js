@@ -213,7 +213,7 @@ export class RouteLoader {
                 if (!isProduction) {
                     const layoutName = script.layout || this.config.defaultLayout;
                     componentNames = this.componentLoader.getComponentNames(template, layout, layoutName);
-                    this.log('info', `[DEVELOPMENT] Discovered components for route '${routeName}':`, componentNames);
+                    this.log('debug', `[DEVELOPMENT] Discovered components for route '${routeName}':`, componentNames);
                 }
                 
                 loadedComponents = await this.componentLoader.loadAllComponents(componentNames);
