@@ -251,33 +251,24 @@ Complete authentication management:
 
 ```javascript
 // Check authentication status
-if (this.$isAuthenticated()) {
+if (this.isAuth()) {
     console.log('User is logged in');
 }
 
 // Login with token
-this.$setToken('jwt-token-here');
+this.setToken('jwt-token-here');
 
 // Login with options
-this.$setToken('jwt-token', {
+this.setToken('jwt-token', {
     storage: 'localStorage',  // 'localStorage', 'sessionStorage', 'cookie'
     skipValidation: false     // Skip JWT validation
 });
 
 // Get current token
-const token = this.$getToken();
-
-// Login success handling (redirects to protected route or default)
-this.$loginSuccess('/dashboard');
+const token = this.getToken();
 
 // Logout (clears token and redirects to login)
-this.$logout();
-
-// Manual auth check for specific route
-const authResult = await this.$checkAuth('admin-panel');
-if (authResult.allowed) {
-    // User can access admin panel
-}
+this.logout();
 ```
 
 ### API Management
@@ -483,46 +474,15 @@ const router = new ViewLogicRouter({
 const router = new ViewLogicRouter({
     // Custom authentication function
     authEnabled: true,
-    checkAuthFunction: async (routeName) => {
-        const token = localStorage.getItem('authToken');
-        if (!token) return false;
-
+    checkAuthFunction: async (route) => {
         try {
-            const response = await fetch('/api/auth/verify', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const userData = await response.json();
-                router.stateHandler.set('currentUser', userData);
-                return true;
-            }
-            return false;
+            // Use ViewLogic APIs like in components
+            const userData = await route.$api.get('/api/auth/verify');
+            route.$state.set('currentUser', userData);
+            return true;
         } catch (error) {
             console.error('Auth verification failed:', error);
             return false;
-        }
-    },
-
-    // Global error handler
-    onError: (error, context) => {
-        console.error('ViewLogic Error:', error, context);
-        if (window.errorTracker) {
-            window.errorTracker.log(error, context);
-        }
-    },
-
-    // Global route change handler
-    onRouteChange: (newRoute, oldRoute) => {
-        if (window.analytics) {
-            window.analytics.track('page_view', {
-                route: newRoute,
-                previous_route: oldRoute
-            });
         }
     }
 });
@@ -551,23 +511,6 @@ ViewLogic Router automatically optimizes for production:
 - **Caching**: Aggressive caching for static assets
 - **Lazy loading**: Routes and components load on demand
 
-
-## 📦 Bundle Size
-
-ViewLogic Router provides the functionality of multiple libraries in a single, optimized package:
-
-| Component | Size |
-|----------|------|
-| **Complete Framework** | **51KB minified / 17KB gzipped** |
-| Routing System | 12KB |
-| State Management | 8KB |
-| Authentication | 6KB |
-| Internationalization | 9KB |
-| API Client | 7KB |
-| Form Handling | 5KB |
-| Caching System | 4KB |
-
-*Smaller than most single-purpose libraries, yet provides complete functionality.*
 
 ## 🤝 Contributing
 

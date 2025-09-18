@@ -60,7 +60,14 @@ export class AuthManager {
         // 사용자 정의 인증 체크 함수가 있는 경우
         if (typeof this.config.checkAuthFunction === 'function') {
             try {
-                const isAuthenticated = await this.config.checkAuthFunction(routeName);
+                // 가벼운 route 객체 생성 (컴포넌트와 동일한 API 경험 제공)
+                const route = {
+                    name: routeName,
+                    $api: this.router.routeLoader.apiHandler.bindToComponent({}),
+                    $state: this.router.stateHandler
+                };
+
+                const isAuthenticated = await this.config.checkAuthFunction(route);
                 return {
                     allowed: isAuthenticated, 
                     reason: isAuthenticated ? 'custom_auth_success' : 'custom_auth_failed',

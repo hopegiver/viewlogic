@@ -260,13 +260,16 @@ export class RouteLoader {
             async mounted() {
                 // API 객체 초기화
                 this.$api = router.routeLoader.apiHandler.bindToComponent(this);
-                
+
+                // 상태 관리 초기화
+                this.$state = router.stateHandler;
+
                 if (script.mounted) {
                     await script.mounted.call(this);
                 }
                 if (script.dataURL) {
                     // 통합된 데이터 fetch (단일/다중 API 자동 처리)
-                    await this.$fetchData();
+                    await this.fetchData();
                 }
                 
                 // 🆕 자동 폼 바인딩
@@ -293,31 +296,15 @@ export class RouteLoader {
                     }
                 },
 
-                // 인증 관련
-                $isAuthenticated: () => router.authManager?.isAuthenticated() || false,
-                $logout: () => router.authManager ? router.navigateTo(router.authManager.logout()) : null,
-                $loginSuccess: (target) => router.authManager ? router.navigateTo(router.authManager.loginSuccess(target)) : null,
-                $checkAuth: (route) => router.authManager ? router.authManager.checkAuthentication(route) : Promise.resolve({ allowed: true, reason: 'auth_disabled' }),
-                $getToken: () => router.authManager?.getAccessToken() || null,
-                $setToken: (token, options) => router.authManager?.setAccessToken(token, options) || false,
-                $removeToken: (storage) => router.authManager?.removeAccessToken(storage) || null,
-                $getAuthCookie: () => router.authManager?.getAuthCookie() || null,
-                $getCookie: (name) => router.authManager?.getCookieValue(name) || null,
+                // 인증 관련 (핵심 4개 메소드만)
+                isAuth: () => router.authManager?.isAuthenticated() || false,
+                logout: () => router.authManager ? router.navigateTo(router.authManager.logout()) : null,
+                getToken: () => router.authManager?.getAccessToken() || null,
+                setToken: (token, options) => router.authManager?.setAccessToken(token, options) || false,
 
-                // 상태 관리
-                $state: {
-                    get: (key, defaultValue) => router.stateHandler?.get(key, defaultValue),
-                    set: (key, value) => router.stateHandler?.set(key, value),
-                    has: (key) => router.stateHandler?.has(key) || false,
-                    delete: (key) => router.stateHandler?.delete(key) || false,
-                    update: (updates) => router.stateHandler?.update(updates),
-                    watch: (key, callback) => router.stateHandler?.watch(key, callback),
-                    unwatch: (key, callback) => router.stateHandler?.unwatch(key, callback),
-                    getAll: () => router.stateHandler?.getAll() || {}
-                },
 
                 // 데이터 fetch (ApiHandler 래퍼)
-                async $fetchData(dataConfig = null) {
+                async fetchData(dataConfig = null) {
                     // dataConfig가 제공되면 사용, 아니면 script.dataURL 사용
                     const configToUse = dataConfig || script.dataURL;
                     if (!configToUse) return null;
