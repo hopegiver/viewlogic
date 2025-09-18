@@ -302,6 +302,17 @@ export class RouteLoader {
                 getToken: () => router.authManager?.getAccessToken() || null,
                 setToken: (token, options) => router.authManager?.setAccessToken(token, options) || false,
 
+                // i18n 언어 관리
+                getLanguage: () => router.i18nManager?.getCurrentLanguage() || router.config.defaultLanguage || 'ko',
+                setLanguage: (lang) => router.i18nManager?.setLanguage(lang),
+
+                // 로깅 및 에러 처리
+                log: (level, ...args) => {
+                    if (router.errorHandler) {
+                        router.errorHandler.log(level, `[${routeName}]`, ...args);
+                    }
+                },
+
 
                 // 데이터 fetch (ApiHandler 래퍼)
                 async fetchData(dataConfig = null) {

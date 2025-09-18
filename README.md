@@ -153,6 +153,11 @@ npm install viewlogic
 **src/logic/home.js**
 ```javascript
 export default {
+    // Optional: specify layout (defaults to 'default')
+    layout: 'default',        // Use layouts/default.html
+    // layout: 'admin',       // Use layouts/admin.html
+    // layout: null,          // No layout (page-only content)
+
     data() {
         return {
             message: 'Welcome to ViewLogic!',
@@ -165,6 +170,50 @@ export default {
         }
     }
 };
+```
+
+**src/styles/home.css** (optional)
+```css
+.home {
+    padding: 2rem;
+    text-align: center;
+}
+
+.home h1 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+```
+
+**src/layouts/default.html** (optional)
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My ViewLogic App</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body>
+    <header class="navbar">
+        <h1>My App</h1>
+        <nav>
+            <a href="#/home">Home</a>
+            <a href="#/about">About</a>
+        </nav>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            {{ content }}
+        </div>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 My ViewLogic App</p>
+    </footer>
+</body>
+</html>
 ```
 
 ### Query Parameter Example
@@ -185,10 +234,10 @@ export default {
 export default {
     computed: {
         userId() {
-            return this.$query.userId || 'No ID';
+            return this.getParam('userId', 'No ID');
         },
         activeTab() {
-            return this.$query.tab || 'profile';
+            return this.getParam('tab', 'profile');
         }
     },
     methods: {
@@ -203,7 +252,87 @@ export default {
 };
 ```
 
-**Usage:** Navigate to `/user-profile?userId=123&tab=settings`
+**Usage:** Navigate to `/user-profile?userId=123&tab=settings` or `#/user-profile?userId=123&tab=settings` (hash mode)
+
+**Multiple ways to access parameters:**
+```javascript
+// Direct parameter access
+const userId = this.$params.userId;        // Route parameter (direct access)
+const tab = this.$query.tab;               // Query parameter (direct access)
+const search = this.getParam('search');    // Either route or query param
+const allParams = this.getParams();        // Get all parameters
+
+// With default values
+const page = this.getParam('page', 1);     // Default to 1 if not found
+const sort = this.$query.sort || 'asc';    // Manual default for query params
+```
+
+### Reusable Components
+
+ViewLogic automatically loads components from the `components/` folder:
+
+**src/components/UserCard.js**
+```javascript
+export default {
+    name: 'UserCard',
+    template: `
+        <div class="user-card">
+            <img :src="user.avatar" :alt="user.name" class="avatar">
+            <div class="info">
+                <h3>{{ user.name }}</h3>
+                <p>{{ user.email }}</p>
+                <button @click="$emit('edit', user)" class="btn-edit">
+                    Edit User
+                </button>
+            </div>
+        </div>
+    `,
+    emits: ['edit'],
+    props: {
+        user: {
+            type: Object,
+            required: true
+        }
+    }
+};
+```
+
+**Using components in views:**
+
+**src/views/users.html**
+```html
+<div class="users-page">
+    <h1>Users</h1>
+    <UserCard
+        v-for="user in users"
+        :key="user.id"
+        :user="user"
+        @edit="editUser"
+    />
+</div>
+```
+
+**src/logic/users.js**
+```javascript
+export default {
+    data() {
+        return {
+            users: []
+        };
+    },
+    methods: {
+        editUser(user) {
+            this.navigateTo('user-edit', { userId: user.id });
+        }
+    }
+};
+```
+
+**Dynamic Component Loading:**
+- Just add `.js` files to `src/components/` folder
+- Components are automatically discovered and loaded
+- No import statements needed - ViewLogic handles everything
+- Components are available instantly in all views
 
 ## 🎯 Core APIs
 
@@ -314,6 +443,41 @@ export default {
     mounted() {
         // Data automatically loaded and available as:
         // this.profile, this.posts, this.notifications
+    },
+
+    methods: {
+        // Manual data refresh - reuses dataURL configuration
+        async refreshData() {
+            await this.fetchData();
+            // All dataURL endpoints are called again
+        },
+
+        // Refresh when filters change
+        async applyFilter(filterType) {
+            this.$query.filter = filterType;
+            await this.fetchData(); // Refetch with new filter parameter
+        },
+
+        // Refresh when user changes
+        async switchUser(newUserId) {
+            this.$params.userId = newUserId;
+            await this.fetchData(); // Refetch with new userId parameter
+        },
+
+        // Pagination
+        async changePage(page) {
+            this.$query.page = page;
+            await this.fetchData(); // Load new page data
+        },
+
+        // Custom data loading
+        async loadSpecificData() {
+            const customData = await this.fetchData({
+                profile: '/api/admin/profile',
+                stats: '/api/stats?period={period}'
+            });
+            // Override default dataURL temporarily
+        }
     }
 };
 ```
@@ -332,15 +496,56 @@ const greeting = this.$t('hello.user', { name: 'John', role: 'admin' });
 // Nested keys
 const errorMsg = this.$t('errors.validation.email.required');
 
-// Plural forms
-const itemCount = this.$plural('items.count', count, { count });
-
 // Check current language
-const currentLang = this.$i18n.getCurrentLanguage();
+const currentLang = this.getLanguage();
 
 // Change language (automatically reloads interface)
-await this.$i18n.setLanguage('ko');
+await this.setLanguage('ko');
 ```
+
+### Logging & Error Handling
+
+Built-in logging system for debugging and error tracking:
+
+```javascript
+export default {
+    async mounted() {
+        this.log('info', 'Component mounted successfully');
+    },
+
+    methods: {
+        async handleUserAction() {
+            this.log('debug', 'User action started', { action: 'submit' });
+
+            try {
+                const result = await this.$api.post('/api/users', userData);
+                this.log('info', 'User created successfully', result);
+            } catch (error) {
+                this.log('error', 'Failed to create user:', error);
+            }
+        },
+
+        async loadData() {
+            this.log('debug', 'Loading user data...');
+
+            try {
+                const data = await this.fetchData();
+                this.log('info', 'Data loaded', { count: data.length });
+            } catch (error) {
+                this.log('warn', 'Data loading failed, using cache', error);
+            }
+        }
+    }
+};
+```
+
+**Log Levels:**
+- `debug` - Development debugging information
+- `info` - General information and success messages
+- `warn` - Warning messages for recoverable issues
+- `error` - Error messages for failures
+
+All logs include the component name automatically: `[routeName] Your message`
 
 ### Navigation & Routing
 
@@ -359,72 +564,93 @@ this.navigateTo({
     params: { query: 'vue', category: 'tutorials' }
 });
 
-// Get current route information
-const currentRoute = this.$route.current;
-const routeParams = this.$route.params;
-const queryParams = this.$route.query;
-
-// Multiple ways to access parameters
-const userId = this.$params.userId;        // Route parameter (direct access)
-const tab = this.$query.tab;               // Query parameter (direct access)
-const search = this.getParam('search');    // Either route or query param
-const allParams = this.getParams();        // Get all parameters
-
-// With default values
-const page = this.getParam('page', 1);     // Default to 1 if not found
-const sort = this.$query.sort || 'asc';    // Manual default for query params
 ```
+
 
 ### Form Handling
 
-Revolutionary form processing with automatic parameter substitution:
+Revolutionary automatic form processing with parameter substitution:
 
 ```html
-<!-- Basic form with automatic handling -->
-<form action="/api/users" method="POST">
+<!-- Basic form - automatically handled on submit -->
+<form action="/api/users" method="POST"
+      data-success="onUserCreated"
+      data-error="onUserError"
+      data-loading="setLoading">
     <input name="name" v-model="userData.name" required>
     <input name="email" v-model="userData.email" type="email" required>
     <button type="submit">Create User</button>
 </form>
 
 <!-- Form with parameter substitution -->
-<form action="/api/users/{userId}" method="PUT">
+<form action="/api/users/{userId}" method="PUT"
+      data-success="onUserUpdated"
+      data-redirect="user-profile">
     <input name="name" v-model="user.name">
     <input name="email" v-model="user.email">
     <button type="submit">Update User</button>
 </form>
 
 <!-- File upload form -->
-<form action="/api/upload" method="POST" enctype="multipart/form-data">
+<form action="/api/upload" method="POST" enctype="multipart/form-data"
+      data-success="onFileUploaded">
     <input name="avatar" type="file" accept="image/*">
     <input name="description" v-model="description">
     <button type="submit">Upload</button>
 </form>
+
+<!-- Form with custom validation -->
+<form action="/api/contact" method="POST">
+    <input name="email" type="email" data-validation="validateEmail" required>
+    <textarea name="message" data-validation="validateMessage" required></textarea>
+    <button type="submit">Send Message</button>
+</form>
 ```
 
 ```javascript
-// Programmatic form submission
+// Component logic with form handlers
 export default {
+    data() {
+        return {
+            userData: { name: '', email: '' },
+            user: { name: 'John', email: 'john@example.com' },
+            loading: false
+        };
+    },
     methods: {
-        async submitForm() {
-            const formData = {
-                name: this.userData.name,
-                email: this.userData.email
-            };
+        // Success handlers
+        onUserCreated(response, form) {
+            this.$state.set('newUser', response);
+            this.navigateTo('user-profile', { userId: response.id });
+        },
 
-            try {
-                const result = await this.$form.submit('/api/users', formData, {
-                    method: 'POST',
-                    onProgress: (progress) => {
-                        this.uploadProgress = progress;
-                    }
-                });
+        onUserUpdated(response, form) {
+            this.$state.set('currentUser', response);
+            // Auto redirect via data-redirect="user-profile"
+        },
 
-                this.$state.set('newUser', result);
-                this.navigateTo('user-profile', { userId: result.id });
-            } catch (error) {
-                this.handleError(error);
-            }
+        onFileUploaded(response, form) {
+            this.$state.set('uploadedFile', response.file);
+        },
+
+        // Error handler
+        onUserError(error, form) {
+            console.error('User operation failed:', error);
+        },
+
+        // Loading handler
+        setLoading(isLoading, form) {
+            this.loading = isLoading;
+        },
+
+        // Custom validation functions
+        validateEmail(value, input) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return emailRegex.test(value);
+        },
+
+        validateMessage(value, input) {
+            return value.length >= 10;
         }
     }
 };

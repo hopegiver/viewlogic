@@ -104,9 +104,9 @@ export class FormHandler {
         const method = form.getAttribute('method') || 'POST';
         
         // 핸들러 함수들 가져오기
-        const successHandler = form.getAttribute('data-success-handler');
-        const errorHandler = form.getAttribute('data-error-handler');  
-        const loadingHandler = form.getAttribute('data-loading-handler');
+        const successHandler = form.getAttribute('data-success');
+        const errorHandler = form.getAttribute('data-error');
+        const loadingHandler = form.getAttribute('data-loading');
         const redirectTo = form.getAttribute('data-redirect');
 
         // 액션 URL에 가변 파라미터 처리
