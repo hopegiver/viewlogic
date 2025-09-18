@@ -12,64 +12,36 @@
   </a>
 </p>
 
-> **Complete Vue 3 Framework**: Routing + State Management + Authentication + i18n + Caching + API + Forms
+> **Complete Vue 3 Framework**: All-in-one solution for modern web development
 
-## 🎯 Core Philosophy: Simplicity Through Design
+## 🎯 Core Philosophy
 
-ViewLogic Router revolutionizes Vue development with two fundamental core principles:
+ViewLogic Router revolutionizes Vue development with two fundamental principles:
 
 ### 🎭 View-Logic Separation
-**Complete separation between View (presentation) and Logic (business logic)**. Views are pure HTML templates, logic is pure JavaScript components, making your code more maintainable, testable, and scalable.
+**Complete separation between View (presentation) and Logic (business logic)**. Views are pure HTML templates, logic is pure JavaScript components. This separation makes your code more maintainable, testable, and scalable.
 
 ### 🚀 Zero Build Development
 **Zero build step required in development mode**. Work directly with source files, see changes instantly without any compilation, bundling, or build processes. True real-time development experience.
 
-## 🚀 Why Choose ViewLogic Router?
+## ✨ What Makes ViewLogic Special
 
-**All-in-One Solution** - Replace 7+ libraries with one unified framework:
-- 🔀 **Vue Router** → ViewLogic Routing
-- 📦 **Pinia/Vuex** → StateHandler
-- 🔐 **Auth Libraries** → AuthManager
-- 🌐 **Vue I18n** → I18nManager
-- 💾 **Cache Libraries** → CacheManager
-- 🌐 **API Libraries** → ApiHandler
-- 📝 **Form Libraries** → FormHandler
+**All-in-One Solution** - Replace multiple libraries with one unified framework:
+- 🔀 **Routing** - File-based routing with zero configuration
+- 📦 **State Management** - Built-in reactive state without external dependencies
+- 🔐 **Authentication** - JWT auth with multiple storage options
+- 🌐 **Internationalization** - Multi-language support with lazy loading
+- 💾 **Caching** - Smart caching with TTL and LRU eviction
+- 🌐 **API Client** - HTTP client with automatic token injection
+- 📝 **Form Handling** - Revolutionary form processing with parameter substitution
 
-**Tiny Bundle Size** - Complete framework in just 51KB minified / 17KB gzipped!
+**Tiny Bundle Size** - Complete framework in just **51KB minified / 17KB gzipped**!
 
 **Easy Integration** - Drop-in UMD build available for instant usage without build tools.
 
-## ✨ Key Features
-
-- 🚀 **Ultra-Lightweight** - Complete routing system with zero dependencies and optimized codebase
-- 🔄 **Multiple API Support** - Parallel data fetching from multiple APIs with named data storage
-- 📝 **Automatic Form Handling** - Revolutionary form submission with `{paramName}` variable parameters
-- 🛠️ **Built-in Components** - Preloaded UI components including revolutionary DynamicInclude & HtmlInclude
-- 🔗 **Query-Based Parameter System** - Simple query-only parameters (`/users?id=123`) instead of complex path parameters
-- ⚡ **Optimized Production** - Pre-built individual route bundles for lightning-fast production
-- 📁 **Intuitive Structure** - Organized folder structure for views, logic, styles, layouts, and components
-- 💾 **Smart Caching** - Intelligent route and component caching with TTL and LRU eviction
-- 🔐 **Authentication** - Built-in JWT auth management with multiple storage options
-- 🌐 **i18n Ready** - Built-in internationalization support with lazy loading
-- 📊 **State Management** - Reactive state management without external dependencies
-
-### What's Included
-- ✅ Complete routing system with hash/history mode
-- ✅ Advanced caching with TTL and size limits
-- ✅ Built-in authentication with multiple storage options
-- ✅ Internationalization system with lazy loading
-- ✅ Form handling with automatic validation
-- ✅ RESTful API client with parameter substitution
-- ✅ Component loading and management
-- ✅ Error handling and logging system
-- ✅ Query parameter management
-- ✅ Layout system with slot-based composition
-- ✅ Global state management with reactivity
-- ✅ Event system for component communication
-
 ## 🏗️ Project Structure
 
-ViewLogic Router follows a clean, intuitive folder structure that promotes maintainability:
+ViewLogic Router follows a clean, intuitive folder structure:
 
 ```
 project/
@@ -88,20 +60,61 @@ project/
 │   ├── layouts/            # Layout templates
 │   │   ├── default.html
 │   │   └── admin.html
-│   ├── styles/             # CSS files
-│   │   ├── home.css
-│   │   └── global.css
-│   └── locales/            # i18n files (optional)
-│       ├── en.json
-│       └── ko.json
+│   └── styles/             # Page-specific CSS files
+│       ├── home.css
+│       └── user-profile.css
+├── css/                    # Global CSS files
+│   └── base.css            # Base styles
+├── js/                     # JavaScript library files
+│   ├── viewlogic-router.js     # Development version
+│   ├── viewlogic-router.min.js # Minified version
+│   └── viewlogic-router.umd.js # UMD bundle
+├── i18n/                   # Internationalization files
+│   ├── en.json            # English translations
+│   ├── ko.json            # Korean translations
+│   └── ja.json            # Japanese translations
+├── routes/                 # Auto-generated after building
+│   ├── home.js            # Built route bundles
+│   ├── user-profile.js
+│   └── dashboard.js
 ├── index.html              # Main entry point
-├── package.json
-└── config.json             # Optional configuration
+└── package.json
 ```
 
 ## 🚀 Quick Start
 
-### Method 1: ES6 Modules (Recommended)
+### Method 1: Create New Project (Recommended)
+
+```bash
+npm create viewlogic myapp
+cd myapp
+npm run dev
+```
+
+This creates a complete project with examples and starts the development server.
+
+### Method 2: UMD Build (No Build Tools)
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My ViewLogic App</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.umd.js"></script>
+</head>
+<body>
+    <div id="app"></div>
+    <script>
+        ViewLogicRouter({
+            environment: 'development'
+        });
+    </script>
+</body>
+</html>
+```
+
+### Method 3: ES6 Modules
 
 ```bash
 npm install viewlogic
@@ -118,28 +131,10 @@ npm install viewlogic
     <script type="module">
         import { ViewLogicRouter } from 'viewlogic';
         const router = new ViewLogicRouter({
+            environment: 'production',
             authEnabled: true,
             useI18n: true
         });
-    </script>
-</body>
-</html>
-```
-
-### Method 2: UMD Build (No Build Tools)
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>My ViewLogic App</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.umd.js"></script>
-</head>
-<body>
-    <div id="app"></div>
-    <script>
-        const router = new ViewLogicRouter();
     </script>
 </body>
 </html>
@@ -151,15 +146,7 @@ npm install viewlogic
 ```html
 <div class="home">
     <h1>{{ message }}</h1>
-    <p>Counter: {{ count }} | Global Count: {{ globalCount }}</p>
-    <button @click="increment">Local +1</button>
-    <button @click="incrementGlobal">Global +1</button>
-    <button @click="saveUser" :disabled="loading">
-        {{ loading ? 'Saving...' : 'Save User' }}
-    </button>
-    <div v-if="user">
-        <h3>{{ $t('welcome.message', { name: user.name }) }}</h3>
-    </div>
+    <button @click="increment">Click me: {{ count }}</button>
 </div>
 ```
 
@@ -169,65 +156,65 @@ export default {
     data() {
         return {
             message: 'Welcome to ViewLogic!',
-            count: 0,
-            loading: false
+            count: 0
         };
-    },
-    computed: {
-        globalCount() {
-            return this.$state.get('globalCounter', 0);
-        },
-        user() {
-            return this.$state.get('currentUser');
-        }
     },
     methods: {
         increment() {
             this.count++;
-        },
-        incrementGlobal() {
-            const current = this.$state.get('globalCounter', 0);
-            this.$state.set('globalCounter', current + 1);
-        },
-        async saveUser() {
-            this.loading = true;
-            try {
-                const userData = {
-                    name: 'John Doe',
-                    email: 'john@example.com'
-                };
-
-                const savedUser = await this.$api.post('/api/users', userData);
-                this.$state.set('currentUser', savedUser);
-
-                this.$toast?.success?.('User saved successfully!');
-            } catch (error) {
-                this.$toast?.error?.('Failed to save user');
-            } finally {
-                this.loading = false;
-            }
         }
-    },
-    mounted() {
-        // Watch for global state changes
-        this.$state.watch('currentUser', (newUser) => {
-            console.log('User changed globally:', newUser);
-        });
     }
 };
 ```
+
+### Query Parameter Example
+
+**src/views/user-profile.html**
+```html
+<div class="user-profile">
+    <h1>User Profile</h1>
+    <p>User ID: {{ userId }}</p>
+    <p>Tab: {{ activeTab }}</p>
+    <button @click="switchTab('settings')">Settings</button>
+    <button @click="switchTab('posts')">Posts</button>
+</div>
+```
+
+**src/logic/user-profile.js**
+```javascript
+export default {
+    computed: {
+        userId() {
+            return this.$query.userId || 'No ID';
+        },
+        activeTab() {
+            return this.$query.tab || 'profile';
+        }
+    },
+    methods: {
+        switchTab(tab) {
+            // Navigate with query parameters
+            this.navigateTo('user-profile', {
+                userId: this.userId,
+                tab: tab
+            });
+        }
+    }
+};
+```
+
+**Usage:** Navigate to `/user-profile?userId=123&tab=settings`
 
 ## 🎯 Core APIs
 
 ### State Management
 
-ViewLogic Router includes a powerful built-in state management system:
+Built-in reactive state management system:
 
 ```javascript
 // Set state (any component can access)
 this.$state.set('user', { name: 'John', age: 30 });
 this.$state.set('theme', 'dark');
-this.$state.set('shoppingCart', []);
 
 // Get state with optional default
 const user = this.$state.get('user');
@@ -243,9 +230,6 @@ this.$state.watch('user', (newValue, oldValue) => {
     console.log('User changed:', newValue);
     this.updateUI();
 });
-
-// Stop watching
-this.$state.unwatch('user', callbackFunction);
 
 // Bulk updates
 this.$state.update({
@@ -263,7 +247,7 @@ this.$state.delete('temporaryData');
 
 ### Authentication System
 
-Complete authentication management with multiple storage options:
+Complete authentication management:
 
 ```javascript
 // Check authentication status
@@ -298,7 +282,7 @@ if (authResult.allowed) {
 
 ### API Management
 
-Built-in HTTP client with automatic token injection and parameter substitution:
+Built-in HTTP client with automatic token injection:
 
 ```javascript
 // GET request
@@ -324,11 +308,6 @@ await this.$api.delete('/api/users/{userId}');
 // If current route is /users?userId=123, this becomes /api/users/123
 const user = await this.$api.get('/api/users/{userId}');
 
-// Custom headers
-const response = await this.$api.post('/api/secure-endpoint', data, {
-    headers: { 'X-Custom-Header': 'value' }
-});
-
 // Automatic data loading in components
 export default {
     // Single API endpoint
@@ -350,7 +329,7 @@ export default {
 
 ### Internationalization
 
-Comprehensive i18n system with lazy loading and pluralization:
+Comprehensive i18n system:
 
 ```javascript
 // Simple translation
@@ -364,26 +343,12 @@ const errorMsg = this.$t('errors.validation.email.required');
 
 // Plural forms
 const itemCount = this.$plural('items.count', count, { count });
-// items.count.singular: "{count} item"
-// items.count.plural: "{count} items"
 
 // Check current language
 const currentLang = this.$i18n.getCurrentLanguage();
 
 // Change language (automatically reloads interface)
 await this.$i18n.setLanguage('ko');
-
-// Format dates/numbers according to locale
-const date = this.$i18n.formatDate(new Date(), {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-});
-
-const price = this.$i18n.formatNumber(1234.56, {
-    style: 'currency',
-    currency: 'USD'
-});
 ```
 
 ### Navigation & Routing
@@ -408,19 +373,15 @@ const currentRoute = this.$route.current;
 const routeParams = this.$route.params;
 const queryParams = this.$route.query;
 
-// Access specific parameters
-const userId = this.$params.userId;        // Route parameter
-const tab = this.$query.tab;               // Query parameter
-const searchTerm = this.$param('search');  // Either route or query param
+// Multiple ways to access parameters
+const userId = this.$params.userId;        // Route parameter (direct access)
+const tab = this.$query.tab;               // Query parameter (direct access)
+const search = this.getParam('search');    // Either route or query param
+const allParams = this.getParams();        // Get all parameters
 
-// Check if route is protected
-const isProtected = this.$route.isProtected('admin-dashboard');
-
-// Navigate with state preservation
-this.navigateTo('dashboard', {
-    preserveState: true,
-    scrollTop: false
-});
+// With default values
+const page = this.getParam('page', 1);     // Default to 1 if not found
+const sort = this.$query.sort || 'asc';    // Manual default for query params
 ```
 
 ### Form Handling
@@ -488,9 +449,6 @@ const router = new ViewLogicRouter({
     basePath: '/',                      // Base path for the application
     mode: 'hash',                       // 'hash' or 'history'
 
-    // State management (always enabled)
-    // No configuration needed - StateHandler is always available
-
     // Authentication settings
     authEnabled: true,                  // Enable authentication system
     loginRoute: 'login',                // Route name for login page
@@ -502,10 +460,10 @@ const router = new ViewLogicRouter({
     // Internationalization
     useI18n: true,                      // Enable i18n system
     defaultLanguage: 'en',              // Default language
-    i18nPath: '/src/locales',          // Path to language files
+    i18nPath: '/i18n',                  // Path to language files
 
     // Caching system
-    cacheMode: 'memory',                // 'memory' only (others removed for simplicity)
+    cacheMode: 'memory',                // Memory caching only
     cacheTTL: 300000,                   // Cache TTL in milliseconds (5 minutes)
     maxCacheSize: 100,                  // Maximum number of cached items
 
@@ -540,7 +498,6 @@ const router = new ViewLogicRouter({
 
             if (response.ok) {
                 const userData = await response.json();
-                // Store user data in global state
                 router.stateHandler.set('currentUser', userData);
                 return true;
             }
@@ -551,22 +508,9 @@ const router = new ViewLogicRouter({
         }
     },
 
-    // Custom route loading
-    routeResolver: (routeName) => {
-        // Custom logic for resolving route files
-        if (routeName.startsWith('admin/')) {
-            return {
-                viewPath: `/admin/views/${routeName.slice(6)}.html`,
-                logicPath: `/admin/logic/${routeName.slice(6)}.js`
-            };
-        }
-        return null; // Use default resolution
-    },
-
     // Global error handler
     onError: (error, context) => {
         console.error('ViewLogic Error:', error, context);
-        // Send to error tracking service
         if (window.errorTracker) {
             window.errorTracker.log(error, context);
         }
@@ -574,7 +518,6 @@ const router = new ViewLogicRouter({
 
     // Global route change handler
     onRouteChange: (newRoute, oldRoute) => {
-        // Analytics tracking
         if (window.analytics) {
             window.analytics.track('page_view', {
                 route: newRoute,
@@ -583,105 +526,6 @@ const router = new ViewLogicRouter({
         }
     }
 });
-```
-
-## 📦 Bundle Size Comparison
-
-| Solution | Minified | Gzipped |
-|----------|----------|---------|
-| **ViewLogic Router** (Complete) | **51KB** | **17KB** |
-| Vue Router + Pinia + Vue I18n | 150KB+ | 45KB+ |
-| React Router + Redux + i18next | 200KB+ | 60KB+ |
-| Next.js (Runtime) | 300KB+ | 85KB+ |
-
-*ViewLogic Router provides the functionality of 7+ libraries in a package smaller than most single-purpose libraries.*
-
-## 🎯 Migration Guide
-
-### From Vue Router + Pinia
-
-**Before:**
-```javascript
-// main.js - Multiple library setup
-import { createApp } from 'vue';
-import { createRouter, createWebHistory } from 'vue-router';
-import { createPinia } from 'pinia';
-import { createI18n } from 'vue-i18n';
-import App from './App.vue';
-
-const router = createRouter({
-    history: createWebHistory(),
-    routes: [/* complex route config */]
-});
-
-const pinia = createPinia();
-const i18n = createI18n({/* complex i18n config */});
-
-const app = createApp(App);
-app.use(router).use(pinia).use(i18n);
-app.mount('#app');
-```
-
-**After:**
-```javascript
-// index.html - Single setup
-import { ViewLogicRouter } from 'viewlogic';
-
-const router = new ViewLogicRouter({
-    mode: 'history',
-    useI18n: true,
-    authEnabled: true
-});
-// Everything is auto-configured and ready to use!
-```
-
-### State Management Migration
-
-**Before (Pinia):**
-```javascript
-// stores/user.js
-import { defineStore } from 'pinia';
-
-export const useUserStore = defineStore('user', {
-    state: () => ({
-        currentUser: null,
-        preferences: {}
-    }),
-    getters: {
-        isLoggedIn: (state) => !!state.currentUser,
-        userName: (state) => state.currentUser?.name || 'Guest'
-    },
-    actions: {
-        setUser(userData) {
-            this.currentUser = userData;
-        },
-        updatePreferences(prefs) {
-            this.preferences = { ...this.preferences, ...prefs };
-        }
-    }
-});
-
-// In components
-import { useUserStore } from '@/stores/user';
-const userStore = useUserStore();
-userStore.setUser(userData);
-```
-
-**After (ViewLogic):**
-```javascript
-// In any component - no store files needed!
-this.$state.set('currentUser', userData);
-this.$state.update({ preferences: newPrefs });
-
-// Computed properties work naturally
-computed: {
-    isLoggedIn() {
-        return !!this.$state.get('currentUser');
-    },
-    userName() {
-        return this.$state.get('currentUser')?.name || 'Guest';
-    }
-}
 ```
 
 ## 🔧 Production Build
@@ -695,9 +539,6 @@ npm run build
 
 # Preview production build
 npm run serve
-
-# Build with custom config
-npm run build -- --config custom.config.js
 ```
 
 ### Production Optimizations
@@ -710,102 +551,23 @@ ViewLogic Router automatically optimizes for production:
 - **Caching**: Aggressive caching for static assets
 - **Lazy loading**: Routes and components load on demand
 
-## 🌟 Advanced Examples
 
-### E-commerce Dashboard
+## 📦 Bundle Size
 
-```javascript
-// logic/dashboard.js
-export default {
-    dataURL: {
-        overview: '/api/dashboard/overview',
-        sales: '/api/sales/recent',
-        products: '/api/products/trending'
-    },
+ViewLogic Router provides the functionality of multiple libraries in a single, optimized package:
 
-    computed: {
-        totalRevenue() {
-            return this.sales?.reduce((sum, sale) => sum + sale.amount, 0) || 0;
-        },
-        cartItems() {
-            return this.$state.get('shoppingCart', []);
-        }
-    },
+| Component | Size |
+|----------|------|
+| **Complete Framework** | **51KB minified / 17KB gzipped** |
+| Routing System | 12KB |
+| State Management | 8KB |
+| Authentication | 6KB |
+| Internationalization | 9KB |
+| API Client | 7KB |
+| Form Handling | 5KB |
+| Caching System | 4KB |
 
-    methods: {
-        async addToCart(product) {
-            const cart = this.$state.get('shoppingCart', []);
-            const existingItem = cart.find(item => item.id === product.id);
-
-            if (existingItem) {
-                existingItem.quantity += 1;
-            } else {
-                cart.push({ ...product, quantity: 1 });
-            }
-
-            this.$state.set('shoppingCart', cart);
-
-            // Sync with backend
-            await this.$api.post('/api/cart/sync', { items: cart });
-        },
-
-        async checkout() {
-            const items = this.$state.get('shoppingCart', []);
-            try {
-                const order = await this.$api.post('/api/orders', { items });
-                this.$state.set('shoppingCart', []);
-                this.$state.set('lastOrder', order);
-                this.navigateTo('order-confirmation', { orderId: order.id });
-            } catch (error) {
-                this.$toast?.error?.('Checkout failed. Please try again.');
-            }
-        }
-    }
-};
-```
-
-### Multi-tenant Application
-
-```javascript
-// Handle different tenants with state management
-export default {
-    async mounted() {
-        const tenantId = this.$params.tenantId || this.$query.tenant;
-
-        if (tenantId !== this.$state.get('currentTenant')?.id) {
-            await this.switchTenant(tenantId);
-        }
-    },
-
-    methods: {
-        async switchTenant(tenantId) {
-            try {
-                const tenant = await this.$api.get('/api/tenants/{tenantId}', {
-                    params: { tenantId }
-                });
-
-                // Update global state
-                this.$state.update({
-                    currentTenant: tenant,
-                    userPermissions: tenant.permissions,
-                    theme: tenant.branding.theme
-                });
-
-                // Update language if tenant has preference
-                if (tenant.defaultLanguage) {
-                    await this.$i18n.setLanguage(tenant.defaultLanguage);
-                }
-
-                // Update API base URL for tenant
-                this.$api.setBaseURL(`/api/tenants/${tenantId}`);
-
-            } catch (error) {
-                this.navigateTo('tenant-not-found');
-            }
-        }
-    }
-};
-```
+*Smaller than most single-purpose libraries, yet provides complete functionality.*
 
 ## 🤝 Contributing
 

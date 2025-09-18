@@ -236,6 +236,7 @@ export class RouteLoader {
                     ...originalData,
                     currentRoute: routeName,
                     $query: router.queryManager?.getQueryParams() || {},
+                    $params: router.queryManager?.getRouteParams() || {},
                     $lang: (() => {
                         try {
                             return router.i18nManager?.getCurrentLanguage() || router.config.i18nDefaultLanguage || router.config.defaultLanguage || 'ko';
