@@ -339,7 +339,8 @@ export class ViewLogicRouter {
             if (this.errorHandler) {
                 await this.errorHandler.handleRouteError(routeName, error);
             } else {
-                console.error('[Router] No error handler available');
+                // ErrorHandler가 없는 극단적 상황 - 최소한의 에러 표시
+                console.error('[Router] Critical: No error handler available for route error:', error);
             }
         } finally {
             // 모든 처리가 완료된 후 전환 상태 리셋

@@ -172,7 +172,7 @@ export class FormHandler {
             if (errorHandler && component[errorHandler]) {
                 component[errorHandler](error, form);
             } else {
-                console.error('Form submission error:', error);
+                this.log('error', 'Form submission error (no error handler defined):', error);
             }
             
         } finally {

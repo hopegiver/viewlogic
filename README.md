@@ -12,17 +12,20 @@
   </a>
 </p>
 
-> **Complete Vue 3 Framework**: All-in-one solution for modern web development
+> **AI-First Vue 3 Framework**: The future of web development in the age of artificial intelligence
 
 ## 🎯 Core Philosophy
 
-ViewLogic Router revolutionizes Vue development with two fundamental principles:
+ViewLogic Router revolutionizes Vue development with three fundamental principles:
 
 ### 🎭 View-Logic Separation
 **Complete separation between View (presentation) and Logic (business logic)**. Views are pure HTML templates, logic is pure JavaScript components. This separation makes your code more maintainable, testable, and scalable.
 
 ### 🚀 Zero Build Development
 **Zero build step required in development mode**. Work directly with source files, see changes instantly without any compilation, bundling, or build processes. True real-time development experience.
+
+### 🤖 AI-First Architecture
+**Built from the ground up for the AI coding era**. Clear conventions, predictable patterns, and separated concerns make ViewLogic the perfect framework for AI-assisted development. Generate pages, components, and logic with AI tools seamlessly.
 
 ## ✨ What Makes ViewLogic Special
 
