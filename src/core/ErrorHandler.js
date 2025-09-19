@@ -5,9 +5,7 @@
 export class ErrorHandler {
     constructor(router, options = {}) {
         this.config = {
-            enableErrorReporting: options.enableErrorReporting !== false,
-            debug: options.debug || false,
-            logLevel: options.logLevel || (options.debug ? 'debug' : 'info'),
+            logLevel: options.logLevel || 'info',
             environment: options.environment || 'development'
         };
         
@@ -51,11 +49,9 @@ export class ErrorHandler {
         }
         
         this.debug('ErrorHandler', `에러 코드 결정: ${errorCode} (라우트: ${routeName})`);
-        
+
         // 에러 리포팅
-        if (this.config.enableErrorReporting) {
-            this.reportError(routeName, error, errorCode);
-        }
+        this.reportError(routeName, error, errorCode);
         
         try {
             // 404 페이지 전용 처리
@@ -256,7 +252,7 @@ export class ErrorHandler {
         if (typeof level !== 'string' || !this.logLevels.hasOwnProperty(level)) {
             args = [component, ...args];
             component = level;
-            level = this.config.debug ? 'debug' : 'info';
+            level = 'info';
         }
         
         // 로그 레벨 확인

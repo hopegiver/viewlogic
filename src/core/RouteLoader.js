@@ -13,8 +13,7 @@ export class RouteLoader {
             routesPath: options.routesPath || router.config.routesPath || '/routes', // 프로덕션 라우트 경로
             environment: options.environment || 'development',
             useLayout: options.useLayout !== false,
-            defaultLayout: options.defaultLayout || 'default',
-            debug: options.debug || false
+            defaultLayout: options.defaultLayout || 'default'
         };
         
         // 라우터 인스턴스 참조

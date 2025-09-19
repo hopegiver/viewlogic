@@ -150,24 +150,24 @@ export class ApiHandler {
                 
                 try {
                     let paramValue = null;
-                    
-                    // 1. 라우트/쿼리 파라미터에서 찾기
-                    if (component.getParam) {
-                        paramValue = component.getParam(paramName);
+
+                    // 1. computed 속성에서 찾기 (최우선)
+                    if (component.$options?.computed?.[paramName]) {
+                        paramValue = component[paramName];
                     }
-                    
+
                     // 2. 컴포넌트 data에서 찾기
                     if (paramValue === null || paramValue === undefined) {
                         paramValue = component[paramName];
                     }
-                    
-                    // 3. computed 속성에서 찾기
+
+                    // 3. 라우트/쿼리 파라미터에서 찾기
                     if (paramValue === null || paramValue === undefined) {
-                        if (component.$options?.computed?.[paramName]) {
-                            paramValue = component[paramName];
+                        if (component.getParam) {
+                            paramValue = component.getParam(paramName);
                         }
                     }
-                    
+
                     // 4. QueryManager에서 직접 가져오기 (fallback)
                     if (paramValue === null || paramValue === undefined) {
                         paramValue = this.router.queryManager?.getParam(paramName);

@@ -7,7 +7,6 @@ export class ComponentLoader {
 
         this.config = {
             componentsPath: options.componentsPath || '/components',  // srcPath 기준 상대 경로
-            debug: options.debug || false,
             environment: options.environment || 'development',
             ...options
         };
