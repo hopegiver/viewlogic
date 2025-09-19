@@ -13,8 +13,7 @@ export class AuthManager {
             checkAuthFunction: options.checkAuthFunction || null,
             redirectAfterLogin: options.redirectAfterLogin || 'home',
             authCookieName: options.authCookieName || 'authToken',
-            authStorage: options.authStorage || 'localStorage',
-            authSkipValidation: options.authSkipValidation || false
+            authStorage: options.authStorage || 'localStorage'
         };
         
         // 라우터 인스턴스 참조 (필수 의존성)
@@ -210,13 +209,12 @@ export class AuthManager {
 
         const {
             storage = this.config.authStorage,
-            cookieOptions = this.config.authCookieOptions,
-            skipValidation = this.config.authSkipValidation
+            cookieOptions = this.config.authCookieOptions
         } = options;
 
         try {
-            // JWT 토큰 검증 (옵션)
-            if (!skipValidation && !this.isTokenValid(token)) {
+            // 토큰 검증
+            if (!this.isTokenValid(token)) {
                 this.log('warn', '❌ Token is expired or invalid');
                 return false;
             }
@@ -251,7 +249,7 @@ export class AuthManager {
             return true;
 
         } catch (error) {
-            this.log('Failed to set token:', error);
+            this.log('error', 'Failed to set token:', error);
             return false;
         }
     }
@@ -312,7 +310,7 @@ export class AuthManager {
         }
 
         this.emitAuthEvent('token_removed', { storage });
-        this.log(`Token removed from: ${storage}`);
+        this.log('debug', `Token removed from: ${storage}`);
     }
 
     /**
@@ -321,7 +319,7 @@ export class AuthManager {
     loginSuccess(targetRoute = null) {
         const redirectRoute = targetRoute || this.config.redirectAfterLogin;
         
-        this.log(`🎉 Login success, redirecting to: ${redirectRoute}`);
+        this.log('info', `🎉 Login success, redirecting to: ${redirectRoute}`);
         
         this.emitAuthEvent('login_success', { targetRoute: redirectRoute });
         
@@ -337,7 +335,7 @@ export class AuthManager {
      * 로그아웃 처리
      */
     logout() {
-        this.log('👋 Logging out user');
+        this.log('info', '👋 Logging out user');
         
         // 모든 저장소에서 토큰 제거
         this.removeAccessToken();
@@ -373,12 +371,12 @@ export class AuthManager {
                 try {
                     listener(data);
                 } catch (error) {
-                    this.log('Event listener error:', error);
+                    this.log('error', 'Event listener error:', error);
                 }
             });
         }
         
-        this.log(`🔔 Auth event emitted: ${eventType}`, data);
+        this.log('debug', `🔔 Auth event emitted: ${eventType}`, data);
     }
 
     /**

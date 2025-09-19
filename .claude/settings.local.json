@@ -20,7 +20,12 @@
       "Bash(npm token:*)",
       "Bash(gzip:*)",
       "Bash(find:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npm test:*)",
+      "Bash(grep:*)",
+      "Bash(awk:*)",
+      "Bash(node:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []

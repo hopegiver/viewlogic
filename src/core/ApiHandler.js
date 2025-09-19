@@ -5,12 +5,6 @@
 export class ApiHandler {
     constructor(router, options = {}) {
         this.router = router;
-        this.config = {
-            debug: options.debug || false,
-            timeout: options.timeout || 10000,
-            retries: options.retries || 1,
-            ...options
-        };
         
         this.log('debug', 'ApiHandler initialized');
     }
@@ -66,9 +60,9 @@ export class ApiHandler {
                     requestOptions.body = JSON.stringify(options.data);
                 }
             }
-            
+
             const response = await fetch(fullURL, requestOptions);
-            
+
             if (!response.ok) {
                 let error;
                 try {
@@ -93,7 +87,7 @@ export class ApiHandler {
                 // 응답이 JSON이 아닌 경우 (예: 204 No Content)
                 return { success: true };
             }
-            
+
         } catch (error) {
             this.log('error', 'Failed to fetch data:', error);
             throw error;

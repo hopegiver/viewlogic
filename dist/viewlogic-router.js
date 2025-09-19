@@ -387,7 +387,12 @@ var AuthManager = class {
     }
     if (typeof this.config.checkAuthFunction === "function") {
       try {
-        const isAuthenticated2 = await this.config.checkAuthFunction(routeName);
+        const route = {
+          name: routeName,
+          $api: this.router.routeLoader.apiHandler.bindToComponent({}),
+          $state: this.router.stateHandler
+        };
+        const isAuthenticated2 = await this.config.checkAuthFunction(route);
         return {
           allowed: isAuthenticated2,
           reason: isAuthenticated2 ? "custom_auth_success" : "custom_auth_failed",
@@ -1247,9 +1252,9 @@ var FormHandler = class {
     const form = event.target;
     let action = form.getAttribute("action");
     const method = form.getAttribute("method") || "POST";
-    const successHandler = form.getAttribute("data-success-handler");
-    const errorHandler = form.getAttribute("data-error-handler");
-    const loadingHandler = form.getAttribute("data-loading-handler");
+    const successHandler = form.getAttribute("data-success");
+    const errorHandler = form.getAttribute("data-error");
+    const loadingHandler = form.getAttribute("data-loading");
     const redirectTo = form.getAttribute("data-redirect");
     action = this.processActionParams(action, component);
     if (!this.validateForm(form, component)) {
@@ -2036,6 +2041,7 @@ ${template}`;
           ...originalData,
           currentRoute: routeName,
           $query: router.queryManager?.getQueryParams() || {},
+          $params: router.queryManager?.getRouteParams() || {},
           $lang: (() => {
             try {
               return router.i18nManager?.getCurrentLanguage() || router.config.i18nDefaultLanguage || router.config.defaultLanguage || "ko";
@@ -2057,11 +2063,12 @@ ${template}`;
       },
       async mounted() {
         this.$api = router.routeLoader.apiHandler.bindToComponent(this);
+        this.$state = router.stateHandler;
         if (script.mounted) {
           await script.mounted.call(this);
         }
         if (script.dataURL) {
-          await this.$fetchData();
+          await this.fetchData();
         }
         await this.$nextTick();
         router.routeLoader.formHandler.bindAutoForms(this);
@@ -2083,29 +2090,22 @@ ${template}`;
             return key;
           }
         },
-        // 인증 관련
-        $isAuthenticated: () => router.authManager?.isAuthenticated() || false,
-        $logout: () => router.authManager ? router.navigateTo(router.authManager.logout()) : null,
-        $loginSuccess: (target) => router.authManager ? router.navigateTo(router.authManager.loginSuccess(target)) : null,
-        $checkAuth: (route) => router.authManager ? router.authManager.checkAuthentication(route) : Promise.resolve({ allowed: true, reason: "auth_disabled" }),
-        $getToken: () => router.authManager?.getAccessToken() || null,
-        $setToken: (token, options) => router.authManager?.setAccessToken(token, options) || false,
-        $removeToken: (storage) => router.authManager?.removeAccessToken(storage) || null,
-        $getAuthCookie: () => router.authManager?.getAuthCookie() || null,
-        $getCookie: (name) => router.authManager?.getCookieValue(name) || null,
-        // 상태 관리
-        $state: {
-          get: (key, defaultValue) => router.stateHandler?.get(key, defaultValue),
-          set: (key, value) => router.stateHandler?.set(key, value),
-          has: (key) => router.stateHandler?.has(key) || false,
-          delete: (key) => router.stateHandler?.delete(key) || false,
-          update: (updates) => router.stateHandler?.update(updates),
-          watch: (key, callback) => router.stateHandler?.watch(key, callback),
-          unwatch: (key, callback) => router.stateHandler?.unwatch(key, callback),
-          getAll: () => router.stateHandler?.getAll() || {}
+        // 인증 관련 (핵심 4개 메소드만)
+        isAuth: () => router.authManager?.isAuthenticated() || false,
+        logout: () => router.authManager ? router.navigateTo(router.authManager.logout()) : null,
+        getToken: () => router.authManager?.getAccessToken() || null,
+        setToken: (token, options) => router.authManager?.setAccessToken(token, options) || false,
+        // i18n 언어 관리
+        getLanguage: () => router.i18nManager?.getCurrentLanguage() || router.config.defaultLanguage || "ko",
+        setLanguage: (lang) => router.i18nManager?.setLanguage(lang),
+        // 로깅 및 에러 처리
+        log: (level, ...args) => {
+          if (router.errorHandler) {
+            router.errorHandler.log(level, `[${routeName}]`, ...args);
+          }
         },
         // 데이터 fetch (ApiHandler 래퍼)
-        async $fetchData(dataConfig = null) {
+        async fetchData(dataConfig = null) {
           const configToUse = dataConfig || script.dataURL;
           if (!configToUse) return null;
           this.$dataLoading = true;

@@ -55,6 +55,8 @@ export class ViewLogicRouter {
             defaultLanguage: 'ko',
             i18nPath: '/i18n',            // 다국어 파일 경로
             logLevel: 'info',
+            requestTimeout: 30000,
+            uploadTimeout: 300000,
             authEnabled: false,
             loginRoute: 'login',
             protectedRoutes: [],
@@ -63,8 +65,7 @@ export class ViewLogicRouter {
             checkAuthFunction: null,
             redirectAfterLogin: 'home',
             authCookieName: 'authToken',
-            authStorage: 'localStorage',
-            authSkipValidation: false
+            authStorage: 'localStorage'
         };
         
         const config = { ...defaults, ...options };

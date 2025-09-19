@@ -187,33 +187,23 @@ export default {
 
 **src/layouts/default.html** (optional)
 ```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>My ViewLogic App</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body>
-    <header class="navbar">
-        <h1>My App</h1>
-        <nav>
-            <a href="#/home">Home</a>
-            <a href="#/about">About</a>
-        </nav>
-    </header>
+<header class="navbar">
+    <h1>My App</h1>
+    <nav>
+        <a href="#/home">Home</a>
+        <a href="#/about">About</a>
+    </nav>
+</header>
 
-    <main class="main-content">
-        <div class="container">
-            {{ content }}
-        </div>
-    </main>
+<main class="main-content">
+    <div class="container">
+        {{ content }}
+    </div>
+</main>
 
-    <footer>
-        <p>&copy; 2024 My ViewLogic App</p>
-    </footer>
-</body>
-</html>
+<footer>
+    <p>&copy; 2024 My ViewLogic App</p>
+</footer>
 ```
 
 ### Query Parameter Example
@@ -357,7 +347,8 @@ if (this.$state.has('user')) {
 // Watch for changes (reactive)
 this.$state.watch('user', (newValue, oldValue) => {
     console.log('User changed:', newValue);
-    this.updateUI();
+    // Update component data to trigger reactivity
+    this.currentUser = newValue;
 });
 
 // Bulk updates
@@ -389,8 +380,7 @@ this.setToken('jwt-token-here');
 
 // Login with options
 this.setToken('jwt-token', {
-    storage: 'localStorage',  // 'localStorage', 'sessionStorage', 'cookie'
-    skipValidation: false     // Skip JWT validation
+    storage: 'localStorage'   // 'localStorage', 'sessionStorage', 'cookie'
 });
 
 // Get current token

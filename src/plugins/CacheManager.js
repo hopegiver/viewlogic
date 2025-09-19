@@ -158,7 +158,7 @@ export class CacheManager {
             totalInvalidated += this.deleteByPattern(pattern);
         });
         
-        this.log(`🔄 Deleted component cache for route: ${routeName} (${totalInvalidated} entries)`);
+        this.log('debug', `🔄 Deleted component cache for route: ${routeName} (${totalInvalidated} entries)`);
         return totalInvalidated;
     }
     
@@ -173,7 +173,7 @@ export class CacheManager {
             totalCleared += this.deleteByPattern(pattern);
         });
         
-        this.log(`🧽 Deleted all component caches (${totalCleared} entries)`);
+        this.log('debug', `🧽 Deleted all component caches (${totalCleared} entries)`);
         return totalCleared;
     }
     
@@ -186,7 +186,7 @@ export class CacheManager {
         this.cacheTimestamps.clear();
         this.lruOrder = [];
         
-        this.log(`🔥 Cleared all cache (${size} entries)`);
+        this.log('debug', `🔥 Cleared all cache (${size} entries)`);
         return size;
     }
     
@@ -216,7 +216,7 @@ export class CacheManager {
         });
         
         if (expiredKeys.length > 0) {
-            this.log(`⏱️ Cleaned ${expiredKeys.length} expired cache entries`);
+            this.log('debug', `⏱️ Cleaned ${expiredKeys.length} expired cache entries`);
         }
         
         return expiredKeys.length;
@@ -327,7 +327,7 @@ export class CacheManager {
             this.cleanExpired();
         }, interval);
         
-        this.log(`🤖 Auto cleanup started (interval: ${interval}ms)`);
+        this.log('debug', `🤖 Auto cleanup started (interval: ${interval}ms)`);
     }
     
     /**

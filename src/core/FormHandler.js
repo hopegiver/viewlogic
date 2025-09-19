@@ -5,11 +5,8 @@
 export class FormHandler {
     constructor(router, options = {}) {
         this.router = router;
-        this.config = {
-            debug: options.debug || false,
-            requestTimeout: options.requestTimeout || 30000,
-            ...options
-        };
+        this.requestTimeout = options.requestTimeout || 30000;
+        this.uploadTimeout = options.uploadTimeout || 300000;
         
         this.log('debug', 'FormHandler initialized');
     }
@@ -41,13 +38,17 @@ export class FormHandler {
     startFormSubmission(form) {
         form._isSubmitting = true;
         form._abortController = new AbortController();
-        
+
+        // 파일 업로드가 포함된 경우 uploadTimeout 사용
+        const hasFile = Array.from(form.elements).some(el => el.type === 'file' && el.files.length > 0);
+        const timeout = hasFile ? this.uploadTimeout : this.requestTimeout;
+
         // 타임아웃 설정
         form._timeoutId = setTimeout(() => {
             if (form._isSubmitting) {
                 this.abortFormSubmission(form);
             }
-        }, this.config.requestTimeout);
+        }, timeout);
     }
 
     /**
