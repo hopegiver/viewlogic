@@ -98,24 +98,6 @@ export class ViewLogicRouter {
         return combined.replace(/\/+/g, '/');
     }
 
-    /**
-     * 라우트를 URL로 변환 (라우팅 전용)
-     * @param {string} route - 라우트 이름
-     * @param {string} queryString - 쿼리 문자열
-     * @param {boolean} isHash - hash 모드 여부
-     * @returns {string} 라우팅 URL (예: '#/examples/about?id=1' 또는 '/examples/about?id=1')
-     */
-    buildURL(route, queryString = '', isHash = true) {
-        let base = route === 'home' ? '/' : `/${route}`;
-
-        // 해시 모드가 아닐 때만 basePath와 조합
-        if (!isHash) {
-            base = this.combinePaths(this.config.basePath, base);
-        }
-
-        const url = queryString ? `${base}?${queryString}` : base;
-        return isHash ? `#${url}` : url;
-    }
 
     /**
      * 상대 경로를 완전한 절대 URL로 변환 (파일 시스템 전용)
@@ -503,18 +485,26 @@ export class ViewLogicRouter {
     updateURL(route, params = null) {
         const queryParams = params || this.queryManager?.getQueryParams() || {};
         const queryString = this.queryManager?.buildQueryString(queryParams) || '';
+
+        // URL 생성
+        let base = route === 'home' ? '/' : `/${route}`;
+
         if (this.config.mode === 'hash') {
-            const newHash = this.buildURL(route, queryString);
-            
+            // 해시 모드: basePath 제외
+            const url = queryString ? `${base}?${queryString}` : base;
+            const newHash = `#${url}`;
+
             // 동일한 URL이면 업데이트하지 않음 (성능 최적화)
             if (window.location.hash !== newHash) {
                 window.location.hash = newHash;
             }
         } else {
-            const newPath = this.buildURL(route, queryString, false);
+            // 히스토리 모드: basePath 포함
+            base = this.combinePaths(this.config.basePath, base);
+            const url = queryString ? `${base}?${queryString}` : base;
 
             // 모든 라우트 변경에 대해 뒤로가기 지원
-            window.history.pushState({}, '', newPath);
+            window.history.pushState({}, '', url);
             this.handleRouteChange();
         }
     }
