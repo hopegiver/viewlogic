@@ -675,8 +675,9 @@ const router = new ViewLogicRouter({
     maxCacheSize: 100,                  // Maximum number of cached items
 
     // API settings
-    apiBaseURL: '/api',                 // Base URL for API requests
-    apiTimeout: 10000,                  // Request timeout in milliseconds
+    apiBaseURL: 'https://api.example.com/v1',  // Base URL for API requests
+    requestTimeout: 30000,              // Form submission timeout in milliseconds (30 seconds)
+    uploadTimeout: 300000,              // File upload timeout in milliseconds (5 minutes)
 
     // Development settings
     environment: 'development',         // 'development' or 'production'

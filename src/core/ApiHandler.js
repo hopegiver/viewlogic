@@ -5,6 +5,7 @@
 export class ApiHandler {
     constructor(router, options = {}) {
         this.router = router;
+        this.apiBaseURL = options.apiBaseURL || '';
         
         this.log('debug', 'ApiHandler initialized');
     }
@@ -25,7 +26,12 @@ export class ApiHandler {
         try {
             // URL에서 파라미터 치환
             let processedURL = this.processURLParameters(dataURL, component);
-            
+
+            // apiBaseURL과 조합 (절대 URL이 아닌 경우에만)
+            if (this.apiBaseURL && !this.isAbsoluteURL(processedURL)) {
+                processedURL = this.combineURLs(this.apiBaseURL, processedURL);
+            }
+
             // 현재 쿼리 파라미터를 URL에 추가
             const queryString = this.router.queryManager?.buildQueryString(this.router.queryManager?.getQueryParams()) || '';
             const fullURL = queryString ? `${processedURL}?${queryString}` : processedURL;
@@ -229,6 +235,24 @@ export class ApiHandler {
             fetchData: (url, options = {}) => this.fetchData(url, component, options),
             fetchMultipleData: (dataConfig) => this.fetchMultipleData(dataConfig, component)
         };
+    }
+
+    /**
+     * 절대 URL인지 확인
+     */
+    isAbsoluteURL(url) {
+        return /^https?:\/\//.test(url) || url.startsWith('//');
+    }
+
+    /**
+     * 두 URL을 조합
+     */
+    combineURLs(baseURL, relativeURL) {
+        // 베이스 URL 끝의 슬래시 제거
+        const cleanBase = baseURL.replace(/\/$/, '');
+        // 상대 URL 앞의 슬래시 확인
+        const cleanRelative = relativeURL.startsWith('/') ? relativeURL : `/${relativeURL}`;
+        return `${cleanBase}${cleanRelative}`;
     }
 
     /**

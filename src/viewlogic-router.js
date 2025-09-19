@@ -55,6 +55,7 @@ export class ViewLogicRouter {
             defaultLanguage: 'ko',
             i18nPath: '/i18n',            // 다국어 파일 경로
             logLevel: 'info',
+            apiBaseURL: '',
             requestTimeout: 30000,
             uploadTimeout: 300000,
             authEnabled: false,
