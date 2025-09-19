@@ -86,9 +86,9 @@ export class ComponentLoader {
                 componentPath = this.router.resolvePath(`${srcPath}${componentRelativePath}`);
             }
         } else {
-            // 폴백: 기본 경로 사용
-            componentPath = this.router ? 
-                this.router.resolvePath(`/src${componentRelativePath}`) : 
+            // 폴백: 기본 경로 사용 (절대 경로)
+            componentPath = this.router ?
+                this.router.resolvePath(`/src${componentRelativePath}`) :
                 `/src${componentRelativePath}`;
         }
         

@@ -70,39 +70,75 @@ export class ViewLogicRouter {
         };
         
         const config = { ...defaults, ...options };
-        
+
         // 절대 경로들을 basePath 기준으로 해결
         config.srcPath = this.resolvePath(config.srcPath, config.basePath);
         config.routesPath = this.resolvePath(config.routesPath, config.basePath);
         config.i18nPath = this.resolvePath(config.i18nPath, config.basePath);
-        
+
         return config;
     }
 
     /**
-     * 통합 경로 해결 - 서브폴더 배포 및 basePath 지원
+     * 두 경로를 안전하게 조합 및 정규화 (기본 유틸리티)
+     * @param {string} basePath - 기본 경로
+     * @param {string} relativePath - 상대 경로
+     * @returns {string} 조합된 경로 (예: '/examples' + '/about' → '/examples/about')
+     */
+    combinePaths(basePath, relativePath) {
+        if (!basePath || basePath === '/') {
+            return relativePath.replace(/\/+/g, '/');
+        }
+
+        const cleanBase = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
+        const cleanRelative = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
+        const combined = `${cleanBase}${cleanRelative}`;
+
+        // 이중 슬래시 제거
+        return combined.replace(/\/+/g, '/');
+    }
+
+    /**
+     * 라우트를 URL로 변환 (라우팅 전용)
+     * @param {string} route - 라우트 이름
+     * @param {string} queryString - 쿼리 문자열
+     * @param {boolean} isHash - hash 모드 여부
+     * @returns {string} 라우팅 URL (예: '#/examples/about?id=1' 또는 '/examples/about?id=1')
+     */
+    buildURL(route, queryString = '', isHash = true) {
+        let base = route === 'home' ? '/' : `/${route}`;
+
+        // 해시 모드가 아닐 때만 basePath와 조합
+        if (!isHash) {
+            base = this.combinePaths(this.config.basePath, base);
+        }
+
+        const url = queryString ? `${base}?${queryString}` : base;
+        return isHash ? `#${url}` : url;
+    }
+
+    /**
+     * 상대 경로를 완전한 절대 URL로 변환 (파일 시스템 전용)
+     * @param {string} path - 변환할 경로
+     * @param {string} basePath - 기본 경로 (옵션)
+     * @returns {string} 완전한 절대 URL (예: 'http://localhost:3000/examples/about')
      */
     resolvePath(path, basePath = null) {
+        // basePath가 제공되지 않으면 config에서 가져오기
+        if (basePath === null) {
+            basePath = this.config?.basePath || '/';
+        }
         const currentOrigin = window.location.origin;
         
-        // HTTP URL인 경우 그대로 반환
+        // 이미 완전한 HTTP URL인 경우 변환 불필요
         if (path.startsWith('http')) {
             return path;
         }
-        
-        // 절대 경로인 경우
+
+        // 절대 경로 → 완전한 URL 변환
         if (path.startsWith('/')) {
-            // basePath 제공된 경우 basePath와 조합
-            if (basePath && basePath !== '/') {
-                // 이중 슬래시 방지
-                const cleanBasePath = basePath.endsWith('/') ? basePath.slice(0, -1) : basePath;
-                const cleanPath = path.startsWith('/') ? path : `/${path}`;
-                const fullPath = `${cleanBasePath}${cleanPath}`;
-                const fullUrl = `${currentOrigin}${fullPath}`;
-                return fullUrl.replace(/([^:])\/{2,}/g, '$1/');
-            }
-            // 일반적인 절대 경로
-            return `${currentOrigin}${path}`;
+            const combinedPath = this.combinePaths(basePath, path);
+            return `${currentOrigin}${combinedPath}`;
         }
         
         // 상대 경로인 경우 현재 경로 기준으로 해결
@@ -112,38 +148,11 @@ export class ViewLogicRouter {
             : currentPathname.substring(0, currentPathname.lastIndexOf('/') + 1);
         
         // 상대 경로 정규화
-        const resolvedPath = this.normalizePath(currentBase + path);
+        const resolvedPath = this.combinePaths(currentBase, path);
         
-        const fullUrl = `${currentOrigin}${resolvedPath}`;
-        
-        // HTTP URL의 이중 슬래시 제거
-        return fullUrl.replace(/([^:])\/{2,}/g, '$1/');
+        return `${currentOrigin}${resolvedPath}`;
     }
 
-    /**
-     * URL 경로 정규화 (이중 슬래시 제거 및 ../, ./ 처리)
-     */
-    normalizePath(path) {
-        // 이중 슬래시 제거
-        path = path.replace(/\/+/g, '/');
-        const parts = path.split('/').filter(part => part !== '' && part !== '.');
-        const stack = [];
-        
-        for (const part of parts) {
-            if (part === '..') {
-                if (stack.length > 0 && stack[stack.length - 1] !== '..') {
-                    stack.pop();
-                } else if (!path.startsWith('/')) {
-                    stack.push(part);
-                }
-            } else {
-                stack.push(part);
-            }
-        }
-        
-        const normalized = '/' + stack.join('/');
-        return normalized === '/' ? '/' : normalized;
-    }
 
 
     /**
@@ -494,43 +503,18 @@ export class ViewLogicRouter {
     updateURL(route, params = null) {
         const queryParams = params || this.queryManager?.getQueryParams() || {};
         const queryString = this.queryManager?.buildQueryString(queryParams) || '';
-        
-        // URL 빌드 최적화 - 서브폴더 배포 지원
-        const buildURL = (route, queryString, isHash = true) => {
-            let base = route === 'home' ? '/' : `/${route}`;
-            
-            // History Mode에서 basePath 경로 추가
-            if (!isHash && this.config.basePath && this.config.basePath !== '/') {
-                base = `${this.config.basePath}${base}`;
-            }
-            
-            const url = queryString ? `${base}?${queryString}` : base;
-            return isHash ? `#${url}` : url;
-        };
-        
         if (this.config.mode === 'hash') {
-            const newHash = buildURL(route, queryString);
+            const newHash = this.buildURL(route, queryString);
             
             // 동일한 URL이면 업데이트하지 않음 (성능 최적화)
             if (window.location.hash !== newHash) {
                 window.location.hash = newHash;
             }
         } else {
-            const newPath = buildURL(route, queryString, false);
-            
-            // 서브폴더 배포를 고려한 경로 비교
-            let expectedPath = route === 'home' ? '/' : `/${route}`;
-            if (this.config.basePath && this.config.basePath !== '/') {
-                expectedPath = `${this.config.basePath}${expectedPath}`;
-            }
-            
-            const isSameRoute = window.location.pathname === expectedPath;
-            
-            if (isSameRoute) {
-                window.history.replaceState({}, '', newPath);
-            } else {
-                window.history.pushState({}, '', newPath);
-            }
+            const newPath = this.buildURL(route, queryString, false);
+
+            // 모든 라우트 변경에 대해 뒤로가기 지원
+            window.history.pushState({}, '', newPath);
             this.handleRouteChange();
         }
     }
