@@ -375,26 +375,26 @@ export class ViewLogicRouter {
         // 새로운 Vue 앱을 새 컨테이너에 마운트
         const { createApp } = Vue;
         const newVueApp = createApp(vueComponent);
-        
+
         // Vue 3 전역 속성 설정
         newVueApp.config.globalProperties.$router = {
             navigateTo: (route, params) => this.navigateTo(route, params),
             getCurrentRoute: () => this.getCurrentRoute(),
-            
+
             // 통합된 파라미터 관리 (라우팅 + 쿼리 파라미터)
             getParams: () => this.queryManager?.getAllParams() || {},
             getParam: (key, defaultValue) => this.queryManager?.getParam(key, defaultValue),
-            
+
             // 쿼리 파라미터 전용 메서드 (하위 호환성)
             getQueryParams: () => this.queryManager?.getQueryParams() || {},
             getQueryParam: (key, defaultValue) => this.queryManager?.getQueryParam(key, defaultValue),
             setQueryParams: (params, replace) => this.queryManager?.setQueryParams(params, replace),
             removeQueryParams: (keys) => this.queryManager?.removeQueryParams(keys),
-            
+
             // 라우팅 파라미터 전용 메서드
             getRouteParams: () => this.queryManager?.getRouteParams() || {},
             getRouteParam: (key, defaultValue) => this.queryManager?.getRouteParam(key, defaultValue),
-            
+
             currentRoute: this.currentHash,
             currentQuery: this.queryManager?.getQueryParams() || {}
         };
@@ -402,6 +402,9 @@ export class ViewLogicRouter {
         // 모바일 메뉴 전역 함수 추가
 
         newVueApp.mount(`#${newPageContainer.id}`);
+
+        // 라우트 이동 시 스크롤을 맨 위로 이동
+        window.scrollTo(0, 0);
 
         // requestAnimationFrame으로 성능 개선
         requestAnimationFrame(() => {
