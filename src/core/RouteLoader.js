@@ -354,6 +354,16 @@ export class RouteLoader {
                     } finally {
                         this.$dataLoading = false;
                     }
+                },
+
+                // 컴포넌트 생성 (RouteLoader의 createVueComponent 래퍼)
+                async $createComponent(componentName) {
+                    try {
+                        return await router.routeLoader.createVueComponent(componentName);
+                    } catch (error) {
+                        if (router.errorHandler) router.errorHandler.warn('RouteLoader', `Failed to create component '${componentName}':`, error);
+                        throw error;
+                    }
                 }
             },
             _routeName: routeName
