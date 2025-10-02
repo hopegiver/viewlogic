@@ -399,6 +399,16 @@ export class ViewLogicRouter {
             currentQuery: this.queryManager?.getQueryParams() || {}
         };
 
+        // 컴포넌트 생성 함수를 전역으로 추가
+        newVueApp.config.globalProperties.$createComponent = async (componentName) => {
+            try {
+                return await this.routeLoader.createVueComponent(componentName);
+            } catch (error) {
+                if (this.errorHandler) this.errorHandler.warn('Router', `Failed to create component '${componentName}':`, error);
+                throw error;
+            }
+        };
+
         // 모바일 메뉴 전역 함수 추가
 
         newVueApp.mount(`#${newPageContainer.id}`);
