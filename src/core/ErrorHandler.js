@@ -140,56 +140,7 @@ export class ErrorHandler {
         const appElement = document.getElementById('app');
         if (!appElement) return;
 
-        const fallbackHTML = `
-            <div class="fallback-error-page" style="
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                min-height: 100vh;
-                padding: 2rem;
-                text-align: center;
-                background: #f8f9fa;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            ">
-                <div style="
-                    background: white;
-                    padding: 3rem;
-                    border-radius: 12px;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-                    max-width: 500px;
-                ">
-                    <h1 style="
-                        font-size: 4rem;
-                        margin: 0;
-                        color: #dc3545;
-                        font-weight: 300;
-                    ">${errorCode}</h1>
-                    <h2 style="
-                        margin: 1rem 0;
-                        color: #495057;
-                        font-weight: 400;
-                    ">${errorMessage}</h2>
-                    <p style="
-                        color: #6c757d;
-                        margin-bottom: 2rem;
-                        line-height: 1.5;
-                    ">요청하신 페이지를 찾을 수 없습니다.</p>
-                    <button onclick="window.location.hash = '#/'" style="
-                        background: #007bff;
-                        color: white;
-                        border: none;
-                        padding: 12px 24px;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-size: 1rem;
-                        transition: background 0.2s;
-                    " onmouseover="this.style.background='#0056b3'" onmouseout="this.style.background='#007bff'">
-                        홈으로 돌아가기
-                    </button>
-                </div>
-            </div>
-        `;
+        const fallbackHTML = `<div style="text-align:center;padding:2rem;font-family:sans-serif"><h1>${errorCode}</h1><p>${errorMessage}</p><button onclick="location.reload()">Retry</button></div>`;
 
         // 기존 컨테이너들 정리
         appElement.innerHTML = fallbackHTML;
