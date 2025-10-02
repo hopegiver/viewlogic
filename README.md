@@ -38,7 +38,7 @@ ViewLogic Router revolutionizes Vue development with three fundamental principle
 - 🌐 **API Client** - HTTP client with automatic token injection
 - 📝 **Form Handling** - Revolutionary form processing with parameter substitution
 
-**Tiny Bundle Size** - Complete framework in just **51KB minified / 17KB gzipped**!
+**Tiny Bundle Size** - Complete framework in just **52KB minified / 18KB gzipped**!
 
 **Easy Integration** - Drop-in UMD build available for instant usage without build tools.
 
@@ -69,9 +69,8 @@ project/
 ├── css/                    # Global CSS files
 │   └── base.css            # Base styles
 ├── js/                     # JavaScript library files
-│   ├── viewlogic-router.js     # Development version
-│   ├── viewlogic-router.min.js # Minified version
-│   └── viewlogic-router.umd.js # UMD bundle
+│   ├── viewlogic-router.esm.js # ESM module (minified)
+│   └── viewlogic-router.min.js # UMD bundle (minified)
 ├── i18n/                   # Internationalization files
 │   ├── en.json            # English translations
 │   ├── ko.json            # Korean translations
@@ -104,12 +103,12 @@ This creates a complete project with examples and starts the development server.
 <head>
     <title>My ViewLogic App</title>
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.min.js"></script>
 </head>
 <body>
     <div id="app"></div>
     <script>
-        ViewLogicRouter({
+        const router = new ViewLogicRouter({
             environment: 'development'
         });
     </script>
@@ -123,6 +122,18 @@ This creates a complete project with examples and starts the development server.
 npm install viewlogic
 ```
 
+**Option A: Using bundler (Vite, Webpack, etc.)**
+```javascript
+import { ViewLogicRouter } from 'viewlogic';
+
+const router = new ViewLogicRouter({
+    environment: 'production',
+    authEnabled: true,
+    useI18n: true
+});
+```
+
+**Option B: Direct ESM import**
 ```html
 <!DOCTYPE html>
 <html>
@@ -132,7 +143,7 @@ npm install viewlogic
 <body>
     <div id="app"></div>
     <script type="module">
-        import { ViewLogicRouter } from 'viewlogic';
+        import { ViewLogicRouter } from 'https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.esm.js';
         const router = new ViewLogicRouter({
             environment: 'production',
             authEnabled: true,
@@ -731,6 +742,23 @@ ViewLogic Router automatically optimizes for production:
 - **Caching**: Aggressive caching for static assets
 - **Lazy loading**: Routes and components load on demand
 
+## 📦 Build Output
+
+ViewLogic Router provides two optimized build outputs:
+
+### ESM Module (`viewlogic-router.esm.js`)
+- **Format**: ES6 modules
+- **Size**: ~52KB minified
+- **Usage**: Modern bundlers (Vite, Webpack, Rollup)
+- **Import**: `import { ViewLogicRouter } from 'viewlogic'`
+
+### UMD Bundle (`viewlogic-router.min.js`)
+- **Format**: UMD (Universal Module Definition)
+- **Size**: ~52KB minified
+- **Usage**: Direct browser usage, CDN
+- **Global**: `window.ViewLogicRouter`
+
+Both builds are fully minified and production-ready with source maps included.
 
 ## 🤝 Contributing
 
