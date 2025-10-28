@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ViewLogic Router — 개발 가이드</title>
+  <meta name="description" content="ViewLogic Router 라이브러리 공식 문서">
+
+  <!-- Docsify Theme -->
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/docsify@4/lib/themes/vue.css">
+
+  <style>
+    :root {
+      --theme-color: #667eea;
+      --theme-color-dark: #5568d3;
+    }
+
+    /* 전역 설정 */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* 링크 밑줄 제거 */
+    a {
+      text-decoration: none !important;
+    }
+
+    a:hover {
+      text-decoration: none !important;
+    }
+
+    a:focus {
+      outline: none !important;
+    }
+
+    /* 사이드바 */
+    .sidebar {
+      padding-top: 20px;
+    }
+
+    /* 사이드바 제목 */
+    .sidebar > h1 {
+      font-weight: 700;
+      margin: 0 0 0.8rem 0 !important;
+      text-align: left;
+      padding-left: 10px !important;
+    }
+
+    .sidebar .app-name {
+      font-weight: 700;
+      margin: 0;
+      padding-left: 0;
+    }
+
+    .sidebar .app-name-link {
+      padding-left: 40px !important;
+    }
+
+    .sidebar > h1 a {
+      padding-left: 40px !important;
+      display: inline-block;
+    }
+
+    .sidebar .app-name a {
+      padding-left: 40px !important;
+      display: inline-block;
+    }
+
+    .sidebar-nav {
+      padding-left: 40px;
+    }
+
+    .sidebar ul {
+      padding-left: 0;
+    }
+
+    .sidebar li {
+      list-style: none;
+      margin: 0;
+    }
+
+    .sidebar-nav li a {
+      color: #34495e;
+      font-size: 14px;
+      padding: 5px 0;
+      display: inline-block;
+      font-weight: 600;
+    }
+
+    /* 메뉴명 앞에 화살표 추가 */
+    .sidebar-nav > ul > li > a::before {
+      content: '›';
+      color: #34495e;
+      margin-right: 6px;
+      display: inline-block;
+      transition: transform 0.2s ease;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    .sidebar-nav li a:hover {
+      color: var(--theme-color);
+    }
+
+    .sidebar-nav > ul > li > a:hover::before {
+      color: var(--theme-color);
+    }
+
+    .sidebar-nav li.active > a {
+      color: var(--theme-color);
+      font-weight: 600;
+    }
+
+    .sidebar-nav > ul > li.active > a::before {
+      color: var(--theme-color);
+    }
+
+    /* 서브메뉴가 열린 경우 화살표 회전 */
+    .sidebar-nav > ul > li.open > a::before {
+      transform: rotate(90deg);
+    }
+
+    /* 서브메뉴 스타일 */
+    .sidebar-nav ul ul {
+      padding-left: 20px;
+    }
+
+    /* 서브메뉴 항목 */
+    .sidebar-nav ul ul li {
+      padding-left: 0;
+      list-style-type: none;
+    }
+
+    .sidebar-nav ul ul li a {
+      padding-left: 0;
+    }
+
+    .sidebar-nav ul ul li a::before {
+      color: #7f8c8d;
+      margin-right: 4px;
+      font-size: 14px;
+    }
+
+    .sidebar-nav ul ul li a:hover::before {
+      color: var(--theme-color);
+    }
+
+    .sidebar-nav ul ul li.active > a::before {
+      color: var(--theme-color);
+    }
+
+    /* 검색 박스 */
+    .search {
+      padding: 6px 20px;
+      margin: 0 0 20px 0;
+    }
+
+    .search input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 20px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search input:focus {
+      border-color: var(--theme-color);
+    }
+
+    .content {
+      padding-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    window.$docsify = {
+      name: 'ViewLogic Router',
+      repo: '',
+      loadSidebar: true,
+      subMaxLevel: 3,
+      auto2top: true,
+
+      search: {
+        placeholder: '검색...',
+        noData: '검색 결과가 없습니다.',
+        depth: 3
+      },
+
+      copyCode: {
+        buttonText: '복사',
+        errorText: '오류',
+        successText: '완료!'
+      }
+    };
+  </script>
+
+  <!-- Docsify -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+
+  <!-- Plugins -->
+  <script src="//cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/docsify-copy-code@2"></script>
+
+  <!-- Syntax highlighting -->
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-javascript.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-typescript.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+</body>
+</html>
