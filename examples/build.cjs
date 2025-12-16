@@ -1026,17 +1026,17 @@ class ViewLogicBuilder {
     // 5초 후 자동으로 홈으로 리다이렉트 (선택사항)
     if (this.routeName !== 'home' && this.routeName !== '404') {
       setTimeout(() => {
-        if (window.router && window.router.navigateTo) {
+        if (this.$router && this.$router.navigateTo) {
           console.log('폴백 페이지에서 홈으로 리다이렉트...');
-          window.router.navigateTo('home');
+          this.$router.navigateTo('home');
         }
       }, 5000);
     }
   },
   methods: {
     goHome() {
-      if (window.router && window.router.navigateTo) {
-        window.router.navigateTo('home');
+      if (this.$router && this.$router.navigateTo) {
+        this.$router.navigateTo('home');
       }
     },
     retry() {

@@ -165,9 +165,11 @@ export default {
                     if (success) {
                         this.currentLanguage = languageCode;
                         
-                        // 쿼리 파라미터 업데이트
-                        if (this.useQueryParam && window.router) {
-                            window.router.setQueryParams({ lang: languageCode });
+                        // 쿼리 파라미터 업데이트 (현재 라우트에 lang 파라미터 추가)
+                        if (this.useQueryParam && this.$router) {
+                            const currentRoute = this.$router.getCurrentRoute();
+                            const currentParams = this.$router.getParams();
+                            this.$router.navigateTo(currentRoute, { ...currentParams, lang: languageCode });
                         }
                         
                         this.$emit('language-changed', {

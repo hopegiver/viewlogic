@@ -130,6 +130,14 @@ export class AuthManager {
     }
 
     /**
+     * 사용자 인증 상태 확인 (단축 버전)
+     * Alias for isAuthenticated()
+     */
+    isAuth() {
+        return this.isAuthenticated();
+    }
+
+    /**
      * 공개 라우트인지 확인
      */
     isPublicRoute(routeName) {

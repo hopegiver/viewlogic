@@ -80,8 +80,8 @@ export default {
             }
             
             // 라우터의 resolvePath 사용 가능한 경우
-            if (window.router && typeof window.router.resolvePath === 'function') {
-                return window.router.resolvePath(path);
+            if (this.$router && typeof this.$router.resolvePath === 'function') {
+                return this.$router.resolvePath(path);
             }
             
             // 폴백: 기본 URL 해결

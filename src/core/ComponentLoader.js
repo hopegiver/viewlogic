@@ -181,20 +181,29 @@ export class ComponentLoader {
             return components;
         }
         
-        this.log('debug', `[DEVELOPMENT] Loading individual components: ${namesToLoad.join(', ')}`);
-        
-        for (const name of namesToLoad) {
+        this.log('debug', `[DEVELOPMENT] Loading ${namesToLoad.length} components in parallel: ${namesToLoad.join(', ')}`);
+
+        // 병렬 로딩으로 성능 개선
+        const loadPromises = namesToLoad.map(async (name) => {
             try {
                 const component = await this.loadComponent(name);
-                if (component) {
-                    components[name] = component;
-                }
+                return [name, component];
             } catch (loadError) {
                 this.log('warn', `[DEVELOPMENT] Failed to load component ${name}:`, loadError.message);
+                return [name, null];
+            }
+        });
+
+        const results = await Promise.all(loadPromises);
+
+        // null이 아닌 컴포넌트만 객체로 변환
+        for (const [name, component] of results) {
+            if (component) {
+                components[name] = component;
             }
         }
-        
-        this.log('debug', `[DEVELOPMENT] Individual components loaded: ${Object.keys(components).length} components`);
+
+        this.log('debug', `[DEVELOPMENT] ${Object.keys(components).length} components loaded successfully`);
         return components;
     }
     

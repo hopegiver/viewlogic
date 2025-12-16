@@ -2,8 +2,7 @@ export default {
     name: 'DynamicInclude',
     template: `
         <div class="dynamic-include">
-            <div v-if="loading">로딩 중...</div>
-            <div v-else-if="error">{{ errorMessage }}</div>
+            <div v-if="error">{{ errorMessage }}</div>
             <component v-else :is="dynamicComponent" />
         </div>
     `,
@@ -50,9 +49,9 @@ export default {
             this.error = false;
 
             try {
-                // $createComponent 함수 사용 가능성 검사
-                if (!this.$createComponent || typeof this.$createComponent !== 'function') {
-                    throw new Error('$createComponent function not available');
+                // $router.createComponent 함수 사용 가능성 검사
+                if (!this.$router?.createComponent || typeof this.$router.createComponent !== 'function') {
+                    throw new Error('$router.createComponent function not available');
                 }
 
                 // 페이지 이름 유효성 검사
@@ -60,8 +59,8 @@ export default {
                     throw new Error('Invalid page name provided');
                 }
 
-                // 컴포넌트 로드 ($createComponent 사용)
-                const component = await this.$createComponent(this.page.trim());
+                // 컴포넌트 로드 ($router.createComponent 사용)
+                const component = await this.$router.createComponent(this.page.trim());
 
                 // 개발 모드에서 스타일 적용
                 if (component._style) {

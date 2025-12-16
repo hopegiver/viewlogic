@@ -1,3 +1,6 @@
+// Simulate slow loading by adding delay before export
+await new Promise(resolve => setTimeout(resolve, 1000));
+
 export default {
     name: 'About',
     layout: 'default',

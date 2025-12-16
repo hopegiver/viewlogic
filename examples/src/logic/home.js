@@ -63,8 +63,8 @@ export default {
         },
         
         clearRouterCache() {
-            if (window.router && window.router.cacheManager) {
-                const clearedCount = window.router.cacheManager.clearCache();
+            if (this.$router && this.$router.clearCache) {
+                const clearedCount = this.$router.clearCache();
                 this.showToast(`캐시 ${clearedCount}개 항목이 초기화되었습니다`, 'info');
             } else {
                 this.showToast('캐시 매니저를 찾을 수 없습니다', 'warning');

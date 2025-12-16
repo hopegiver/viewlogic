@@ -88,23 +88,6 @@ export class RouteLoader {
         }
     }
 
-    /**
-     * 스타일 파일 로드 (실패시 빈 문자열 반환)
-     */
-    async loadStyle(routeName) {
-        try {
-            const stylePath = `${this.config.srcPath}/styles/${routeName}.css`;
-            const response = await fetch(stylePath);
-            if (!response.ok) throw new Error(`Style not found: ${response.status}`);
-            const style = await response.text();
-            this.log('debug', `Style '${routeName}' loaded successfully`);
-            return style;
-        } catch (error) {
-            this.log('debug', `Style '${routeName}' not found, no styles applied:`, error.message);
-            // 스타일이 없으면 빈 문자열 반환
-            return '';
-        }
-    }
 
     /**
      * 레이아웃 파일 로드 (실패시 null 반환)
@@ -170,7 +153,7 @@ export class RouteLoader {
         const isProduction = this.config.environment === 'production';
         
         // 환경별 리소스 로딩
-        let template, style = '', layout = null;
+        let template, layout = null;
         
         if (isProduction) {
             // 프로덕션: 스크립트에 있는 템플릿 사용 또는 기본값
@@ -178,22 +161,20 @@ export class RouteLoader {
         } else {
             // 개발: 개별 파일들 병렬 로드
             const loadPromises = [
-                this.loadTemplate(routeName),
-                this.loadStyle(routeName)
+                this.loadTemplate(routeName)
             ];
-            
+
             // 레이아웃 로딩 조건부 추가
             if (this.config.useLayout && script.layout !== null) {
                 loadPromises.push(this.loadLayout(script.layout || this.config.defaultLayout));
             } else {
                 loadPromises.push(Promise.resolve(null));
             }
-            
+
             // 병렬 실행
-            const [loadedTemplate, loadedStyle, loadedLayout] = await Promise.all(loadPromises);
-            
+            const [loadedTemplate, loadedLayout] = await Promise.all(loadPromises);
+
             template = loadedTemplate;
-            style = loadedStyle;
             layout = loadedLayout;
             
             // 레이아웃과 템플릿 병합
@@ -358,12 +339,7 @@ export class RouteLoader {
             },
             _routeName: routeName
         };
-        
-        // 개발 모드에서만 스타일 메타데이터 저장 (렌더링 시 주입용)
-        if (!isProduction && style) {
-            component._style = style;
-        }
-        
+
         // 캐시에 저장
         this.router.cacheManager?.set(cacheKey, component);
         
@@ -384,7 +360,7 @@ export class RouteLoader {
      * 기본 템플릿 생성
      */
     generateDefaultTemplate(routeName) {
-        return `<div class="route-${routeName}"><h1>Route: ${routeName}</h1></div>`;
+        return `<div class="route-${routeName.replace(/\//g, '-')}"><h1>Route: ${routeName}</h1></div>`;
     }
 
 

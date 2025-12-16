@@ -21,7 +21,11 @@ export class ViewLogicRouter {
 
         // LoadingManager가 없을 때를 위한 기본 전환 상태
         this.transitionInProgress = false;
-        
+
+        // Progress bar state
+        this.progressBarTimer = null;
+        this.progressBarElement = null;
+
         // 초기화 준비 상태
         this.isReady = false;
         this.readyPromise = null;
@@ -177,7 +181,10 @@ export class ViewLogicRouter {
             if (this.config.authEnabled) {
                 this.authManager = new AuthManager(this, this.config);
             }
-            
+
+            // Create progress bar element
+            this._createProgressBar();
+
             
             // 2. 라우터 시작
             this.isReady = true;
@@ -295,19 +302,25 @@ export class ViewLogicRouter {
 
         try {
             this.transitionInProgress = true;
-            
+
+            // Show progress bar (with 0.3s delay)
+            this._showProgressBar();
+
             // 인증 체크
-            const authResult = this.authManager ? 
+            const authResult = this.authManager ?
                 await this.authManager.checkAuthentication(routeName) :
                 { allowed: true, reason: 'auth_disabled' };
             if (!authResult.allowed) {
+                // Hide progress bar
+                this._hideProgressBar();
+
                 // 인증 실패 시 로그인 페이지로 리다이렉트
                 if (this.authManager) {
-                    this.authManager.emitAuthEvent('auth_required', { 
+                    this.authManager.emitAuthEvent('auth_required', {
                         originalRoute: routeName,
-                        loginRoute: this.config.loginRoute 
+                        loginRoute: this.config.loginRoute
                     });
-                    
+
                     // navigateTo를 사용하여 이전 페이지로 돌아가기 지원
                     if (routeName !== this.config.loginRoute) {
                         this.navigateTo(this.config.loginRoute, { redirect: routeName });
@@ -317,7 +330,7 @@ export class ViewLogicRouter {
                 }
                 return;
             }
-            
+
             const appElement = document.getElementById('app');
             if (!appElement) {
                 throw new Error('App element not found');
@@ -325,13 +338,16 @@ export class ViewLogicRouter {
 
             // Vue 컴포넌트 생성 (백그라운드에서)
             const component = await this.routeLoader.createVueComponent(routeName);
-            
+
             // 새로운 페이지를 오버레이로 렌더링
             await this.renderComponentWithTransition(component, routeName);
-            
-            // 로딩 완료
-            
+
+            // Hide progress bar
+            this._hideProgressBar();
+
         } catch (error) {
+            // Hide progress bar on error
+            this._hideProgressBar();
             this.log('error', `Route loading failed [${routeName}]:`, error.message);
             
             
@@ -355,7 +371,7 @@ export class ViewLogicRouter {
         // 새로운 페이지 컨테이너 생성
         const newPageContainer = document.createElement('div');
         newPageContainer.className = 'page-container page-entered';
-        newPageContainer.id = `page-${routeName}-${Date.now()}`;
+        newPageContainer.id = `page-${routeName.replace(/\//g, '-')}-${Date.now()}`;
         
         // 기존 컨테이너가 있다면 즉시 숨기기
         const existingContainers = appElement.querySelectorAll('.page-container');
@@ -367,11 +383,6 @@ export class ViewLogicRouter {
         // 새 컨테이너를 앱에 추가
         appElement.appendChild(newPageContainer);
 
-        // 개발 모드에서만 스타일 적용 (프로덕션 모드는 빌드된 JS에서 자동 처리)
-        if (this.config.environment === 'development' && vueComponent._style) {
-            this.applyStyle(vueComponent._style, routeName);
-        }
-        
         // 새로운 Vue 앱을 새 컨테이너에 마운트
         const { createApp } = Vue;
         const newVueApp = createApp(vueComponent);
@@ -381,36 +392,28 @@ export class ViewLogicRouter {
             navigateTo: (route, params) => this.navigateTo(route, params),
             getCurrentRoute: () => this.getCurrentRoute(),
 
-            // 통합된 파라미터 관리 (라우팅 + 쿼리 파라미터)
+            // 파라미터 관리
             getParams: () => this.queryManager?.getAllParams() || {},
             getParam: (key, defaultValue) => this.queryManager?.getParam(key, defaultValue),
 
-            // 쿼리 파라미터 전용 메서드 (하위 호환성)
-            getQueryParams: () => this.queryManager?.getQueryParams() || {},
-            getQueryParam: (key, defaultValue) => this.queryManager?.getQueryParam(key, defaultValue),
-            setQueryParams: (params, replace) => this.queryManager?.setQueryParams(params, replace),
-            removeQueryParams: (keys) => this.queryManager?.removeQueryParams(keys),
+            // 유틸리티 메서드
+            resolvePath: (path) => this.resolvePath(path),
 
-            // 라우팅 파라미터 전용 메서드
-            getRouteParams: () => this.queryManager?.getRouteParams() || {},
-            getRouteParam: (key, defaultValue) => this.queryManager?.getRouteParam(key, defaultValue),
+            // 컴포넌트 생성
+            createComponent: async (componentName) => {
+                try {
+                    return await this.routeLoader.createVueComponent(componentName);
+                } catch (error) {
+                    if (this.errorHandler) this.errorHandler.warn('Router', `Failed to create component '${componentName}':`, error);
+                    throw error;
+                }
+            },
 
-            currentRoute: this.currentHash,
-            currentQuery: this.queryManager?.getQueryParams() || {}
+            // 캐시 관리
+            clearCache: () => this.cacheManager?.clearAll() || 0
         };
 
-        // 컴포넌트 생성 함수를 전역으로 추가
-        newVueApp.config.globalProperties.$createComponent = async (componentName) => {
-            try {
-                return await this.routeLoader.createVueComponent(componentName);
-            } catch (error) {
-                if (this.errorHandler) this.errorHandler.warn('Router', `Failed to create component '${componentName}':`, error);
-                throw error;
-            }
-        };
-
-        // 모바일 메뉴 전역 함수 추가
-
+        // Vue 앱을 DOM에 마운트
         newVueApp.mount(`#${newPageContainer.id}`);
 
         // 라우트 이동 시 스크롤을 맨 위로 이동
@@ -456,19 +459,66 @@ export class ViewLogicRouter {
             appElement.querySelector('.loading')?.remove();
     }
 
-    applyStyle(css, routeName) {
-        // 기존 스타일 제거
-        const existing = document.querySelector(`style[data-route="${routeName}"]`);
-        if (existing) existing.remove();
-
-        if (css) {
-            const style = document.createElement('style');
-            style.textContent = css;
-            style.setAttribute('data-route', routeName);
-            document.head.appendChild(style);
-        }
+    /**
+     * Create progress bar element
+     */
+    _createProgressBar() {
+        const progressBar = document.createElement('div');
+        progressBar.id = 'viewlogic-progress-bar';
+        progressBar.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 0%;
+            height: 2px;
+            background-color: rgba(59, 130, 246, 0.6);
+            transition: width 0.3s ease-out, opacity 0.3s ease-out;
+            z-index: 9999;
+            opacity: 0;
+        `;
+        document.body.appendChild(progressBar);
+        this.progressBarElement = progressBar;
     }
 
+    /**
+     * Show progress bar with 0.3s delay
+     */
+    _showProgressBar() {
+        // Clear any existing timer
+        if (this.progressBarTimer) {
+            clearTimeout(this.progressBarTimer);
+        }
+
+        // Set timer for 0.3s delay
+        this.progressBarTimer = setTimeout(() => {
+            if (this.progressBarElement) {
+                this.progressBarElement.style.opacity = '1';
+                this.progressBarElement.style.width = '70%';
+            }
+        }, 300); // 0.3 seconds
+    }
+
+    /**
+     * Hide progress bar
+     */
+    _hideProgressBar() {
+        // Clear timer if loading finished before 0.3s
+        if (this.progressBarTimer) {
+            clearTimeout(this.progressBarTimer);
+            this.progressBarTimer = null;
+        }
+
+        // Hide progress bar
+        if (this.progressBarElement) {
+            this.progressBarElement.style.width = '100%';
+            setTimeout(() => {
+                if (this.progressBarElement) {
+                    this.progressBarElement.style.opacity = '0';
+                    this.progressBarElement.style.width = '0%';
+                }
+            }, 200);
+        }
+    }
 
     navigateTo(routeName, params = null) {
         // If routeName is an object, treat it as {route, params}
@@ -476,17 +526,28 @@ export class ViewLogicRouter {
             params = routeName.params || null;
             routeName = routeName.route;
         }
-        
+
+        // Normalize route name: remove leading slash if present
+        // This allows both navigateTo('about') and navigateTo('/about')
+        if (typeof routeName === 'string' && routeName.startsWith('/')) {
+            routeName = routeName.substring(1);
+        }
+
+        // Handle empty route or root
+        if (!routeName || routeName === '') {
+            routeName = 'home';
+        }
+
         // Clear current query params if navigating to a different route
         if (routeName !== this.currentHash && this.queryManager) {
             this.queryManager.clearQueryParams();
         }
-        
+
         // Set route parameters
         if (this.queryManager) {
             this.queryManager.setCurrentRouteParams(params);
         }
-        
+
         // Update URL with new route and params
         this.updateURL(routeName, params);
     }

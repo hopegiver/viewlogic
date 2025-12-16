@@ -70,8 +70,8 @@ export default {
             }
         },
         goHome() {
-            if (window.router) {
-                window.router.navigateTo('home');
+            if (this.$router) {
+                this.$router.navigateTo('home');
             } else {
                 window.location.href = '#/';
             }
