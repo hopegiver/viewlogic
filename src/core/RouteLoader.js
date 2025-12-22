@@ -94,15 +94,51 @@ export class RouteLoader {
      */
     async loadLayout(layoutName) {
         try {
-            const layoutPath = `${this.config.srcPath}/layouts/${layoutName}.html`;
+            const layoutPath = `${this.config.srcPath}/views/layout/${layoutName}.html`;
             const response = await fetch(layoutPath);
             if (!response.ok) throw new Error(`Layout not found: ${response.status}`);
             const layout = await response.text();
-            
+
             this.log('debug', `Layout '${layoutName}' loaded successfully`);
             return layout;
         } catch (error) {
             this.log('debug', `Layout '${layoutName}' not found, no layout applied:`, error.message);
+            return null;
+        }
+    }
+
+    /**
+     * 레이아웃 스크립트 로드 (실패시 null 반환)
+     */
+    async loadLayoutScript(layoutName) {
+        // 캐시 확인
+        const cacheKey = `layout_script_${layoutName}`;
+        const cachedScript = this.router?.cacheManager?.get(cacheKey);
+        if (cachedScript) {
+            this.log('debug', `Layout script '${layoutName}' loaded from cache`);
+            return cachedScript;
+        }
+
+        try {
+            const layoutScriptPath = `${this.config.srcPath}/logic/layout/${layoutName}.js`;
+            this.log('debug', `Loading layout script: ${layoutScriptPath}`);
+
+            const module = await import(layoutScriptPath);
+            const layoutScript = module.default;
+
+            if (!layoutScript) {
+                throw new Error(`Layout script '${layoutName}' has no default export`);
+            }
+
+            // 캐시에 저장
+            if (this.router?.cacheManager) {
+                this.router.cacheManager.set(cacheKey, layoutScript);
+            }
+
+            this.log('debug', `Layout script '${layoutName}' loaded successfully`);
+            return layoutScript;
+        } catch (error) {
+            this.log('debug', `Layout script '${layoutName}' not found, using layout HTML only:`, error.message);
             return null;
         }
     }
@@ -153,7 +189,7 @@ export class RouteLoader {
         const isProduction = this.config.environment === 'production';
         
         // 환경별 리소스 로딩
-        let template, layout = null;
+        let template, layout = null, layoutScript = null;
         
         if (isProduction) {
             // 프로덕션: 스크립트에 있는 템플릿 사용 또는 기본값
@@ -166,16 +202,20 @@ export class RouteLoader {
 
             // 레이아웃 로딩 조건부 추가
             if (this.config.useLayout && script.layout !== null) {
-                loadPromises.push(this.loadLayout(script.layout || this.config.defaultLayout));
+                const layoutName = script.layout || this.config.defaultLayout;
+                loadPromises.push(this.loadLayout(layoutName));
+                loadPromises.push(this.loadLayoutScript(layoutName));
             } else {
+                loadPromises.push(Promise.resolve(null));
                 loadPromises.push(Promise.resolve(null));
             }
 
             // 병렬 실행
-            const [loadedTemplate, loadedLayout] = await Promise.all(loadPromises);
+            const [loadedTemplate, loadedLayout, loadedLayoutScript] = await Promise.all(loadPromises);
 
             template = loadedTemplate;
             layout = loadedLayout;
+            layoutScript = loadedLayoutScript;
             
             // 레이아웃과 템플릿 병합
             if (layout) {
@@ -204,15 +244,20 @@ export class RouteLoader {
             }
         }
 
+        // 레이아웃 스크립트와 페이지 스크립트 병합
+        const mergedScript = this._mergeLayoutAndPageScript(layoutScript, script);
+
         // 단일 컴포넌트 생성
         const component = {
-            ...script,
-            name: script.name || this.toPascalCase(routeName),
+            ...mergedScript,
+            name: mergedScript.name || this.toPascalCase(routeName),
             template,
             components: loadedComponents,
             data() {
-                const originalData = script.data ? script.data() : {};
+                const layoutData = layoutScript?.data ? layoutScript.data.call(this) : {};
+                const originalData = mergedScript.data ? mergedScript.data.call(this) : {};
                 const commonData = {
+                    ...layoutData,
                     ...originalData,
                     currentRoute: routeName,
                     $query: router.queryManager?.getQueryParams() || {},
@@ -244,6 +289,12 @@ export class RouteLoader {
                 // 상태 관리 초기화
                 this.$state = router.stateHandler;
 
+                // 레이아웃 mounted 먼저 실행
+                if (layoutScript?.mounted) {
+                    await layoutScript.mounted.call(this);
+                }
+
+                // 페이지 mounted 실행
                 if (script.mounted) {
                     await script.mounted.call(this);
                 }
@@ -251,7 +302,7 @@ export class RouteLoader {
                     // 통합된 데이터 fetch (단일/다중 API 자동 처리)
                     await this.fetchData();
                 }
-                
+
                 // 🆕 자동 폼 바인딩
                 await this.$nextTick(); // DOM이 완전히 렌더링된 후
                 router.routeLoader.formHandler.bindAutoForms(this);
@@ -363,6 +414,40 @@ export class RouteLoader {
         return `<div class="route-${routeName.replace(/\//g, '-')}"><h1>Route: ${routeName}</h1></div>`;
     }
 
+
+    /**
+     * 레이아웃 스크립트와 페이지 스크립트 병합
+     */
+    _mergeLayoutAndPageScript(layoutScript, pageScript) {
+        if (!layoutScript) {
+            return pageScript;
+        }
+
+        // 레이아웃과 페이지 스크립트 병합
+        return {
+            // 페이지 스크립트가 우선 (덮어씀)
+            ...layoutScript,
+            ...pageScript,
+
+            // methods는 병합 (페이지 우선)
+            methods: {
+                ...(layoutScript.methods || {}),
+                ...(pageScript.methods || {})
+            },
+
+            // computed도 병합
+            computed: {
+                ...(layoutScript.computed || {}),
+                ...(pageScript.computed || {})
+            },
+
+            // watch도 병합
+            watch: {
+                ...(layoutScript.watch || {}),
+                ...(pageScript.watch || {})
+            }
+        };
+    }
 
     /**
      * 로깅 래퍼 메서드

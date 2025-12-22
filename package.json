@@ -1,6 +1,6 @@
 {
   "name": "viewlogic",
-  "version": "1.3.3",
+  "version": "1.4.0",
   "description": "A lightweight, file-based routing system for Vue 3 applications with zero build configuration",
   "main": "dist/viewlogic-router.min.js",
   "module": "dist/viewlogic-router.esm.js",

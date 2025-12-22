@@ -38,12 +38,15 @@ project/
 └── src/
     ├── views/              # HTML 템플릿
     │   ├── home.html
-    │   └── about.html
+    │   ├── about.html
+    │   └── layout/         # 레이아웃 템플릿
+    │       └── default.html
     ├── logic/              # JavaScript 로직
     │   ├── home.js
-    │   └── about.js
-    ├── components/         # 재사용 컴포넌트
-    └── layouts/            # 레이아웃 템플릿
+    │   ├── about.js
+    │   └── layout/         # 레이아웃 로직
+    │       └── default.js
+    └── components/         # 재사용 컴포넌트
 ```
 
 ### 3. index.html 설정
@@ -743,16 +746,19 @@ export default {
 
 ## 레이아웃 시스템
 
-### 레이아웃 생성
+### 레이아웃 템플릿 생성
 
-**src/layouts/default.html**
+**src/views/layout/default.html**
 ```html
 <div class="layout-default">
     <header>
         <nav>
             <a href="#/home">홈</a>
             <a href="#/about">소개</a>
-            <a href="#/contact">연락</a>
+            <div v-if="$layout.user">
+                <span>{{ $layout.user.name }}</span>
+                <button @click="handleLogout">로그아웃</button>
+            </div>
         </nav>
     </header>
 
@@ -761,42 +767,68 @@ export default {
     </main>
 
     <footer>
-        <p>&copy; 2024 My App</p>
+        <p>&copy; {{ $layout.currentYear }} My App</p>
     </footer>
 </div>
 ```
 
-**src/layouts/admin.html**
-```html
-<div class="layout-admin">
-    <aside class="sidebar">
-        <a href="#/admin/dashboard">대시보드</a>
-        <a href="#/admin/users">사용자 관리</a>
-    </aside>
+### 레이아웃 로직 생성 (선택)
 
-    <main class="admin-content">
-        <slot></slot>
-    </main>
-</div>
+**src/logic/layout/default.js**
+```javascript
+export default {
+    data() {
+        return {
+            $layout: {
+                user: null,
+                currentYear: new Date().getFullYear()
+            }
+        }
+    },
+    async mounted() {
+        // 레이아웃에서 공통으로 실행할 로직
+        console.log('Layout mounted!');
+
+        if (this.isAuth()) {
+            const response = await this.$api.get('/api/user');
+            this.$layout.user = response.data;
+            this.$state.set('user', response.data);
+        }
+    },
+    methods: {
+        async handleLogout() {
+            await this.$api.post('/api/logout');
+            this.logout();
+        }
+    }
+}
 ```
 
-### 레이아웃 사용
+### 페이지에서 사용
 
 ```javascript
 // src/logic/home.js
 export default {
     name: 'Home',
-    layout: 'default',  // layouts/default.html 사용
-    // ...
-}
-```
+    layout: 'default',  // views/layout/default.html 사용
+    data() {
+        return {
+            posts: []
+        }
+    },
+    async mounted() {
+        // 페이지 로직
+        console.log('Page mounted!');
+        console.log('User from layout:', this.$layout.user);  // 레이아웃 데이터 접근
 
-```javascript
-// src/logic/admin/dashboard.js
-export default {
-    name: 'AdminDashboard',
-    layout: 'admin',  // layouts/admin.html 사용
-    // ...
+        await this.loadPosts();
+    },
+    methods: {
+        async loadPosts() {
+            const response = await this.$api.get('/api/posts');
+            this.posts = response.data;
+        }
+    }
 }
 ```
 
@@ -809,6 +841,11 @@ export default {
     // ...
 }
 ```
+
+**참고:**
+- 레이아웃 로직 파일(`.js`)은 선택 사항입니다
+- 레이아웃 로직이 없으면 HTML 템플릿만 사용됩니다
+- 레이아웃의 `data`, `methods`, `mounted` 등은 모든 페이지에서 접근 가능합니다
 
 ---
 
