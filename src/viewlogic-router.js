@@ -224,8 +224,6 @@ export class ViewLogicRouter {
         const initRoute = () => {
             if (isHashMode && !window.location.hash) {
                 window.location.hash = '#/';
-            } else if (!isHashMode && window.location.pathname === '/') {
-                this.navigateTo(this.config.defaultRoute);
             } else {
                 this.handleRouteChange();
             }
