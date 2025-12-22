@@ -93,11 +93,24 @@ export class RouteLoader {
      * 레이아웃 파일 로드 (실패시 null 반환)
      */
     async loadLayout(layoutName) {
+        // Check cache first
+        const cacheKey = `layout_html_${layoutName}`;
+        const cachedLayout = this.router?.cacheManager?.get(cacheKey);
+        if (cachedLayout) {
+            this.log('debug', `Layout '${layoutName}' loaded from cache`);
+            return cachedLayout;
+        }
+
         try {
             const layoutPath = `${this.config.srcPath}/views/layout/${layoutName}.html`;
             const response = await fetch(layoutPath);
             if (!response.ok) throw new Error(`Layout not found: ${response.status}`);
             const layout = await response.text();
+
+            // Save to cache
+            if (this.router?.cacheManager) {
+                this.router.cacheManager.set(cacheKey, layout);
+            }
 
             this.log('debug', `Layout '${layoutName}' loaded successfully`);
             return layout;
