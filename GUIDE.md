@@ -217,9 +217,17 @@ src/views/users/profile.html + src/logic/users/profile.js → /#/users/profile
 ### 기본 라우팅
 
 파일 이름이 곧 라우트입니다:
-- `home.html` + `home.js` → `/#/home` (또는 루트 `/`)
+- `home.html` + `home.js` → `/#/home` (또는 루트 `/#/`)
 - `about.html` + `about.js` → `/#/about`
 - `users/profile.html` + `users/profile.js` → `/#/users/profile`
+
+**기본 라우트 변경:**
+```javascript
+const router = new ViewLogicRouter({
+    defaultRoute: 'dashboard'  // /#/ 접근 시 dashboard로 이동
+});
+```
+이렇게 설정하면 `/#/` 또는 `/` 접근 시 `home` 대신 `dashboard` 페이지가 로드됩니다.
 
 ### 페이지 이동
 
@@ -1508,6 +1516,7 @@ const router = new ViewLogicRouter({
     srcPath: '/src',                  // 소스 파일 경로
     mode: 'hash',                     // 'hash' 또는 'history'
     environment: 'development',       // 'development' 또는 'production'
+    defaultRoute: 'home',             // 기본 라우트 (/#/ 또는 / 접근 시)
 
     // 캐싱
     cacheMode: 'memory',              // 'memory', 'sessionStorage', 'localStorage', 'none'

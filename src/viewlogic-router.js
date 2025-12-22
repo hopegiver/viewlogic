@@ -52,6 +52,7 @@ export class ViewLogicRouter {
             maxCacheSize: 50,
             useLayout: true,
             defaultLayout: 'default',
+            defaultRoute: 'home',          // 기본 라우트 (/#/ 접근 시)
             environment: 'development',
             routesPath: '/routes',         // 프로덕션 라우트 경로
             enableErrorReporting: true,
@@ -224,7 +225,7 @@ export class ViewLogicRouter {
             if (isHashMode && !window.location.hash) {
                 window.location.hash = '#/';
             } else if (!isHashMode && window.location.pathname === '/') {
-                this.navigateTo('home');
+                this.navigateTo(this.config.defaultRoute);
             } else {
                 this.handleRouteChange();
             }
@@ -258,15 +259,15 @@ export class ViewLogicRouter {
         if (this.config.mode === 'hash') {
             const hashPath = window.location.hash.slice(1) || '/';
             const [pathPart, queryPart] = hashPath.split('?');
-            
+
             // 경로 파싱 최적화
-            let route = 'home';
+            let route = this.config.defaultRoute;
             if (pathPart && pathPart !== '/') {
                 route = pathPart.startsWith('/') ? pathPart.slice(1) : pathPart;
             }
-            
+
             return {
-                route: route || 'home',
+                route: route || this.config.defaultRoute,
                 queryParams: this.queryManager?.parseQueryString(queryPart || window.location.search.slice(1)) || {}
             };
         } else {
@@ -284,9 +285,9 @@ export class ViewLogicRouter {
             if (route.startsWith('/')) {
                 route = route.slice(1);
             }
-            
+
             return {
-                route: route || 'home',
+                route: route || this.config.defaultRoute,
                 queryParams: this.queryManager?.parseQueryString(window.location.search.slice(1)) || {}
             };
         }
@@ -535,7 +536,7 @@ export class ViewLogicRouter {
 
         // Handle empty route or root
         if (!routeName || routeName === '') {
-            routeName = 'home';
+            routeName = this.config.defaultRoute;
         }
 
         // Clear current query params if navigating to a different route
@@ -562,7 +563,7 @@ export class ViewLogicRouter {
         const queryString = this.queryManager?.buildQueryString(queryParams) || '';
 
         // URL 생성
-        let base = route === 'home' ? '/' : `/${route}`;
+        let base = route === this.config.defaultRoute ? '/' : `/${route}`;
 
         if (this.config.mode === 'hash') {
             // 해시 모드: basePath 제외
