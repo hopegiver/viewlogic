@@ -254,11 +254,19 @@ export class RouteLoader {
             template,
             components: loadedComponents,
             data() {
-                const layoutData = layoutScript?.data ? layoutScript.data.call(this) : {};
-                const originalData = mergedScript.data ? mergedScript.data.call(this) : {};
+                // 레이아웃 data 함수 호출 (mergedScript에서 보존된 것)
+                const layoutData = mergedScript._layoutData ? mergedScript._layoutData.call(this) : {};
+
+                // 페이지 data 함수 호출 (mergedScript에서 보존된 것)
+                const pageData = mergedScript._pageData ? mergedScript._pageData.call(this) : {};
+
+                // 공통 데이터
                 const commonData = {
+                    // 레이아웃 데이터 먼저
                     ...layoutData,
-                    ...originalData,
+                    // 페이지 데이터 (같은 키는 덮어씀)
+                    ...pageData,
+                    // 시스템 제공 데이터
                     currentRoute: routeName,
                     $query: router.queryManager?.getQueryParams() || {},
                     $params: router.queryManager?.getRouteParams() || {},
@@ -272,14 +280,25 @@ export class RouteLoader {
                     })(),
                     $dataLoading: false
                 };
-                
+
                 return commonData;
             },
             computed: {
-                ...(script.computed || {}),
+                ...(mergedScript.computed || {}),  // 수정: mergedScript.computed 사용
                 // 하위 호환성을 위해 params는 유지하되 getAllParams 사용
                 params() {
                     return router.queryManager?.getAllParams() || {};
+                }
+            },
+            async beforeMount() {
+                // 레이아웃 beforeMount 먼저 실행
+                if (mergedScript._layoutBeforeMount) {
+                    await mergedScript._layoutBeforeMount.call(this);
+                }
+
+                // 페이지 beforeMount 실행
+                if (mergedScript._pageBeforeMount) {
+                    await mergedScript._pageBeforeMount.call(this);
                 }
             },
             async mounted() {
@@ -290,14 +309,15 @@ export class RouteLoader {
                 this.$state = router.stateHandler;
 
                 // 레이아웃 mounted 먼저 실행
-                if (layoutScript?.mounted) {
-                    await layoutScript.mounted.call(this);
+                if (mergedScript._layoutMounted) {
+                    await mergedScript._layoutMounted.call(this);
                 }
 
                 // 페이지 mounted 실행
-                if (script.mounted) {
-                    await script.mounted.call(this);
+                if (mergedScript._pageMounted) {
+                    await mergedScript._pageMounted.call(this);
                 }
+
                 if (script.dataURL) {
                     // 통합된 데이터 fetch (단일/다중 API 자동 처리)
                     await this.fetchData();
@@ -307,8 +327,52 @@ export class RouteLoader {
                 await this.$nextTick(); // DOM이 완전히 렌더링된 후
                 router.routeLoader.formHandler.bindAutoForms(this);
             },
+            async beforeUpdate() {
+                // 레이아웃 beforeUpdate 먼저 실행
+                if (mergedScript._layoutBeforeUpdate) {
+                    await mergedScript._layoutBeforeUpdate.call(this);
+                }
+
+                // 페이지 beforeUpdate 실행
+                if (mergedScript._pageBeforeUpdate) {
+                    await mergedScript._pageBeforeUpdate.call(this);
+                }
+            },
+            async updated() {
+                // 레이아웃 updated 먼저 실행
+                if (mergedScript._layoutUpdated) {
+                    await mergedScript._layoutUpdated.call(this);
+                }
+
+                // 페이지 updated 실행
+                if (mergedScript._pageUpdated) {
+                    await mergedScript._pageUpdated.call(this);
+                }
+            },
+            async beforeUnmount() {
+                // 레이아웃 beforeUnmount 먼저 실행
+                if (mergedScript._layoutBeforeUnmount) {
+                    await mergedScript._layoutBeforeUnmount.call(this);
+                }
+
+                // 페이지 beforeUnmount 실행
+                if (mergedScript._pageBeforeUnmount) {
+                    await mergedScript._pageBeforeUnmount.call(this);
+                }
+            },
+            async unmounted() {
+                // 레이아웃 unmounted 먼저 실행
+                if (mergedScript._layoutUnmounted) {
+                    await mergedScript._layoutUnmounted.call(this);
+                }
+
+                // 페이지 unmounted 실행
+                if (mergedScript._pageUnmounted) {
+                    await mergedScript._pageUnmounted.call(this);
+                }
+            },
             methods: {
-                ...script.methods,
+                ...mergedScript.methods,  // 수정: 레이아웃 + 페이지 메서드 모두 포함
                 // 라우팅 관련
                 navigateTo: (route, params) => router.navigateTo(route, params),
                 getCurrentRoute: () => router.getCurrentRoute(),
@@ -424,29 +488,62 @@ export class RouteLoader {
         }
 
         // 레이아웃과 페이지 스크립트 병합
-        return {
-            // 페이지 스크립트가 우선 (덮어씀)
-            ...layoutScript,
-            ...pageScript,
+        // 레이아웃 스크립트와 페이지 스크립트를 올바르게 병합
+        const merged = {
+            // 페이지 name이 우선, 없으면 레이아웃 name 사용
+            name: pageScript.name || layoutScript.name,
 
-            // methods는 병합 (페이지 우선)
+            // data 함수는 별도로 병합 (호출해서 결과를 합침)
+            data: pageScript.data || layoutScript.data,
+
+            // 레이아웃 data를 보존하기 위해 별도 속성으로 저장
+            _layoutData: layoutScript.data,
+            _pageData: pageScript.data,
+
+            // methods 병합 (페이지가 우선)
             methods: {
                 ...(layoutScript.methods || {}),
                 ...(pageScript.methods || {})
             },
 
-            // computed도 병합
+            // computed 병합 (페이지가 우선)
             computed: {
                 ...(layoutScript.computed || {}),
                 ...(pageScript.computed || {})
             },
 
-            // watch도 병합
+            // watch 병합 (페이지가 우선)
             watch: {
                 ...(layoutScript.watch || {}),
                 ...(pageScript.watch || {})
-            }
+            },
+
+            // 라이프사이클 훅 병합 (순차 실행을 위해 보존)
+            _layoutBeforeMount: layoutScript.beforeMount,
+            _pageBeforeMount: pageScript.beforeMount,
+            _layoutMounted: layoutScript.mounted,
+            _pageMounted: pageScript.mounted,
+            _layoutBeforeUpdate: layoutScript.beforeUpdate,
+            _pageBeforeUpdate: pageScript.beforeUpdate,
+            _layoutUpdated: layoutScript.updated,
+            _pageUpdated: pageScript.updated,
+            _layoutBeforeUnmount: layoutScript.beforeUnmount,
+            _pageBeforeUnmount: pageScript.beforeUnmount,
+            _layoutUnmounted: layoutScript.unmounted,
+            _pageUnmounted: pageScript.unmounted,
+
+            // 나머지 속성들 (페이지가 우선)
+            props: pageScript.props || layoutScript.props,
+            emits: pageScript.emits || layoutScript.emits,
+            components: {
+                ...(layoutScript.components || {}),
+                ...(pageScript.components || {})
+            },
+            provide: pageScript.provide || layoutScript.provide,
+            inject: pageScript.inject || layoutScript.inject
         };
+
+        return merged;
     }
 
     /**

@@ -4,15 +4,19 @@
 
 ## 목차
 1. [빠른 시작](#빠른-시작)
-2. [라우팅 사용법](#라우팅-사용법)
-3. [데이터 페칭](#데이터-페칭)
-4. [폼 처리](#폼-처리)
-5. [API 호출](#api-호출)
+2. [핵심 개념](#핵심-개념)
+3. [라우팅 사용법](#라우팅-사용법)
+4. [데이터 관리](#데이터-관리)
+5. [폼 처리](#폼-처리)
 6. [인증 처리](#인증-처리)
 7. [다국어 지원](#다국어-지원)
 8. [컴포넌트 사용](#컴포넌트-사용)
 9. [레이아웃 시스템](#레이아웃-시스템)
 10. [고급 기능](#고급-기능)
+11. [프로덕션 배포](#프로덕션-배포)
+12. [디버깅 팁](#디버깅-팁)
+13. [자주 묻는 질문](#자주-묻는-질문-faq)
+14. [부록](#부록)
 
 ---
 
@@ -37,7 +41,7 @@ project/
 │   └── ja.json
 └── src/
     ├── views/              # HTML 템플릿
-    │   ├── home.html
+    │   ├── home.html       # 루트(/) 및 /home 라우트
     │   ├── about.html
     │   └── layout/         # 레이아웃 템플릿
     │       └── default.html
@@ -121,12 +125,99 @@ export default {
 
 ---
 
+## 핵심 개념
+
+### 파일 기반 라우팅
+
+ViewLogic은 파일 이름과 구조가 곧 라우트입니다:
+
+```
+src/views/home.html + src/logic/home.js → /#/home (또는 /)
+src/views/about.html + src/logic/about.js → /#/about
+src/views/users/profile.html + src/logic/users/profile.js → /#/users/profile
+```
+
+### View-Logic 분리
+
+- **View (HTML)**: 템플릿만 담당 (`src/views/`)
+- **Logic (JS)**: 데이터와 로직만 담당 (`src/logic/`)
+- **레이아웃**: 공통 구조와 로직 (`src/views/layout/`, `src/logic/layout/`)
+
+### 데이터 로딩 방식 선택 가이드
+
+<!-- DECISION_GUIDE: 데이터 로딩 방법 선택 -->
+
+```
+데이터를 어떻게 로드해야 할까?
+
+┌─ 페이지 로드 시 자동으로 단순 GET 요청이 필요한가?
+│  └─ YES → dataURL 사용 (자동 로딩)
+│
+├─ 조건부로 데이터를 로드해야 하는가?
+│  └─ YES → $api 수동 호출
+│
+├─ 복잡한 에러 처리나 로딩 상태 제어가 필요한가?
+│  └─ YES → $api 수동 호출
+│
+├─ 사용자 액션(버튼 클릭 등)에 따라 데이터를 로드하는가?
+│  └─ YES → $api 수동 호출
+│
+└─ POST, PUT, DELETE 등 다양한 HTTP 메서드를 사용하는가?
+   └─ YES → $api 수동 호출
+```
+
+**비교 표:**
+
+| 기능 | dataURL (자동) | $api (수동) |
+|------|----------------|-------------|
+| 자동 로딩 | ✅ mounted 전에 자동 실행 | ❌ 직접 호출 필요 |
+| HTTP 메서드 | GET만 가능 | GET, POST, PUT, DELETE 등 모두 가능 |
+| 에러 처리 | 자동 (기본 처리) | ✅ 세밀한 제어 가능 |
+| 로딩 상태 | 자동 ($dataLoading) | ✅ 직접 제어 |
+| 조건부 로드 | ❌ 불가능 | ✅ 가능 |
+| 파라미터 치환 | ✅ {id} 형식 지원 | 수동으로 처리 |
+| 사용 난이도 | 쉬움 | 중간 |
+| 권장 사용처 | 단순 목록 조회, 상세 조회 | 검색, 필터링, CUD 작업, 복잡한 로직 |
+
+### 폼 처리 방식 선택 가이드
+
+<!-- DECISION_GUIDE: 폼 처리 방법 선택 -->
+
+```
+폼을 어떻게 처리해야 할까?
+
+┌─ 단순한 CRUD 폼인가? (생성, 수정, 삭제)
+│  └─ YES → 선언적 폼 (action, method 속성) 사용
+│
+├─ 복잡한 유효성 검증이 필요한가?
+│  └─ YES → 전통적 폼 (@submit.prevent + 메서드)
+│
+├─ 제출 전 여러 단계 처리가 필요한가?
+│  └─ YES → 전통적 폼
+│
+└─ 파일 업로드가 포함되는가?
+   └─ YES → 전통적 폼 (FormData 사용)
+```
+
+**비교 표:**
+
+| 기능 | 선언적 폼 (권장) | 전통적 폼 |
+|------|------------------|----------|
+| 코드량 | ✅ 적음 | 많음 |
+| 파라미터 치환 | ✅ {userId} 자동 치환 | 수동 처리 |
+| 성공 후 리다이렉트 | ✅ data-redirect 속성 | 수동 처리 |
+| 에러 처리 | 콜백 함수 지정 | try-catch 직접 작성 |
+| 유효성 검증 | 제한적 | ✅ 세밀한 제어 |
+| 권장 사용처 | 일반적인 CRUD | 복잡한 폼, 다단계 처리 |
+
+---
+
 ## 라우팅 사용법
 
 ### 기본 라우팅
 
 파일 이름이 곧 라우트입니다:
-- `home.html` + `home.js` → `/#/home`
+- `home.html` + `home.js` → `/#/home` (또는 루트 `/`)
 - `about.html` + `about.js` → `/#/about`
 - `users/profile.html` + `users/profile.js` → `/#/users/profile`
 
@@ -157,6 +248,9 @@ this.navigateTo('/users/profile');
 **중요:** `navigateTo()`는 모드(hash/history)에 관계없이 동일하게 사용합니다. 라우터가 자동으로 적절한 URL 형식으로 변환합니다.
 
 ### 파라미터 받기
+
+<!-- USE_CASE: URL 파라미터 받기 -->
+<!-- API: getParam(), getParams() -->
 
 URL: `/#/users?id=123&tab=profile`
 
@@ -239,9 +333,15 @@ src/
 
 ---
 
-## 데이터 페칭
+## 데이터 관리
 
-### 자동 데이터 로딩 (dataURL)
+<!-- CONCEPT: 데이터 로딩 및 API 호출 -->
+
+ViewLogic은 두 가지 데이터 로딩 방식을 제공합니다. 상황에 맞게 선택하세요.
+
+### 방법 1: 자동 데이터 로딩 (dataURL) ⭐ 권장 (단순 GET)
+
+<!-- USE_CASE: 페이지 로드 시 자동 데이터 로딩 -->
 
 가장 간단한 방법:
 
@@ -261,7 +361,7 @@ export default {
 }
 ```
 
-### 파라미터와 함께
+#### 파라미터와 함께
 
 ```javascript
 export default {
@@ -280,7 +380,10 @@ export default {
 // 실제 호출: GET /api/users/123
 ```
 
-### 수동 API 호출
+### 방법 2: 수동 API 호출 ($api) ⭐ 권장 (복잡한 로직)
+
+<!-- USE_CASE: 조건부 데이터 로딩, 에러 처리, 다양한 HTTP 메서드 -->
+<!-- API: $api.get(), $api.post(), $api.put(), $api.delete() -->
 
 ```javascript
 export default {
@@ -317,45 +420,75 @@ export default {
 }
 ```
 
----
-
-## 폼 처리
-
-### 기본 폼 제출
-
-```html
-<form @submit.prevent="handleSubmit">
-    <input v-model="username" placeholder="사용자명">
-    <input v-model="email" type="email" placeholder="이메일">
-    <button type="submit">가입하기</button>
-</form>
-```
+### $api 메서드 전체 목록
 
 ```javascript
-export default {
-    name: 'Signup',
-    data() {
-        return {
-            username: '',
-            email: ''
-        }
-    },
-    methods: {
-        async handleSubmit() {
-            const response = await this.$api.post('/api/signup', {
-                username: this.username,
-                email: this.email
-            });
+// GET 요청
+const users = await this.$api.get('/api/users');
+const user = await this.$api.get('/api/users/123');
+const filtered = await this.$api.get('/api/users', {
+    params: { role: 'admin', active: true }
+});
 
-            if (response.success) {
-                this.navigateTo('/login');
+// POST 요청
+const created = await this.$api.post('/api/users', {
+    name: 'John',
+    email: 'john@example.com'
+});
+
+// PUT 요청 (수정)
+const updated = await this.$api.put('/api/users/123', {
+    name: 'John Doe'
+});
+
+// PATCH 요청 (부분 수정)
+const patched = await this.$api.patch('/api/users/123', {
+    email: 'newemail@example.com'
+});
+
+// DELETE 요청
+const deleted = await this.$api.delete('/api/users/123');
+
+// 커스텀 헤더
+const response = await this.$api.get('/api/data', {
+    headers: {
+        'X-Custom-Header': 'value'
+    }
+});
+```
+
+### 에러 처리 패턴
+
+```javascript
+methods: {
+    async fetchData() {
+        try {
+            const response = await this.$api.get('/api/data');
+            this.data = response.data;
+        } catch (error) {
+            if (error.response) {
+                // 서버 응답 있음 (4xx, 5xx)
+                console.error('상태 코드:', error.response.status);
+                console.error('에러 메시지:', error.response.data);
+            } else if (error.request) {
+                // 요청은 갔으나 응답 없음
+                console.error('서버 응답 없음');
+            } else {
+                // 요청 설정 중 오류
+                console.error('요청 오류:', error.message);
             }
         }
     }
 }
 ```
 
-### 선언적 폼 (자동 처리)
+---
+
+## 폼 처리
+
+### 방법 1: 선언적 폼 (자동 처리) ⭐ 권장
+
+<!-- USE_CASE: 단순 CRUD 폼, 파라미터 치환 필요 -->
 
 ViewLogic의 강력한 폼 처리:
 
@@ -405,66 +538,36 @@ export default {
 - `data-loading` - 로딩 중 호출할 메서드명
 - `data-redirect` - 성공 후 이동할 라우트
 
----
+### 방법 2: 전통적 폼 처리
 
-## API 호출
+<!-- USE_CASE: 복잡한 유효성 검증, 다단계 처리 -->
 
-### $api 메서드
-
-```javascript
-// GET 요청
-const users = await this.$api.get('/api/users');
-const user = await this.$api.get('/api/users/123');
-const filtered = await this.$api.get('/api/users', {
-    params: { role: 'admin', active: true }
-});
-
-// POST 요청
-const created = await this.$api.post('/api/users', {
-    name: 'John',
-    email: 'john@example.com'
-});
-
-// PUT 요청 (수정)
-const updated = await this.$api.put('/api/users/123', {
-    name: 'John Doe'
-});
-
-// PATCH 요청 (부분 수정)
-const patched = await this.$api.patch('/api/users/123', {
-    email: 'newemail@example.com'
-});
-
-// DELETE 요청
-const deleted = await this.$api.delete('/api/users/123');
-
-// 커스텀 헤더
-const response = await this.$api.get('/api/data', {
-    headers: {
-        'X-Custom-Header': 'value'
-    }
-});
+```html
+<form @submit.prevent="handleSubmit">
+    <input v-model="username" placeholder="사용자명">
+    <input v-model="email" type="email" placeholder="이메일">
+    <button type="submit">가입하기</button>
+</form>
 ```
 
-### 에러 처리
-
 ```javascript
-methods: {
-    async fetchData() {
-        try {
-            const response = await this.$api.get('/api/data');
-            this.data = response.data;
-        } catch (error) {
-            if (error.response) {
-                // 서버 응답 있음 (4xx, 5xx)
-                console.error('상태 코드:', error.response.status);
-                console.error('에러 메시지:', error.response.data);
-            } else if (error.request) {
-                // 요청은 갔으나 응답 없음
-                console.error('서버 응답 없음');
-            } else {
-                // 요청 설정 중 오류
-                console.error('요청 오류:', error.message);
+export default {
+    name: 'Signup',
+    data() {
+        return {
+            username: '',
+            email: ''
+        }
+    },
+    methods: {
+        async handleSubmit() {
+            const response = await this.$api.post('/api/signup', {
+                username: this.username,
+                email: this.email
+            });
+
+            if (response.success) {
+                this.navigateTo('/login');
             }
         }
     }
@@ -474,6 +577,8 @@ methods: {
 ---
 
 ## 인증 처리
+
+<!-- CONCEPT: 인증 및 토큰 관리 -->
 
 ### 설정
 
@@ -485,6 +590,12 @@ const router = new ViewLogicRouter({
     authStorage: 'localStorage'  // 'cookie', 'sessionStorage', 'memory'
 });
 ```
+
+**authStorage 옵션:**
+- `localStorage`: 브라우저를 닫아도 유지 (기본값, 권장)
+- `sessionStorage`: 탭을 닫으면 삭제
+- `cookie`: 쿠키로 저장 (서버와 공유 가능)
+- `memory`: 페이지 새로고침 시 삭제
 
 ### 로그인 구현
 
@@ -576,6 +687,8 @@ const response = await this.$api.get('/api/protected-data');
 ---
 
 ## 다국어 지원
+
+<!-- CONCEPT: Internationalization (i18n) -->
 
 ### 설정
 
@@ -676,6 +789,8 @@ export default {
 
 ## 컴포넌트 사용
 
+<!-- CONCEPT: 재사용 가능한 Vue 컴포넌트 -->
+
 ### 컴포넌트 생성
 
 **src/components/Button.js**
@@ -703,11 +818,24 @@ export default {
 
 ### 페이지에서 사용
 
+ViewLogic은 **템플릿 기반 자동 컴포넌트 발견**을 사용합니다. 템플릿에서 사용된 컴포넌트를 자동으로 찾아 로드합니다.
+
+**src/views/home.html**
+```html
+<div>
+    <h1>카운터: {{ count }}</h1>
+    <!-- Button 컴포넌트 사용 - 자동으로 로드됨 -->
+    <Button
+        text="증가"
+        type="primary"
+        @click="handleClick" />
+</div>
+```
+
+**src/logic/home.js**
 ```javascript
-// src/logic/home.js
 export default {
     name: 'Home',
-    components: ['Button'],  // 컴포넌트 이름만 명시
     data() {
         return {
             count: 0
@@ -721,30 +849,29 @@ export default {
 }
 ```
 
-```html
-<!-- src/views/home.html -->
-<div>
-    <h1>카운터: {{ count }}</h1>
-    <Button
-        text="증가"
-        type="primary"
-        @click="handleClick" />
-</div>
-```
+**작동 방식:**
+1. 템플릿에서 `<Button>` 태그 발견
+2. `src/components/Button.js` 자동 로드
+3. 컴포넌트로 등록 및 사용
 
 ### 다중 컴포넌트
 
-```javascript
-export default {
-    name: 'Dashboard',
-    components: ['Button', 'Card', 'Modal'],
-    // ...
-}
+```html
+<!-- src/views/dashboard.html -->
+<div>
+    <Button text="클릭" />
+    <Card title="제목" />
+    <Modal :show="showModal" />
+</div>
 ```
+
+템플릿에 사용된 `Button`, `Card`, `Modal` 모두 자동으로 로드됩니다.
 
 ---
 
 ## 레이아웃 시스템
+
+<!-- CONCEPT: 공통 레이아웃과 페이지별 컨텐츠 분리 -->
 
 ### 레이아웃 템플릿 생성
 
@@ -763,7 +890,7 @@ export default {
     </header>
 
     <main>
-        <slot></slot>  <!-- 페이지 컨텐츠가 여기에 -->
+        {{ content }}  <!-- 페이지 컨텐츠가 여기에 -->
     </main>
 
     <footer>
@@ -779,7 +906,7 @@ export default {
 export default {
     data() {
         return {
-            $layout: {
+            $layout: {  // ⭐ 중요: $layout 네임스페이스 사용
                 user: null,
                 currentYear: new Date().getFullYear()
             }
@@ -842,10 +969,52 @@ export default {
 }
 ```
 
-**참고:**
-- 레이아웃 로직 파일(`.js`)은 선택 사항입니다
-- 레이아웃 로직이 없으면 HTML 템플릿만 사용됩니다
-- 레이아웃의 `data`, `methods`, `mounted` 등은 모든 페이지에서 접근 가능합니다
+### 레이아웃 스크립트 병합 동작
+
+<!-- CONCEPT: 레이아웃과 페이지 스크립트 병합 규칙 -->
+
+레이아웃 로직(layout/default.js)과 페이지 로직(home.js)이 자동으로 병합됩니다:
+
+| 속성 | 병합 동작 | 설명 | 권장사항 |
+|------|----------|------|----------|
+| `data` | ⚠️ 페이지 우선, 레이아웃도 보존 | 둘 다 호출되지만 같은 키는 페이지가 덮어씀 | **레이아웃은 `$layout` 네임스페이스 필수** |
+| `methods` | ✅ 병합됨, 페이지 우선 | 같은 이름이면 페이지 메서드가 우선 | 자유롭게 사용 |
+| `computed` | ✅ 병합됨, 페이지 우선 | 같은 이름이면 페이지 computed가 우선 | 자유롭게 사용 |
+| `watch` | ✅ 병합됨, 페이지 우선 | 같은 이름이면 페이지 watch가 우선 | 자유롭게 사용 |
+| `mounted` | ✅ 순차 실행 | 레이아웃 mounted → 페이지 mounted | 레이아웃과 페이지 모두 사용 가능 |
+| `beforeMount` | ✅ 순차 실행 | 레이아웃 → 페이지 순서 | 레이아웃과 페이지 모두 사용 가능 |
+| `beforeUnmount` | ✅ 순차 실행 | 레이아웃 → 페이지 순서 | 레이아웃과 페이지 모두 사용 가능 |
+| `name` | ⚠️ 페이지 우선 | 컴포넌트 이름은 페이지 것 사용 | 페이지에서만 정의 |
+| `components` | ✅ 병합됨 | 레이아웃과 페이지 컴포넌트 모두 사용 가능 | 자유롭게 사용 |
+
+**권장 패턴:**
+```javascript
+// ✅ 좋은 예 - 레이아웃 data는 $layout 네임스페이스 사용
+// src/logic/layout/default.js
+export default {
+    data() {
+        return {
+            $layout: {  // ✅ $layout으로 감싸기
+                user: null,
+                settings: {},
+                currentYear: 2025
+            }
+        }
+    },
+    methods: {
+        commonMethod() { }  // ✅ methods는 자유롭게
+    }
+}
+
+// ❌ 나쁜 예 - 직접 속성 사용
+export default {
+    data() {
+        return {
+            user: null  // ❌ 페이지 data의 user와 충돌 가능
+        }
+    }
+}
+```
 
 ---
 
@@ -948,6 +1117,15 @@ export default {
 
 ### 4. 캐싱 제어
 
+**캐시 모드 비교:**
+
+| 모드 | 유지 범위 | 사용 사례 |
+|------|----------|----------|
+| `memory` | 페이지 새로고침 전까지 | 개발 환경, 빠른 성능 (권장) |
+| `sessionStorage` | 탭을 닫기 전까지 | 세션 기반 데이터 |
+| `localStorage` | 브라우저를 닫아도 유지 | 장기 캐시, 오프라인 지원 |
+| `none` | 캐시 안 함 | 항상 최신 데이터 필요 시 |
+
 ```javascript
 const router = new ViewLogicRouter({
     cacheMode: 'memory',  // 'memory', 'sessionStorage', 'localStorage', 'none'
@@ -1033,7 +1211,7 @@ methods: {
 }
 ```
 
-### 8. 상태 관리 (전역 상태)
+### 8. 전역 상태 관리
 
 ```javascript
 export default {
@@ -1091,38 +1269,39 @@ location / {
 
 ---
 
-## 전체 설정 옵션
+## 프로덕션 배포
+
+### 1. 빌드 (선택 사항)
+
+ViewLogic은 빌드 없이 사용 가능하지만, 최적화를 원한다면:
+
+```bash
+npm run build
+```
+
+### 2. 환경 변수 설정
 
 ```javascript
 const router = new ViewLogicRouter({
-    // 기본 설정
-    basePath: '/',                    // 앱 기본 경로
-    srcPath: '/src',                  // 소스 파일 경로
-    mode: 'hash',                     // 'hash' 또는 'history'
-    environment: 'development',       // 'development' 또는 'production'
-
-    // 캐싱
-    cacheMode: 'memory',              // 'memory', 'sessionStorage', 'localStorage', 'none'
-    cacheTTL: 300000,                 // 캐시 유지 시간 (밀리초)
-    maxCacheSize: 50,                 // 최대 캐시 항목 수
-
-    // 레이아웃
-    useLayout: true,                  // 레이아웃 사용 여부
-    defaultLayout: 'default',         // 기본 레이아웃
-
-    // 인증
-    authEnabled: false,               // 인증 활성화
-    loginRoute: 'login',              // 로그인 라우트
-    protectedRoutes: [],              // 보호할 라우트 목록
-    authStorage: 'localStorage',      // 토큰 저장소
-
-    // 다국어
-    useI18n: false,                   // 다국어 활성화
-    defaultLanguage: 'ko',            // 기본 언어
-
-    // 로깅
-    logLevel: 'info'                  // 'debug', 'info', 'warn', 'error'
+    environment: 'production',
+    logLevel: 'error',  // 에러만 로깅
+    cacheMode: 'memory',
+    cacheTTL: 600000    // 10분
 });
+```
+
+### 3. CDN 사용
+
+```html
+<!-- ViewLogic Router -->
+<script src="https://cdn.jsdelivr.net/npm/viewlogic@latest/dist/viewlogic-router.min.js"></script>
+<script>
+    const router = new ViewLogicRouter({
+        basePath: '/',
+        srcPath: '/src',
+        environment: 'production'
+    });
+</script>
 ```
 
 ---
@@ -1174,43 +1353,6 @@ methods: {
 
 ---
 
-## 프로덕션 배포
-
-### 1. 빌드 (선택 사항)
-
-ViewLogic은 빌드 없이 사용 가능하지만, 최적화를 원한다면:
-
-```bash
-npm run build
-```
-
-### 2. 환경 변수 설정
-
-```javascript
-const router = new ViewLogicRouter({
-    environment: 'production',
-    logLevel: 'error',  // 에러만 로깅
-    cacheMode: 'memory',
-    cacheTTL: 600000    // 10분
-});
-```
-
-### 3. CDN 사용
-
-```html
-<!-- ViewLogic Router -->
-<script src="https://cdn.jsdelivr.net/npm/viewlogic@latest/dist/viewlogic-router.min.js"></script>
-<script>
-    const router = new ViewLogicRouter({
-        basePath: '/',
-        srcPath: '/src',
-        environment: 'production'
-    });
-</script>
-```
-
----
-
 ## 자주 묻는 질문 (FAQ)
 
 ### Q1. 페이지가 로드되지 않아요
@@ -1224,19 +1366,277 @@ const router = new ViewLogicRouter({
 - API URL이 올바른지 확인
 
 ### Q3. 컴포넌트가 작동하지 않아요
-- `components` 배열에 컴포넌트 이름 추가했는지 확인
 - 컴포넌트 파일이 `src/components/` 폴더에 있는지 확인
-- 컴포넌트 이름과 파일 이름이 일치하는지 확인
+- 컴포넌트 이름과 파일 이름이 일치하는지 확인 (예: `<Button>` → `Button.js`)
+- 템플릿에서 PascalCase로 사용했는지 확인 (예: `<Button>`, `<MyCard>`)
 
 ### Q4. 인증 토큰이 전달되지 않아요
 - `authEnabled: true` 설정 확인
-- `this.$auth.login(token)` 호출 확인
+- `this.setToken(token)` 호출 확인
 - 브라우저 개발자 도구에서 localStorage/cookie 확인
 
 ### Q5. 다국어가 적용되지 않아요
 - `useI18n: true` 설정 확인
 - `i18n/` 폴더에 언어 파일 있는지 확인 (프로젝트 루트)
 - JSON 파일 형식이 올바른지 확인
+
+### Q6. 레이아웃 데이터가 페이지에서 보이지 않아요
+- 레이아웃 로직에서 `$layout` 네임스페이스를 사용했는지 확인
+- 템플릿에서 `{{ $layout.user }}` 형식으로 접근했는지 확인
+- 페이지 로직에서 `layout: 'default'` 속성을 설정했는지 확인
+
+---
+
+## 부록
+
+### A. 라우트 스크립트 API 레퍼런스
+
+<!-- API_REFERENCE: 모든 라우트 스크립트에서 사용 가능한 메서드 -->
+
+모든 라우트 스크립트(페이지/레이아웃)에서 사용 가능한 메서드들:
+
+#### 라우팅
+
+| 메서드 | 설명 | 예제 |
+|--------|------|------|
+| `navigateTo(route, params?)` | 페이지 이동 | `this.navigateTo('/users', { id: 123 })` |
+| `getCurrentRoute()` | 현재 라우트 이름 반환 | `const route = this.getCurrentRoute()` |
+
+#### 파라미터 관리
+
+| 메서드 | 설명 | 예제 |
+|--------|------|------|
+| `getParams()` | 모든 파라미터 객체 반환 | `const params = this.getParams()` |
+| `getParam(key, defaultValue?)` | 특정 파라미터 가져오기 | `const id = this.getParam('id', 0)` |
+
+#### 인증
+
+| 메서드 | 설명 | 예제 |
+|--------|------|------|
+| `isAuth()` | 로그인 여부 확인 | `if (this.isAuth()) { }` |
+| `getToken()` | 토큰 가져오기 | `const token = this.getToken()` |
+| `setToken(token, options?)` | 토큰 설정 | `this.setToken('new-token')` |
+| `logout()` | 로그아웃 (자동 리다이렉트) | `this.logout()` |
+
+#### API 호출
+
+| 메서드 | 설명 | 예제 |
+|--------|------|------|
+| `$api.get(url, config?)` | GET 요청 | `await this.$api.get('/api/users')` |
+| `$api.post(url, data?, config?)` | POST 요청 | `await this.$api.post('/api/users', data)` |
+| `$api.put(url, data?, config?)` | PUT 요청 | `await this.$api.put('/api/users/1', data)` |
+| `$api.patch(url, data?, config?)` | PATCH 요청 | `await this.$api.patch('/api/users/1', data)` |
+| `$api.delete(url, config?)` | DELETE 요청 | `await this.$api.delete('/api/users/1')` |
+
+#### 다국어 (i18n)
+
+| 메서드/속성 | 설명 | 예제 |
+|-------------|------|------|
+| `$t(key, params?)` | 번역 | `this.$t('welcome')` |
+| `$lang` | 현재 언어 코드 | `const lang = this.$lang` |
+| `$i18n.setLanguage(lang)` | 언어 변경 | `this.$i18n.setLanguage('en')` |
+
+#### 전역 상태 관리
+
+| 메서드 | 설명 | 예제 |
+|--------|------|------|
+| `$state.set(key, value)` | 상태 저장 | `this.$state.set('user', user)` |
+| `$state.get(key, defaultValue?)` | 상태 가져오기 | `const user = this.$state.get('user')` |
+| `$state.watch(key, callback)` | 상태 감시 | `this.$state.watch('user', (val) => {})` |
+| `$state.clear(key)` | 상태 삭제 | `this.$state.clear('user')` |
+
+#### 캐시 제어
+
+| 메서드 | 설명 | 예제 |
+|--------|------|------|
+| `$cache.clear()` | 전체 캐시 삭제 | `this.$cache.clear()` |
+| `$cache.delete(key)` | 특정 캐시 삭제 | `this.$cache.delete('users')` |
+
+#### 로깅
+
+| 메서드 | 설명 | 예제 |
+|--------|------|------|
+| `log(level, ...args)` | 로그 출력 | `this.log('info', 'Message')` |
+
+---
+
+### B. 전역 $router 객체
+
+`window.$router` 또는 HTML에서 직접 사용 가능:
+
+#### HTML 템플릿에서
+```html
+<!-- 페이지 이동 -->
+<button @click="$router.navigateTo('/about')">About</button>
+
+<!-- 현재 라우트 확인 -->
+<div v-if="$router.currentRoute === 'home'">
+    홈 페이지입니다
+</div>
+
+<!-- 인증 상태 -->
+<div v-if="$router.authManager?.isAuthenticated()">
+    로그인됨
+</div>
+```
+
+#### JavaScript에서
+```javascript
+// 전역 접근
+window.$router.navigateTo('/about')
+
+// 라우터 정보
+console.log(window.$router.config)
+console.log(window.$router.currentRoute)
+
+// 매니저 접근
+window.$router.authManager.isAuthenticated()
+window.$router.i18nManager.setLanguage('en')
+window.$router.stateHandler.set('key', 'value')
+```
+
+**참고:** 라우트 스크립트 내부에서는 `this.navigateTo()` 등을 사용하는 것이 더 간편합니다.
+
+---
+
+### C. 전체 설정 옵션
+
+```javascript
+const router = new ViewLogicRouter({
+    // 기본 설정
+    basePath: '/',                    // 앱 기본 경로
+    srcPath: '/src',                  // 소스 파일 경로
+    mode: 'hash',                     // 'hash' 또는 'history'
+    environment: 'development',       // 'development' 또는 'production'
+
+    // 캐싱
+    cacheMode: 'memory',              // 'memory', 'sessionStorage', 'localStorage', 'none'
+    cacheTTL: 300000,                 // 캐시 유지 시간 (밀리초)
+    maxCacheSize: 50,                 // 최대 캐시 항목 수
+
+    // 레이아웃
+    useLayout: true,                  // 레이아웃 사용 여부
+    defaultLayout: 'default',         // 기본 레이아웃
+
+    // 인증
+    authEnabled: false,               // 인증 활성화
+    loginRoute: 'login',              // 로그인 라우트
+    protectedRoutes: [],              // 보호할 라우트 목록
+    authStorage: 'localStorage',      // 'localStorage', 'sessionStorage', 'cookie', 'memory'
+
+    // 다국어
+    useI18n: false,                   // 다국어 활성화
+    defaultLanguage: 'ko',            // 기본 언어
+
+    // 로깅
+    logLevel: 'info'                  // 'debug', 'info', 'warn', 'error'
+});
+```
+
+---
+
+### D. 일반적인 함정 및 주의사항
+
+<!-- PITFALLS: 자주 발생하는 문제와 해결 방법 -->
+
+#### 1. 레이아웃 데이터 충돌
+
+**문제:**
+```javascript
+// ❌ 레이아웃과 페이지에서 같은 속성명 사용
+// layout/default.js
+data() {
+    return { user: null }  // ❌
+}
+
+// home.js
+data() {
+    return { user: null }  // ❌ 충돌!
+}
+```
+
+**해결:**
+```javascript
+// ✅ 레이아웃은 $layout 네임스페이스 사용
+// layout/default.js
+data() {
+    return {
+        $layout: { user: null }  // ✅
+    }
+}
+
+// home.js
+data() {
+    return { user: null }  // ✅ 충돌 없음
+}
+```
+
+#### 2. 파라미터 치환 미작동
+
+**문제:**
+```javascript
+// ❌ 파라미터 이름과 URL 파라미터 불일치
+dataURL: '/api/users/{userId}'  // userId 기대
+// 접근: /#/user?id=123  // ❌ id로 전달
+```
+
+**해결:**
+```javascript
+// ✅ 일치시키기
+dataURL: '/api/users/{id}'  // id 사용
+// 접근: /#/user?id=123  // ✅ 작동
+```
+
+#### 3. 인증 토큰 자동 주입 안 됨
+
+**문제:**
+```javascript
+// ❌ authEnabled가 false
+const router = new ViewLogicRouter({
+    authEnabled: false  // ❌
+});
+```
+
+**해결:**
+```javascript
+// ✅ authEnabled를 true로
+const router = new ViewLogicRouter({
+    authEnabled: true  // ✅
+});
+```
+
+#### 4. 컴포넌트 로딩 실패
+
+**문제:**
+```javascript
+// 컴포넌트 파일이 잘못된 위치에 있음
+src/component/Button.js  // ❌ 잘못된 경로 (component는 단수형)
+```
+```html
+<Button text="클릭" />  <!-- ❌ 작동 안 함 -->
+```
+
+**해결:**
+```javascript
+// ✅ 올바른 경로에 컴포넌트 배치
+src/components/Button.js  // ✅ components는 복수형
+```
+
+**참고:** ViewLogic은 템플릿에서 컴포넌트를 자동으로 발견합니다. 템플릿에 `<Button>`을 사용하면 자동으로 `src/components/Button.js`를 로드합니다.
+
+#### 5. 히스토리 모드 404 에러
+
+**문제:**
+```javascript
+// history 모드 사용 중
+const router = new ViewLogicRouter({
+    mode: 'history'  // ✅
+});
+// 하지만 서버 설정 없음 → 새로고침 시 404 ❌
+```
+
+**해결:**
+서버에서 모든 요청을 index.html로 리다이렉트하도록 설정 (Nginx, Apache 등)
 
 ---
 
