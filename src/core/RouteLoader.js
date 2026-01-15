@@ -244,7 +244,7 @@ export class RouteLoader {
                 
                 // 개발 모드에서만 동적 컴포넌트 발견
                 if (!isProduction) {
-                    const layoutName = script.layout || this.config.defaultLayout;
+                    const layoutName = script.layout !== null ? (script.layout || this.config.defaultLayout) : null;
                     componentNames = this.componentLoader.getComponentNames(template, layout, layoutName);
                     this.log('debug', `[DEVELOPMENT] Discovered components for route '${routeName}':`, componentNames);
                 }
