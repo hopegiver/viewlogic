@@ -497,7 +497,10 @@ export class RouteLoader {
      */
     _mergeLayoutAndPageScript(layoutScript, pageScript) {
         if (!layoutScript) {
-            return pageScript;
+            return {
+                ...pageScript,
+                _pageData: pageScript.data
+            };
         }
 
         // 레이아웃과 페이지 스크립트 병합
