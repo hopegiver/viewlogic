@@ -52,21 +52,21 @@ project/
 │   ├── views/              # HTML templates (pure presentation)
 │   │   ├── home.html
 │   │   ├── user-profile.html
-│   │   └── dashboard.html
+│   │   ├── dashboard.html
+│   │   └── layout/         # Layout HTML templates
+│   │       ├── default.html
+│   │       └── admin.html
 │   ├── logic/              # Vue component logic (pure JavaScript)
 │   │   ├── home.js
 │   │   ├── user-profile.js
-│   │   └── dashboard.js
-│   ├── components/         # Reusable UI components
-│   │   ├── UserCard.vue
-│   │   └── NavigationMenu.vue
-│   ├── layouts/            # Layout templates
-│   │   ├── default.html
-│   │   └── admin.html
-│   └── styles/             # Page-specific CSS files
-│       ├── home.css
-│       └── user-profile.css
-├── css/                    # Global CSS files
+│   │   ├── dashboard.js
+│   │   └── layout/         # Layout JS logic
+│   │       ├── default.js
+│   │       └── admin.js
+│   └── components/         # Reusable UI components
+│       ├── UserCard.js
+│       └── NavigationMenu.js
+├── css/                    # Global CSS files (Bootstrap 5 etc.)
 │   └── base.css            # Base styles
 ├── js/                     # JavaScript library files
 │   ├── viewlogic-router.esm.js # ESM module (minified)
@@ -168,8 +168,8 @@ const router = new ViewLogicRouter({
 ```javascript
 export default {
     // Optional: specify layout (defaults to 'default')
-    layout: 'default',        // Use layouts/default.html
-    // layout: 'admin',       // Use layouts/admin.html
+    layout: 'default',        // Use views/layout/default.html
+    // layout: 'admin',       // Use views/layout/admin.html
     // layout: null,          // No layout (page-only content)
 
     data() {
@@ -186,20 +186,7 @@ export default {
 };
 ```
 
-**src/styles/home.css** (optional)
-```css
-.home {
-    padding: 2rem;
-    text-align: center;
-}
-
-.home h1 {
-    color: #2c3e50;
-    margin-bottom: 1rem;
-}
-```
-
-**src/layouts/default.html** (optional)
+**src/views/layout/default.html** (optional)
 ```html
 <header class="navbar">
     <h1>My App</h1>

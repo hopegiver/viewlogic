@@ -2,7 +2,7 @@
 
 ## Project Overview
 Vue 3 routing system with file-based routing, zero-build development, and view-logic separation.
-- Version: 1.2.2
+- Version: 1.4.6
 - Main entry: `src/viewlogic-router.js`
 - Main class: `ViewLogicRouter`
 
@@ -42,7 +42,9 @@ src/
 new ViewLogicRouter({
   basePath: '/',              // Application base path (default: '/')
   srcPath: '/src',            // Source files path (default: '/src')
-  mode: 'hash',               // Routing mode (default: 'hash')
+  mode: 'hash',               // Routing mode: 'hash' or 'history' (default: 'hash')
+  defaultRoute: 'home',       // Default route for / access (default: 'home')
+  defaultLayout: 'default',   // Default layout template (default: 'default')
   cacheMode: 'memory',        // Cache mode (default: 'memory')
   cacheTTL: 300000,           // Cache TTL in ms (default: 300000)
   useI18n: false,             // Enable internationalization (default: false)
@@ -62,10 +64,10 @@ examples/
 ├── css/                         # Global CSS files
 └── src/
     ├── views/                  # .html templates
-    ├── logic/                  # .js component logic  
-    ├── components/             # Reusable UI components
-    ├── layouts/                # Layout templates
-    └── styles/                 # Page-specific CSS files
+    │   └── layout/             # Layout HTML templates
+    ├── logic/                  # .js component logic
+    │   └── layout/             # Layout JS logic
+    └── components/             # Reusable UI components
 ```
 
 ## For Detailed Memory
