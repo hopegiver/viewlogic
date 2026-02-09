@@ -1,5 +1,6 @@
 export default {
     name: 'Home',
+    layout: 'default',
     
     data() {
         return {

@@ -890,8 +890,8 @@ export default {
         <nav>
             <a href="#/home">홈</a>
             <a href="#/about">소개</a>
-            <div v-if="$layout.user">
-                <span>{{ $layout.user.name }}</span>
+            <div v-if="layoutData.user">
+                <span>{{ layoutData.user.name }}</span>
                 <button @click="handleLogout">로그아웃</button>
             </div>
         </nav>
@@ -902,7 +902,7 @@ export default {
     </main>
 
     <footer>
-        <p>&copy; {{ $layout.currentYear }} My App</p>
+        <p>&copy; {{ layoutData.currentYear }} My App</p>
     </footer>
 </div>
 ```
@@ -914,7 +914,7 @@ export default {
 export default {
     data() {
         return {
-            $layout: {  // ⭐ 중요: $layout 네임스페이스 사용
+            layoutData: {  // ⭐ 중요: layoutData 네임스페이스 사용
                 user: null,
                 currentYear: new Date().getFullYear()
             }
@@ -926,7 +926,7 @@ export default {
 
         if (this.isAuth()) {
             const response = await this.$api.get('/api/user');
-            this.$layout.user = response.data;
+            this.layoutData.user = response.data;
             this.$state.set('user', response.data);
         }
     },
@@ -954,7 +954,7 @@ export default {
     async mounted() {
         // 페이지 로직
         console.log('Page mounted!');
-        console.log('User from layout:', this.$layout.user);  // 레이아웃 데이터 접근
+        console.log('User from layout:', this.layoutData.user);  // 레이아웃 데이터 접근
 
         await this.loadPosts();
     },
@@ -985,7 +985,7 @@ export default {
 
 | 속성 | 병합 동작 | 설명 | 권장사항 |
 |------|----------|------|----------|
-| `data` | ⚠️ 페이지 우선, 레이아웃도 보존 | 둘 다 호출되지만 같은 키는 페이지가 덮어씀 | **레이아웃은 `$layout` 네임스페이스 필수** |
+| `data` | ⚠️ 페이지 우선, 레이아웃도 보존 | 둘 다 호출되지만 같은 키는 페이지가 덮어씀 | **레이아웃은 `layoutData` 네임스페이스 권장** |
 | `methods` | ✅ 병합됨, 페이지 우선 | 같은 이름이면 페이지 메서드가 우선 | 자유롭게 사용 |
 | `computed` | ✅ 병합됨, 페이지 우선 | 같은 이름이면 페이지 computed가 우선 | 자유롭게 사용 |
 | `watch` | ✅ 병합됨, 페이지 우선 | 같은 이름이면 페이지 watch가 우선 | 자유롭게 사용 |
@@ -997,12 +997,12 @@ export default {
 
 **권장 패턴:**
 ```javascript
-// ✅ 좋은 예 - 레이아웃 data는 $layout 네임스페이스 사용
+// ✅ 좋은 예 - 레이아웃 data는 layoutData 네임스페이스 사용
 // src/logic/layout/default.js
 export default {
     data() {
         return {
-            $layout: {  // ✅ $layout으로 감싸기
+            layoutData: {  // ✅ layoutData로 감싸기 (Vue 3에서 $ 접두사 사용 불가)
                 user: null,
                 settings: {},
                 currentYear: 2025
@@ -1389,8 +1389,8 @@ methods: {
 - JSON 파일 형식이 올바른지 확인
 
 ### Q6. 레이아웃 데이터가 페이지에서 보이지 않아요
-- 레이아웃 로직에서 `$layout` 네임스페이스를 사용했는지 확인
-- 템플릿에서 `{{ $layout.user }}` 형식으로 접근했는지 확인
+- 레이아웃 로직에서 `layoutData` 네임스페이스를 사용했는지 확인
+- 템플릿에서 `{{ layoutData.user }}` 형식으로 접근했는지 확인
 - 페이지 로직에서 `layout: 'default'` 속성을 설정했는지 확인
 
 ---
@@ -1566,11 +1566,11 @@ data() {
 
 **해결:**
 ```javascript
-// ✅ 레이아웃은 $layout 네임스페이스 사용
+// ✅ 레이아웃은 layoutData 네임스페이스 사용
 // layout/default.js
 data() {
     return {
-        $layout: { user: null }  // ✅
+        layoutData: { user: null }  // ✅
     }
 }
 

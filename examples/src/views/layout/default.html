@@ -1,0 +1,25 @@
+<header>
+    <DynamicInclude page="navigation" />
+</header>
+
+<main class="main-content">
+    <div class="container">
+        <!-- 레이아웃 데이터 표시 -->
+        <div class="layout-info" style="background: #f0f0f0; padding: 10px; margin-bottom: 20px; border-radius: 5px;">
+            <small>
+                <strong>Layout Data:</strong> {{ layoutData.appName }} |
+                Year: {{ layoutData.currentYear }} |
+                <button @click="showNotification('Hello from Layout!')" class="btn btn-sm btn-info">Test Layout Method</button>
+            </small>
+        </div>
+
+        <!-- 페이지 콘텐츠가 여기에 삽입됩니다 -->
+        {{ content }}
+    </div>
+</main>
+
+<footer class="page-footer">
+    <div class="container">
+        <p>&copy; {{ layoutData.currentYear }} {{ layoutData.appName }}. All rights reserved.</p>
+    </div>
+</footer>
