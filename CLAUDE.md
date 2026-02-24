@@ -2,7 +2,7 @@
 
 ## Project Overview
 Vue 3 routing system with file-based routing, zero-build development, and view-logic separation.
-- Version: 1.4.6
+- Version: 1.4.7
 - Main entry: `src/viewlogic-router.js`
 - Main class: `ViewLogicRouter`
 

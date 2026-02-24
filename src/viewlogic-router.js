@@ -552,7 +552,7 @@ export class ViewLogicRouter {
     }
 
     getCurrentRoute() {
-        return this.currentHash;
+        return this.currentHash ? `/${this.currentHash}` : '/';
     }
 
 
