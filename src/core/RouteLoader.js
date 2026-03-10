@@ -499,7 +499,13 @@ export class RouteLoader {
         if (!layoutScript) {
             return {
                 ...pageScript,
-                _pageData: pageScript.data
+                _pageData: pageScript.data,
+                _pageBeforeMount: pageScript.beforeMount,
+                _pageMounted: pageScript.mounted,
+                _pageBeforeUpdate: pageScript.beforeUpdate,
+                _pageUpdated: pageScript.updated,
+                _pageBeforeUnmount: pageScript.beforeUnmount,
+                _pageUnmounted: pageScript.unmounted,
             };
         }
 
