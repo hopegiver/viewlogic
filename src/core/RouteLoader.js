@@ -303,6 +303,17 @@ export class RouteLoader {
                     return router.queryManager?.getAllParams() || {};
                 }
             },
+            async created() {
+                // 레이아웃 created 먼저 실행
+                if (mergedScript._layoutCreated) {
+                    await mergedScript._layoutCreated.call(this);
+                }
+
+                // 페이지 created 실행
+                if (mergedScript._pageCreated) {
+                    await mergedScript._pageCreated.call(this);
+                }
+            },
             async beforeMount() {
                 // 레이아웃 beforeMount 먼저 실행
                 if (mergedScript._layoutBeforeMount) {
@@ -500,6 +511,7 @@ export class RouteLoader {
             return {
                 ...pageScript,
                 _pageData: pageScript.data,
+                _pageCreated: pageScript.created,
                 _pageBeforeMount: pageScript.beforeMount,
                 _pageMounted: pageScript.mounted,
                 _pageBeforeUpdate: pageScript.beforeUpdate,
@@ -541,6 +553,8 @@ export class RouteLoader {
             },
 
             // 라이프사이클 훅 병합 (순차 실행을 위해 보존)
+            _layoutCreated: layoutScript.created,
+            _pageCreated: pageScript.created,
             _layoutBeforeMount: layoutScript.beforeMount,
             _pageBeforeMount: pageScript.beforeMount,
             _layoutMounted: layoutScript.mounted,
