@@ -5,8 +5,9 @@
 export class FormHandler {
     constructor(router, options = {}) {
         this.router = router;
-        this.requestTimeout = options.requestTimeout || 30000;
-        this.uploadTimeout = options.uploadTimeout || 300000;
+        // router.config에서 직접 참조 (RouteLoader의 자체 config에는 timeout 설정이 없음)
+        this.requestTimeout = router?.config?.requestTimeout || options.requestTimeout || 30000;
+        this.uploadTimeout = router?.config?.uploadTimeout || options.uploadTimeout || 300000;
         
         this.log('debug', 'FormHandler initialized');
     }
