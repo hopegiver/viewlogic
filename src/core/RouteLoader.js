@@ -431,6 +431,10 @@ export class RouteLoader {
                     return result;
                 },
                 getRefreshToken: () => router.authManager?.getRefreshToken() || null,
+                setRefreshToken: (token, options) => {
+                    if (!router.authManager) return false;
+                    return router.authManager.setRefreshToken(token, options);
+                },
 
                 // i18n 언어 관리
                 getLanguage: () => router.i18nManager?.getCurrentLanguage() || router.config.defaultLanguage || 'ko',
