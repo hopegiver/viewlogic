@@ -5,7 +5,8 @@
 export class ApiHandler {
     constructor(router, options = {}) {
         this.router = router;
-        this.apiBaseURL = options.apiBaseURL || '';
+        // router.config에서 직접 참조 (RouteLoader의 자체 config에는 apiBaseURL이 없음)
+        this.apiBaseURL = router?.config?.apiBaseURL || options.apiBaseURL || '';
         
         this.log('debug', 'ApiHandler initialized');
     }
