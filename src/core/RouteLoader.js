@@ -415,11 +415,22 @@ export class RouteLoader {
                     }
                 },
 
-                // 인증 관련 (핵심 4개 메소드만)
+                // 인증 관련
                 isAuth: () => router.authManager?.isAuthenticated() || false,
                 logout: () => router.authManager ? router.navigateTo(router.authManager.logout()) : null,
                 getToken: () => router.authManager?.getAccessToken() || null,
-                setToken: (token, options) => router.authManager?.setAccessToken(token, options) || false,
+                setToken: (token, options) => {
+                    if (!router.authManager) return false;
+                    const result = router.authManager.setAccessToken(token, options);
+                    // options.refreshToken이 있으면 리프레시 토큰도 저장
+                    if (options?.refreshToken) {
+                        router.authManager.setRefreshToken(options.refreshToken, {
+                            storage: options.refreshTokenStorage || undefined
+                        });
+                    }
+                    return result;
+                },
+                getRefreshToken: () => router.authManager?.getRefreshToken() || null,
 
                 // i18n 언어 관리
                 getLanguage: () => router.i18nManager?.getCurrentLanguage() || router.config.defaultLanguage || 'ko',

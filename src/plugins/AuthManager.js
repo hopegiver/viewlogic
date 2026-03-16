@@ -13,7 +13,8 @@ export class AuthManager {
             checkAuthFunction: options.checkAuthFunction || null,
             redirectAfterLogin: options.redirectAfterLogin || 'home',
             authCookieName: options.authCookieName || 'authToken',
-            authStorage: options.authStorage || 'localStorage'
+            authStorage: options.authStorage || 'localStorage',
+            refreshTokenStorage: options.refreshTokenStorage || options.authStorage || 'localStorage'
         };
         
         // 라우터 인스턴스 참조 (필수 의존성)
@@ -207,6 +208,81 @@ export class AuthManager {
     }
 
     /**
+     * 리프레시 토큰 가져오기
+     */
+    getRefreshToken() {
+        let token = localStorage.getItem('refreshToken');
+        if (token) return token;
+
+        token = sessionStorage.getItem('refreshToken');
+        if (token) return token;
+
+        return this.getCookieValue('refreshToken');
+    }
+
+    /**
+     * 리프레시 토큰 설정
+     */
+    setRefreshToken(token, options = {}) {
+        if (!token) {
+            this.log('warn', '빈 리프레시 토큰 제공됨');
+            return false;
+        }
+
+        const storage = options.storage || this.config.refreshTokenStorage;
+
+        try {
+            switch (storage) {
+                case 'localStorage':
+                    localStorage.setItem('refreshToken', token);
+                    break;
+                case 'sessionStorage':
+                    sessionStorage.setItem('refreshToken', token);
+                    break;
+                case 'cookie':
+                    const secure = window.location.protocol === 'https:';
+                    let cookieString = `refreshToken=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
+                    if (secure) cookieString += '; Secure';
+                    document.cookie = cookieString;
+                    break;
+                default:
+                    localStorage.setItem('refreshToken', token);
+            }
+
+            this.emitAuthEvent('refresh_token_set', { storage });
+            this.log('debug', `리프레시 토큰 저장됨: ${storage}`);
+            return true;
+        } catch (error) {
+            this.log('error', '리프레시 토큰 저장 실패:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 리프레시 토큰 제거
+     */
+    removeRefreshToken(storage = 'all') {
+        switch (storage) {
+            case 'localStorage':
+                localStorage.removeItem('refreshToken');
+                break;
+            case 'sessionStorage':
+                sessionStorage.removeItem('refreshToken');
+                break;
+            case 'cookie':
+                document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                break;
+            case 'all':
+            default:
+                localStorage.removeItem('refreshToken');
+                sessionStorage.removeItem('refreshToken');
+                document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                break;
+        }
+        this.log('debug', `리프레시 토큰 제거됨: ${storage}`);
+    }
+
+    /**
      * 액세스 토큰 설정
      */
     setAccessToken(token, options = {}) {
@@ -314,6 +390,7 @@ export class AuthManager {
                 localStorage.removeItem('authToken');
                 sessionStorage.removeItem('authToken');
                 this.removeAuthCookie();
+                this.removeRefreshToken('all');
                 break;
         }
 

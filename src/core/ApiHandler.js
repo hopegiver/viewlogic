@@ -7,7 +7,11 @@ export class ApiHandler {
         this.router = router;
         // router.config에서 직접 참조 (RouteLoader의 자체 config에는 apiBaseURL이 없음)
         this.apiBaseURL = router?.config?.apiBaseURL || options.apiBaseURL || '';
-        
+
+        // 토큰 갱신 상태 관리
+        this._refreshingToken = false;
+        this._refreshPromise = null;
+
         this.log('debug', 'ApiHandler initialized');
     }
 
@@ -72,6 +76,23 @@ export class ApiHandler {
             const response = await fetch(fullURL, requestOptions);
 
             if (!response.ok) {
+                // 401 응답이고 refreshToken 콜백이 있고 재시도가 아닌 경우 → 토큰 갱신
+                if (response.status === 401 && this._getRefreshCallback() && !options._isRetry) {
+                    this.log('debug', '401 응답 감지, 토큰 갱신 시도...');
+
+                    const refreshed = await this._handleTokenRefresh();
+
+                    if (refreshed) {
+                        this.log('debug', '토큰 갱신 성공, 원래 요청 재시도');
+                        return await this._retryRequest(dataURL, component, options);
+                    }
+
+                    // 갱신 실패 → 로그아웃 처리
+                    this.log('warn', '토큰 갱신 실패, 로그아웃 처리');
+                    this._handleRefreshFailure();
+                    throw new Error('Authentication failed: token refresh unsuccessful');
+                }
+
                 let error;
                 try {
                     error = await response.json();
@@ -258,10 +279,102 @@ export class ApiHandler {
     }
 
     /**
+     * refreshToken 콜백 함수 가져오기
+     */
+    _getRefreshCallback() {
+        const callback = this.router?.config?.refreshToken;
+        return typeof callback === 'function' ? callback : null;
+    }
+
+    /**
+     * 토큰 갱신 처리 (동시 요청 큐잉 포함)
+     * 여러 요청이 동시에 401을 받아도 갱신은 1번만 실행
+     */
+    async _handleTokenRefresh() {
+        // 이미 갱신 중이면 기존 Promise를 대기
+        if (this._refreshingToken && this._refreshPromise) {
+            this.log('debug', '이미 토큰 갱신 진행 중, 대기...');
+            return await this._refreshPromise;
+        }
+
+        this._refreshingToken = true;
+        this._refreshPromise = this._executeTokenRefresh();
+
+        try {
+            return await this._refreshPromise;
+        } finally {
+            this._refreshingToken = false;
+            this._refreshPromise = null;
+        }
+    }
+
+    /**
+     * 실제 토큰 갱신 실행
+     */
+    async _executeTokenRefresh() {
+        const refreshCallback = this._getRefreshCallback();
+        if (!refreshCallback) return false;
+
+        try {
+            const result = await refreshCallback();
+
+            if (!result || !result.accessToken) {
+                this.log('warn', '갱신 콜백이 유효한 토큰을 반환하지 않음');
+                return false;
+            }
+
+            const authManager = this.router?.authManager;
+            if (!authManager) return false;
+
+            // 새 액세스 토큰 저장
+            const tokenSet = authManager.setAccessToken(result.accessToken);
+            if (!tokenSet) {
+                this.log('warn', '새 액세스 토큰 저장 실패 (만료된 토큰?)');
+                return false;
+            }
+
+            // 리프레시 토큰도 반환된 경우 업데이트
+            if (result.refreshToken) {
+                authManager.setRefreshToken(result.refreshToken);
+            }
+
+            authManager.emitAuthEvent('token_refreshed', {
+                hasNewRefreshToken: !!result.refreshToken
+            });
+
+            this.log('info', '토큰 갱신 완료');
+            return true;
+        } catch (error) {
+            this.log('error', '토큰 갱신 콜백 실행 실패:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 갱신된 토큰으로 원래 요청 재시도 (_isRetry로 무한 재귀 방지)
+     */
+    async _retryRequest(dataURL, component, options) {
+        return await this.fetchData(dataURL, component, { ...options, _isRetry: true });
+    }
+
+    /**
+     * 토큰 갱신 실패 시 처리 (로그아웃 + 로그인 페이지 이동)
+     */
+    _handleRefreshFailure() {
+        const authManager = this.router?.authManager;
+        if (authManager) {
+            authManager.emitAuthEvent('token_refresh_failed', {});
+            authManager.logout();
+        }
+    }
+
+    /**
      * 정리 (메모리 누수 방지)
      */
     destroy() {
         this.log('debug', 'ApiHandler destroyed');
+        this._refreshingToken = false;
+        this._refreshPromise = null;
         this.router = null;
     }
 }

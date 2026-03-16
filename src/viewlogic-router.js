@@ -71,7 +71,9 @@ export class ViewLogicRouter {
             checkAuthFunction: null,
             redirectAfterLogin: 'home',
             authCookieName: 'authToken',
-            authStorage: 'localStorage'
+            authStorage: 'localStorage',
+            refreshToken: null,                // 토큰 갱신 콜백 (async () => { accessToken, refreshToken? })
+            refreshTokenStorage: null           // 리프레시 토큰 저장소 (null이면 authStorage 사용)
         };
         
         const config = { ...defaults, ...options };
