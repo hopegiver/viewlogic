@@ -50,9 +50,10 @@ export class ApiHandler {
                 ...options
             };
 
-            // 인증 토큰 자동 추가
-            if (component?.$getToken && component.$getToken()) {
-                requestOptions.headers['Authorization'] = `Bearer ${component.$getToken()}`;
+            // 인증 토큰 자동 추가 (AuthManager에서 직접 조회)
+            const token = this.router?.authManager?.getAccessToken?.() || null;
+            if (token) {
+                requestOptions.headers['Authorization'] = `Bearer ${token}`;
             }
 
             // POST/PUT 데이터 처리
