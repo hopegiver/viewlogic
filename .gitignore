@@ -47,3 +47,4 @@ Desktop.ini
 
 # Examples (use separate template repository)
 examples/
+.claude/settings.local.json
