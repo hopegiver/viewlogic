@@ -347,9 +347,14 @@ export class RouteLoader {
                     await this.fetchData();
                 }
 
-                // 🆕 자동 폼 바인딩
+                // 자동 폼 바인딩
                 await this.$nextTick(); // DOM이 완전히 렌더링된 후
                 router.routeLoader.formHandler.bindAutoForms(this);
+
+                // mounted 완료 시그널 (페이지 전환에서 대기 중)
+                if (this._resolveMounted) {
+                    this._resolveMounted();
+                }
             },
             async beforeUpdate() {
                 // 레이아웃 beforeUpdate 먼저 실행

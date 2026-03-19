@@ -379,15 +379,16 @@ export class ViewLogicRouter {
         // 새 컨테이너를 앱에 추가 (이전 페이지 위에 숨겨진 상태)
         appElement.appendChild(newPageContainer);
 
-        // API 추적 시작 — mounted() 내 API 호출을 카운트
-        const apiHandler = this.routeLoader?.apiHandler;
-        if (apiHandler) {
-            apiHandler.startTracking();
-        }
+        // mounted() 완료 시그널용 Promise
+        let resolveMounted;
+        const mountedReady = new Promise(r => { resolveMounted = r; });
 
         // 새로운 Vue 앱을 새 컨테이너에 마운트 (숨김 상태에서 mounted 실행 → API 호출)
         const { createApp } = Vue;
         const newVueApp = createApp(vueComponent);
+
+        // mounted() 완료 시 resolve 함수 주입
+        newVueApp.config.globalProperties._resolveMounted = resolveMounted;
 
         // Vue 3 전역 속성 설정
         newVueApp.config.globalProperties.$router = {
@@ -418,16 +419,12 @@ export class ViewLogicRouter {
         // Vue 앱을 DOM에 마운트 (숨김 상태 — mounted()에서 API 호출 시작)
         newVueApp.mount(`#${newPageContainer.id}`);
 
-        // 추적 종료 — mounted() 동기 부분에서 시작된 API만 대상
-        if (apiHandler) {
-            apiHandler.stopTracking();
-        }
-
-        // 모든 초기 API 완료 대기 (타임아웃: 기본 5초)
+        // mounted() 완료 대기 (타임아웃: 기본 5초)
         const settleTimeout = this.config.dataSettleTimeout || 5000;
-        if (apiHandler) {
-            await apiHandler.waitForSettled(settleTimeout);
-        }
+        await Promise.race([
+            mountedReady,
+            new Promise(r => setTimeout(r, settleTimeout))
+        ]);
 
         // === 데이터 준비 완료 — 이제 페이지 전환 시작 ===
 
