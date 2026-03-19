@@ -370,22 +370,22 @@ export class ViewLogicRouter {
         const appElement = document.getElementById('app');
         if (!appElement) return;
 
-        // 새로운 페이지 컨테이너 생성
+        // 새로운 페이지 컨테이너 생성 (숨김 상태로 마운트)
         const newPageContainer = document.createElement('div');
-        newPageContainer.className = 'page-container page-entered';
+        newPageContainer.className = 'page-container page-pending';
         newPageContainer.id = `page-${routeName.replace(/\//g, '-')}-${Date.now()}`;
-        
-        // 기존 컨테이너가 있다면 즉시 숨기기
-        const existingContainers = appElement.querySelectorAll('.page-container');
-        existingContainers.forEach(container => {
-            container.classList.remove('page-entered');
-            container.classList.add('page-exiting');
-        });
+        newPageContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;opacity:0;pointer-events:none;';
 
-        // 새 컨테이너를 앱에 추가
+        // 새 컨테이너를 앱에 추가 (이전 페이지 위에 숨겨진 상태)
         appElement.appendChild(newPageContainer);
 
-        // 새로운 Vue 앱을 새 컨테이너에 마운트
+        // API 추적 시작 — mounted() 내 API 호출을 카운트
+        const apiHandler = this.routeLoader?.apiHandler;
+        if (apiHandler) {
+            apiHandler.startTracking();
+        }
+
+        // 새로운 Vue 앱을 새 컨테이너에 마운트 (숨김 상태에서 mounted 실행 → API 호출)
         const { createApp } = Vue;
         const newVueApp = createApp(vueComponent);
 
@@ -415,23 +415,47 @@ export class ViewLogicRouter {
             clearCache: () => this.cacheManager?.clearAll() || 0
         };
 
-        // Vue 앱을 DOM에 마운트
+        // Vue 앱을 DOM에 마운트 (숨김 상태 — mounted()에서 API 호출 시작)
         newVueApp.mount(`#${newPageContainer.id}`);
+
+        // 추적 종료 — mounted() 동기 부분에서 시작된 API만 대상
+        if (apiHandler) {
+            apiHandler.stopTracking();
+        }
+
+        // 모든 초기 API 완료 대기 (타임아웃: 기본 5초)
+        const settleTimeout = this.config.dataSettleTimeout || 5000;
+        if (apiHandler) {
+            await apiHandler.waitForSettled(settleTimeout);
+        }
+
+        // === 데이터 준비 완료 — 이제 페이지 전환 시작 ===
+
+        // 기존 컨테이너에 exiting 클래스 추가
+        const existingContainers = appElement.querySelectorAll('.page-container:not(.page-pending)');
+        existingContainers.forEach(container => {
+            container.classList.remove('page-entered');
+            container.classList.add('page-exiting');
+        });
+
+        // 새 페이지 표시 (숨김 해제)
+        newPageContainer.classList.remove('page-pending');
+        newPageContainer.classList.add('page-entered');
+        newPageContainer.style.cssText = '';
 
         // 라우트 이동 시 스크롤을 맨 위로 이동
         window.scrollTo(0, 0);
 
-        // requestAnimationFrame으로 성능 개선
+        // requestAnimationFrame으로 이전 페이지 정리
         requestAnimationFrame(() => {
             this.cleanupPreviousPages();
-            this.transitionInProgress = false;
         });
 
         // 이전 앱 정리 준비
         if (this.currentVueApp) {
             this.previousVueApp = this.currentVueApp;
         }
-        
+
         this.currentVueApp = newVueApp;
     }
 

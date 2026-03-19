@@ -16,6 +16,11 @@ export class ApiHandler {
         this._refreshingToken = false;
         this._refreshPromise = null;
 
+        // 초기 로딩 API 추적 (페이지 전환 시 사용)
+        this._tracking = false;
+        this._pendingCount = 0;
+        this._settledResolvers = [];
+
         this.log('debug', 'ApiHandler initialized');
     }
 
@@ -29,9 +34,95 @@ export class ApiHandler {
     }
 
     /**
+     * 추적 시작 — 이후 발생하는 API 호출을 pending 카운터로 관리
+     */
+    startTracking() {
+        this._tracking = true;
+        this._pendingCount = 0;
+        this._settledResolvers = [];
+        this.log('debug', 'API 추적 시작');
+    }
+
+    /**
+     * 추적 종료 — 새 API 호출은 더 이상 카운트하지 않음
+     */
+    stopTracking() {
+        this._tracking = false;
+        // pending이 0이면 대기 중인 resolver 즉시 해제
+        if (this._pendingCount <= 0) {
+            this._resolveAllSettled();
+        }
+        this.log('debug', `API 추적 종료 (남은 pending: ${this._pendingCount})`);
+    }
+
+    /**
+     * 모든 추적 중인 API 요청이 완료될 때까지 대기
+     * @param {number} timeout - 최대 대기 시간 (ms, 기본 5000)
+     * @returns {Promise<boolean>} 정상 완료 true, 타임아웃 false
+     */
+    waitForSettled(timeout = 5000) {
+        // 추적 중인 요청이 없으면 즉시 반환
+        if (this._pendingCount <= 0 && !this._tracking) {
+            return Promise.resolve(true);
+        }
+
+        return new Promise((resolve) => {
+            // 타임아웃 설정
+            const timer = setTimeout(() => {
+                this.log('warn', `API 대기 타임아웃 (${timeout}ms, 남은 pending: ${this._pendingCount})`);
+                resolve(false);
+            }, timeout);
+
+            this._settledResolvers.push(() => {
+                clearTimeout(timer);
+                resolve(true);
+            });
+
+            // 이미 0이고 추적이 끝났으면 즉시 해제
+            if (this._pendingCount <= 0 && !this._tracking) {
+                clearTimeout(timer);
+                resolve(true);
+            }
+        });
+    }
+
+    /**
+     * pending 카운터 증가 (추적 중일 때만)
+     */
+    _trackRequest() {
+        if (this._tracking) {
+            this._pendingCount++;
+            this.log('debug', `API 추적 +1 (pending: ${this._pendingCount})`);
+        }
+    }
+
+    /**
+     * pending 카운터 감소 + 0이 되면 settled resolver 실행
+     */
+    _untrackRequest() {
+        if (this._pendingCount > 0) {
+            this._pendingCount--;
+            this.log('debug', `API 추적 -1 (pending: ${this._pendingCount})`);
+        }
+        // 추적 종료 상태에서 pending이 0이면 모든 대기자 해제
+        if (this._pendingCount <= 0 && !this._tracking) {
+            this._resolveAllSettled();
+        }
+    }
+
+    /**
+     * 모든 settled resolver 실행
+     */
+    _resolveAllSettled() {
+        const resolvers = this._settledResolvers.splice(0);
+        resolvers.forEach(resolve => resolve());
+    }
+
+    /**
      * 컴포넌트 데이터 가져오기 (파라미터 치환 지원)
      */
     async fetchData(dataURL, component = null, options = {}) {
+        this._trackRequest();
         try {
             // URL에서 파라미터 치환
             let processedURL = this.processURLParameters(dataURL, component);
@@ -151,6 +242,8 @@ export class ApiHandler {
             }
             this.log('error', 'Failed to fetch data:', error);
             throw error;
+        } finally {
+            this._untrackRequest();
         }
     }
 
@@ -406,6 +499,9 @@ export class ApiHandler {
         this.log('debug', 'ApiHandler destroyed');
         this._refreshingToken = false;
         this._refreshPromise = null;
+        this._tracking = false;
+        this._pendingCount = 0;
+        this._resolveAllSettled();
         this.router = null;
     }
 }
