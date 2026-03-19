@@ -679,6 +679,7 @@ const router = new ViewLogicRouter({
     apiBaseURL: 'https://api.example.com/v1',  // Base URL for API requests
     requestTimeout: 30000,              // Form submission timeout in milliseconds (30 seconds)
     uploadTimeout: 300000,              // File upload timeout in milliseconds (5 minutes)
+    apiInterceptors: null,              // API response/error interceptors ({ response?, error? })
 
     // Development settings
     environment: 'development',         // 'development' or 'production'
@@ -690,6 +691,20 @@ const router = new ViewLogicRouter({
 
 ```javascript
 const router = new ViewLogicRouter({
+    // API Interceptors — global response/error hooks
+    apiInterceptors: {
+        // Transform or validate every API response
+        response(data, { url, method, status }) {
+            if (!data.success) console.warn(`[API] ${url}: unexpected format`);
+            return data;
+        },
+        // Global error handler (return a value to suppress the error)
+        error(error, { url, method }) {
+            console.error(`[API] ${url} failed:`, error.message);
+            // return { data: [] };  // return fallback to suppress error
+        }
+    },
+
     // Custom authentication function
     authEnabled: true,
     checkAuthFunction: async (route) => {

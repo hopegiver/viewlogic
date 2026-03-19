@@ -8,6 +8,10 @@ export class ApiHandler {
         // router.config에서 직접 참조 (RouteLoader의 자체 config에는 apiBaseURL이 없음)
         this.apiBaseURL = router?.config?.apiBaseURL || options.apiBaseURL || '';
 
+        // API 인터셉터 (response, error)
+        const interceptors = router?.config?.apiInterceptors;
+        this.interceptors = interceptors && typeof interceptors === 'object' ? interceptors : null;
+
         // 토큰 갱신 상태 관리
         this._refreshingToken = false;
         this._refreshPromise = null;
@@ -104,13 +108,27 @@ export class ApiHandler {
             
             // 응답 처리
             try {
-                const data = await response.json();
-                
+                let data = await response.json();
+
                 // 데이터 유효성 검사
                 if (typeof data !== 'object' || data === null) {
                     throw new Error('Invalid data format: expected object');
                 }
-                
+
+                // response 인터셉터 호출
+                if (typeof this.interceptors?.response === 'function') {
+                    try {
+                        const transformed = await this.interceptors.response(data, {
+                            url: fullURL,
+                            method: requestOptions.method,
+                            status: response.status
+                        });
+                        if (transformed !== undefined) data = transformed;
+                    } catch (interceptorError) {
+                        this.log('warn', 'Response interceptor error:', interceptorError);
+                    }
+                }
+
                 return data;
             } catch (e) {
                 // 응답이 JSON이 아닌 경우 (예: 204 No Content)
@@ -118,6 +136,19 @@ export class ApiHandler {
             }
 
         } catch (error) {
+            // error 인터셉터 호출
+            if (typeof this.interceptors?.error === 'function') {
+                try {
+                    const fallback = await this.interceptors.error(error, {
+                        url: dataURL,
+                        method: options.method || 'GET'
+                    });
+                    // fallback 값 반환 시 에러 무시
+                    if (fallback !== undefined) return fallback;
+                } catch (interceptorError) {
+                    this.log('warn', 'Error interceptor error:', interceptorError);
+                }
+            }
             this.log('error', 'Failed to fetch data:', error);
             throw error;
         }

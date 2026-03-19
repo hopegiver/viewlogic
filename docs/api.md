@@ -17,6 +17,7 @@ ViewLogic Router의 전체 API 레퍼런스입니다.
 | options.mode | String | 아니오 | 'hash' | 라우팅 모드 ('hash' 또는 'history') |
 | options.base | String | 아니오 | '/' | 애플리케이션의 base URL |
 | options.scrollBehavior | Function | 아니오 | - | 스크롤 동작 함수 |
+| options.apiInterceptors | Object | 아니오 | null | API 응답/에러 인터셉터 |
 
 **반환값:** `ViewLogicRouter` 인스턴스
 
@@ -32,6 +33,44 @@ const router = new ViewLogicRouter({
             return savedPosition;
         }
         return { top: 0 };
+    }
+});
+```
+
+### apiInterceptors
+
+모든 API 응답과 에러를 전역에서 가공/처리할 수 있는 인터셉터입니다.
+
+**속성:**
+
+| 이름 | 타입 | 설명 |
+|------|------|------|
+| response | Function | 성공 응답 후처리. `(data, { url, method, status }) => data` |
+| error | Function | 에러 후처리. `(error, { url, method }) => fallback?` |
+
+- `response`에서 반환한 값이 원래 응답 데이터를 대체합니다.
+- `error`에서 값을 반환하면 에러가 무시되고 해당 값이 응답으로 사용됩니다. 값을 반환하지 않으면 기존 에러가 그대로 throw됩니다.
+- 두 인터셉터 모두 async 함수를 지원합니다.
+
+**예제:**
+
+```javascript
+const router = new ViewLogicRouter({
+    apiBaseURL: '/api',
+    apiInterceptors: {
+        // 모든 성공 응답을 검증/변환
+        response(data, { url, method, status }) {
+            if (!data.success) {
+                console.warn(`[API] ${url}: 비정상 응답`, data);
+            }
+            return data;
+        },
+        // 전역 에러 처리
+        error(error, { url, method }) {
+            showToast(`API 오류: ${error.message}`);
+            // 값을 반환하면 에러를 무시하고 fallback 데이터로 사용
+            // return { data: [] };
+        }
     }
 });
 ```

@@ -73,7 +73,8 @@ export class ViewLogicRouter {
             authCookieName: 'authToken',
             authStorage: 'localStorage',
             refreshToken: null,                // 토큰 갱신 콜백 (async () => { accessToken, refreshToken? })
-            refreshTokenStorage: null           // 리프레시 토큰 저장소 (null이면 authStorage 사용)
+            refreshTokenStorage: null,          // 리프레시 토큰 저장소 (null이면 authStorage 사용)
+            apiInterceptors: null               // API 응답/에러 인터셉터 ({ response?, error? })
         };
         
         const config = { ...defaults, ...options };
