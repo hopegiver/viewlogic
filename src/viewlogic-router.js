@@ -242,12 +242,12 @@ export class ViewLogicRouter {
 
     handleRouteChange() {
         const { route, queryParams } = this._parseCurrentLocation();
-        
-        // Store current query parameters in QueryManager
+
+        // 변경사항이 있을 때만 로드 (비교 후 저장해야 정확한 비교 가능)
+        const paramsChanged = this.queryManager?.hasQueryParamsChanged(queryParams);
         this.queryManager?.setCurrentQueryParams(queryParams);
-        
-        // 변경사항이 있을 때만 로드 (성능 최적화)
-        if (route !== this.currentHash || this.queryManager?.hasQueryParamsChanged(queryParams)) {
+
+        if (route !== this.currentHash || paramsChanged) {
             this.currentHash = route;
             this.loadRoute(route);
         }
