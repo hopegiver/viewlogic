@@ -82,8 +82,8 @@ export class AuthManager {
             return { allowed: true, reason: 'authenticated', routeName };
         }
 
-        // JWT 만료 시 refreshToken 콜백이 있으면 silent refresh 시도
-        const refreshCallback = this.router?.config?.refreshToken;
+        // JWT 만료 시 refreshFunction 콜백이 있으면 silent refresh 시도
+        const refreshCallback = this.router?.config?.refreshFunction;
         if (typeof refreshCallback === 'function') {
             this.log('debug', '🔄 토큰 만료, silent refresh 시도...');
             try {
@@ -406,7 +406,6 @@ export class AuthManager {
                 localStorage.removeItem('authToken');
                 sessionStorage.removeItem('authToken');
                 this.removeAuthCookie();
-                this.removeRefreshToken('all');
                 break;
         }
 
@@ -438,8 +437,9 @@ export class AuthManager {
     logout() {
         this.log('info', '👋 Logging out user');
         
-        // 모든 저장소에서 토큰 제거 (removeAccessToken 내부에서 refreshToken도 함께 제거)
+        // 모든 저장소에서 토큰 제거
         this.removeAccessToken();
+        this.removeRefreshToken();
 
         this.emitAuthEvent('logout', {});
         

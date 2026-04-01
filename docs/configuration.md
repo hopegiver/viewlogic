@@ -37,7 +37,7 @@ const router = new ViewLogicRouter({
     authCookieName: 'authToken',      // 쿠키 모드 시 쿠키 이름
 
     // ── 토큰 갱신 ──
-    refreshToken: null,               // 리프레시 토큰 콜백 함수 (null이면 비활성)
+    refreshFunction: null,            // 토큰 갱신 콜백 함수 (null이면 비활성, refreshToken도 가능)
 
     // ── API 에러 처리 ──
     apiInterceptors: null,            // API 응답/에러 인터셉터 ({ response?, error? })
@@ -64,7 +64,7 @@ const router = new ViewLogicRouter({
 | `authFunction` | `function\|null` | `null` | 페이지 전환 시 인증 상태 확인. `true` 반환 시 통과. `checkAuthFunction`도 가능 |
 | `loginRoute` | `string` | `'login'` | 미인증 시 리다이렉트할 라우트명 |
 | `authStorage` | `string` | `'localStorage'` | 토큰 저장 위치 |
-| `refreshToken` | `function\|null` | `null` | 401 응답 시 호출되는 토큰 갱신 콜백 |
+| `refreshFunction` | `function\|null` | `null` | 토큰 갱신 콜백 (`refreshToken`도 가능) |
 
 ### 키 별칭 (Alias)
 
@@ -72,6 +72,7 @@ const router = new ViewLogicRouter({
 |---------|-------------|------|
 | `auth` | `authEnabled` | 인증 활성화 |
 | `authFunction` | `checkAuthFunction` | 인증 확인 함수 |
+| `refreshFunction` | `refreshToken` | 토큰 갱신 콜백 |
 
 > 두 형태 모두 동작합니다. 새 프로젝트에서는 간결한 권장 키를 사용하세요.
 
@@ -127,22 +128,21 @@ const router = new ViewLogicRouter({
     },
 
     // ── 토큰 갱신 (선택) ──
-    refreshToken: async () => {
-        const rt = localStorage.getItem('refresh_token');
-        if (!rt) throw new Error('No refresh token');
+    refreshFunction: async (refreshToken) => {
+        if (!refreshToken) throw new Error('No refresh token');
 
         const res = await fetch('http://localhost:8787/auth/refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: rt })
+            body: JSON.stringify({ refresh_token: refreshToken })
         });
         if (!res.ok) throw new Error('Refresh failed');
 
         const data = await res.json();
-        if (data.refresh_token) {
-            localStorage.setItem('refresh_token', data.refresh_token);
-        }
-        return { accessToken: data.access_token };
+        return {
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token
+        };
     }
 });
 ```
@@ -156,7 +156,7 @@ const router = new ViewLogicRouter({
 
 API 요청 → Authorization: Bearer {token} 자동 추가
   ├─ 200 → 정상 응답
-  └─ 401 → refreshToken() 호출
+  └─ 401 → refreshFunction() 호출
        ├─ 성공 → 새 토큰으로 재시도 (1회)
        └─ 실패 → 로그아웃 + loginRoute 이동
 ```
@@ -175,7 +175,7 @@ const router = new ViewLogicRouter({
     loginRoute: 'login',
     publicRoutes: ['login', 'register'],
     authFunction: () => !!localStorage.getItem('user'),
-    refreshToken: async () => {
+    refreshFunction: async (refreshToken) => {
         // ... (위 예제 참조)
     },
 

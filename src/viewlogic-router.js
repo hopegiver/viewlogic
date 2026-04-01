@@ -69,7 +69,7 @@ export class ViewLogicRouter {
             redirectAfterLogin: 'home',
             authCookieName: 'authToken',
             authStorage: 'localStorage',
-            refreshToken: null,                // 토큰 갱신 콜백 (async () => { accessToken, refreshToken? })
+            refreshFunction: null,             // 토큰 갱신 콜백 (async (refreshToken) => { accessToken, refreshToken? })
             apiInterceptors: null,              // API 응답/에러 인터셉터 ({ response?, error? })
             errorHandlers: null                 // HTTP 상태 코드별 에러 핸들러 ({ 403: fn, '5xx': fn })
         };
@@ -82,6 +82,10 @@ export class ViewLogicRouter {
         }
         if (options.checkAuthFunction !== undefined && options.authFunction === undefined) {
             config.authFunction = options.checkAuthFunction;
+        }
+        // refreshToken → refreshFunction 별칭 지원
+        if (options.refreshToken !== undefined && options.refreshFunction === undefined) {
+            config.refreshFunction = options.refreshToken;
         }
 
         // 절대 경로들을 basePath 기준으로 해결

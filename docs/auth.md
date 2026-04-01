@@ -55,6 +55,21 @@ mounted() {
 }
 ```
 
+## 토큰 관리 메서드
+
+컴포넌트(페이지/레이아웃) 내에서 사용할 수 있는 토큰 관련 메서드입니다.
+
+| 메서드 | 설명 |
+|--------|------|
+| `this.setToken(token)` | 액세스 토큰 저장 |
+| `this.getToken()` | 액세스 토큰 가져오기 |
+| `this.setRefreshToken(token)` | 리프레시 토큰 저장 |
+| `this.getRefreshToken()` | 리프레시 토큰 가져오기 |
+| `this.isAuth()` | 인증 여부 확인 |
+| `this.logout()` | 로그아웃 (토큰 제거 + 로그인 페이지 이동) |
+
+> **참고**: `refreshFunction` 콜백에는 현재 저장된 refresh token 문자열이 인자로 전달됩니다. 콜백은 서버 호출 후 `{ accessToken, refreshToken }` 객체를 반환하면 ViewLogic이 자동으로 저장합니다.
+
 ## JWT 토큰 활용
 
 ### 자동 만료 검증
@@ -99,46 +114,45 @@ export default {
 
 ### Silent Refresh (라우트 가드 연동)
 
-`refreshToken` 콜백이 설정되어 있으면, JWT 만료 시 라우트 가드 단계에서 자동으로 토큰 갱신을 시도합니다. `authFunction` 없이도 동작합니다.
+`refreshFunction` 콜백이 설정되어 있으면, JWT 만료 시 라우트 가드 단계에서 자동으로 토큰 갱신을 시도합니다. `authFunction` 없이도 동작합니다.
 
 ```
 페이지 이동 → 라우트 가드 → JWT 만료 감지
-├─ refreshToken 콜백 있음 → 갱신 시도
+├─ refreshFunction 있음 → 갱신 시도
 │   ├─ 성공 → 새 토큰 저장 → 페이지 정상 표시
 │   └─ 실패 → 로그인 페이지로 이동
-└─ refreshToken 콜백 없음 → 로그인 페이지로 이동
+└─ refreshFunction 없음 → 로그인 페이지로 이동
 ```
 
 ```javascript
 const router = new ViewLogicRouter({
     auth: true,
     protectedRoutes: ['profile', 'admin/*'],
-    // refreshToken 콜백만 설정하면 silent refresh 자동 동작
-    refreshToken: async () => {
-        const rt = localStorage.getItem('refresh_token');
-        if (!rt) throw new Error('No refresh token');
+    // refreshFunction 콜백만 설정하면 silent refresh 자동 동작
+    refreshFunction: async (refreshToken) => {
+        if (!refreshToken) throw new Error('No refresh token');
         const res = await fetch('/api/auth/refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: rt })
+            body: JSON.stringify({ refresh_token: refreshToken })
         });
         if (!res.ok) throw new Error('Refresh failed');
         const data = await res.json();
-        if (data.refresh_token) {
-            localStorage.setItem('refresh_token', data.refresh_token);
-        }
-        return { accessToken: data.access_token };
+        return {
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token  // 서버가 반환하면 자동 갱신
+        };
     }
 });
 ```
 
-> **참고**: API 호출 중 401 응답 시에도 동일한 `refreshToken` 콜백으로 자동 갱신됩니다. 라우트 가드와 API 호출 양쪽에서 모두 silent refresh가 동작합니다.
+> **참고**: API 호출 중 401 응답 시에도 동일한 콜백으로 자동 갱신됩니다. 라우트 가드와 API 호출 양쪽에서 모두 silent refresh가 동작합니다.
 
 ## 토큰 갱신 (Refresh Token)
 
 ### 기본 설정
 
-`refreshToken` 옵션에 콜백 함수를 전달하면, API 요청에서 401 응답을 받았을 때 자동으로 토큰 갱신을 시도합니다.
+`refreshFunction` 옵션에 콜백 함수를 전달하면, API 요청에서 401 응답을 받았을 때 자동으로 토큰 갱신을 시도합니다.
 
 ```javascript
 const router = new ViewLogicRouter({
@@ -146,27 +160,24 @@ const router = new ViewLogicRouter({
     loginRoute: 'auth/login',
     publicRoutes: ['home', 'auth/login', 'auth/register'],
     apiBaseURL: window.API_BASE_URL,
-    refreshToken: async () => {
-        const rt = localStorage.getItem('refresh_token');
-        if (!rt) throw new Error('No refresh token');
+    refreshFunction: async (refreshToken) => {
+        if (!refreshToken) throw new Error('No refresh token');
 
         const res = await fetch(window.API_BASE_URL + '/auth/refresh', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: rt })
+            body: JSON.stringify({ refresh_token: refreshToken })
         });
         if (!res.ok) throw new Error('Refresh failed');
 
         const data = await res.json();
         const result = data.data || data;
 
-        // 서버가 새 refresh_token도 반환하면 갱신
-        if (result.refresh_token) {
-            localStorage.setItem('refresh_token', result.refresh_token);
-        }
-
-        // 새 access_token 반환 (필수)
-        return result.access_token;
+        // { accessToken } 필수, refreshToken은 선택 (있으면 자동 갱신)
+        return {
+            accessToken: result.access_token,
+            refreshToken: result.refresh_token
+        };
     }
 });
 ```
@@ -175,8 +186,8 @@ const router = new ViewLogicRouter({
 
 ```
 API 요청 → 401 응답 감지
-  ├─ refreshToken 콜백 없음 또는 이미 재시도 → 에러 throw
-  └─ refreshToken 콜백 있음 → 토큰 갱신 시도
+  ├─ refreshFunction 없음 또는 이미 재시도 → 에러 throw
+  └─ refreshFunction 있음 → 토큰 갱신 시도
        ├─ 성공 → 새 access_token 저장 → 원래 요청 1회 재시도
        └─ 실패 → 로그아웃 + 로그인 페이지 이동
 ```
@@ -185,9 +196,9 @@ API 요청 → 401 응답 감지
 
 | 항목 | 설명 |
 |------|------|
-| **반환값** | 새 `access_token` 문자열 (필수) |
+| **인자** | 현재 저장된 refresh token 문자열 |
+| **반환값** | `{ accessToken, refreshToken? }` 객체 (필수) |
 | **실패 시** | `throw`하면 갱신 실패 처리 (로그아웃) |
-| **refresh_token 갱신** | 콜백 내에서 직접 저장하거나, 반환 객체에 `refreshToken` 포함 |
 
 ### 동시 요청 처리
 
@@ -201,7 +212,7 @@ API 요청 → 401 응답 감지
 
 | 키 | 타입 | 기본값 | 설명 |
 |----|------|--------|------|
-| `refreshToken` | `function\|null` | `null` | 401 시 호출되는 토큰 갱신 콜백 |
+| `refreshFunction` | `function\|null` | `null` | 401 시 호출되는 토큰 갱신 콜백 (`refreshToken`도 가능) |
 
 ### 로그인 시 토큰 저장 예시
 
@@ -218,9 +229,9 @@ export default {
             // access_token 저장 (ViewLogic 내장 메서드)
             this.setToken(result.access_token);
 
-            // refresh_token 저장 (직접 관리)
+            // refresh_token 저장 (ViewLogic 내장 메서드)
             if (result.refresh_token) {
-                localStorage.setItem('refresh_token', result.refresh_token);
+                this.setRefreshToken(result.refresh_token);
             }
 
             this.navigateTo('/home');

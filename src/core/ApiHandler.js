@@ -430,10 +430,10 @@ export class ApiHandler {
     }
 
     /**
-     * refreshToken 콜백 함수 가져오기
+     * refreshFunction 콜백 함수 가져오기
      */
     _getRefreshCallback() {
-        const callback = this.router?.config?.refreshToken;
+        const callback = this.router?.config?.refreshFunction;
         return typeof callback === 'function' ? callback : null;
     }
 
@@ -467,15 +467,17 @@ export class ApiHandler {
         if (!refreshCallback) return false;
 
         try {
-            const result = await refreshCallback();
+            const authManager = this.router?.authManager;
+            if (!authManager) return false;
+
+            // 현재 refresh token을 콜백에 전달 (콜백은 서버 호출만 담당)
+            const currentRefreshToken = authManager.getRefreshToken();
+            const result = await refreshCallback(currentRefreshToken);
 
             if (!result || !result.accessToken) {
                 this.log('warn', '갱신 콜백이 유효한 토큰을 반환하지 않음');
                 return false;
             }
-
-            const authManager = this.router?.authManager;
-            if (!authManager) return false;
 
             // 새 액세스 토큰 저장
             const tokenSet = authManager.setAccessToken(result.accessToken);
