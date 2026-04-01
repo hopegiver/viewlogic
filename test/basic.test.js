@@ -133,6 +133,38 @@ describe('ViewLogic Router - Basic Tests', () => {
         });
     });
 
+    describe('errorHandlers Configuration', () => {
+        test('should accept errorHandlers configuration', () => {
+            const handler403 = jest.fn();
+            router = new ViewLogicRouter({
+                errorHandlers: {
+                    403: handler403,
+                    '5xx': () => {}
+                }
+            });
+
+            expect(router.config.errorHandlers).toBeDefined();
+            expect(router.config.errorHandlers[403]).toBe(handler403);
+            expect(typeof router.config.errorHandlers['5xx']).toBe('function');
+        });
+
+        test('should default errorHandlers to null', () => {
+            router = new ViewLogicRouter();
+            expect(router.config.errorHandlers).toBeNull();
+        });
+
+        test('should pass errorHandlers to ApiHandler', async () => {
+            const handler500 = jest.fn();
+            router = new ViewLogicRouter({
+                errorHandlers: { 500: handler500 }
+            });
+
+            await router.waitForReady();
+            expect(router.routeLoader.apiHandler.errorHandlers).toBeDefined();
+            expect(router.routeLoader.apiHandler.errorHandlers[500]).toBe(handler500);
+        });
+    });
+
     describe('Error Handling', () => {
         test('should handle destroy gracefully', () => {
             router = new ViewLogicRouter();

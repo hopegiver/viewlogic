@@ -86,7 +86,8 @@ new ViewLogicRouter({
   loginRoute: 'login',        // 로그인 라우트 (기본: 'login')
   protectedRoutes: [],        // 보호 라우트 배열
   environment: 'development', // 'development' | 'production'
-  logLevel: 'info'            // 로그 레벨
+  logLevel: 'info',            // 로그 레벨
+  errorHandlers: null           // HTTP 상태 코드별 에러 핸들러 ({ 403: fn, '5xx': fn })
 })
 ```
 

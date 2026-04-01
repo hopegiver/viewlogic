@@ -12,6 +12,10 @@ export class ApiHandler {
         const interceptors = router?.config?.apiInterceptors;
         this.interceptors = interceptors && typeof interceptors === 'object' ? interceptors : null;
 
+        // HTTP 상태 코드별 에러 핸들러
+        const handlers = router?.config?.errorHandlers;
+        this.errorHandlers = handlers && typeof handlers === 'object' ? handlers : null;
+
         // 토큰 갱신 상태 관리
         this._refreshingToken = false;
         this._refreshPromise = null;
@@ -188,13 +192,36 @@ export class ApiHandler {
                     throw new Error('Authentication failed: token refresh unsuccessful');
                 }
 
-                let error;
+                // 응답 본문 파싱
+                const status = response.status;
+                let body;
                 try {
-                    error = await response.json();
+                    body = await response.json();
                 } catch (e) {
-                    error = { message: `HTTP ${response.status}: ${response.statusText}` };
+                    body = { message: `HTTP ${status}: ${response.statusText}` };
                 }
-                throw new Error(error.message || `HTTP ${response.status}`);
+
+                // 상태 코드별 에러 핸들러 실행
+                if (this.errorHandlers) {
+                    const handlerResult = await this._executeErrorHandler(status, {
+                        status,
+                        body,
+                        url: fullURL,
+                        method: requestOptions.method
+                    });
+                    // 핸들러가 값을 반환하면 에러 억제
+                    if (handlerResult !== undefined) {
+                        return handlerResult;
+                    }
+                }
+
+                // 에러 생성 (상태 코드와 본문 보존)
+                const error = new Error(body.message || `HTTP ${status}`);
+                error.status = status;
+                error.body = body;
+                error.url = fullURL;
+                error.method = requestOptions.method;
+                throw error;
             }
             
             // 응답 처리
@@ -490,6 +517,54 @@ export class ApiHandler {
             authManager.emitAuthEvent('token_refresh_failed', {});
             authManager.logout();
         }
+    }
+
+    /**
+     * 상태 코드에 맞는 errorHandler를 찾아 실행
+     * 정확한 코드(403) 우선, 범위 핸들러('4xx') 후순위
+     * @param {number} status - HTTP 상태 코드
+     * @param {Object} context - { status, body, url, method }
+     * @returns {*} 핸들러 반환값 (undefined면 에러 계속 전파)
+     */
+    async _executeErrorHandler(status, context) {
+        if (!this.errorHandlers) return undefined;
+
+        // 1순위: 정확한 상태 코드 핸들러
+        const exactHandler = this.errorHandlers[status];
+        if (typeof exactHandler === 'function') {
+            try {
+                const result = await exactHandler(context);
+                if (result !== undefined) return result;
+            } catch (handlerError) {
+                this.log('warn', `errorHandler[${status}] 실행 에러:`, handlerError);
+            }
+        }
+
+        // 2순위: 범위 핸들러 ('4xx', '5xx' 등)
+        const rangeKey = this._getStatusRangeKey(status);
+        if (rangeKey) {
+            const rangeHandler = this.errorHandlers[rangeKey];
+            if (typeof rangeHandler === 'function') {
+                try {
+                    const result = await rangeHandler(context);
+                    if (result !== undefined) return result;
+                } catch (handlerError) {
+                    this.log('warn', `errorHandler[${rangeKey}] 실행 에러:`, handlerError);
+                }
+            }
+        }
+
+        return undefined;
+    }
+
+    /**
+     * 상태 코드에 해당하는 범위 키 반환 (403 → '4xx', 500 → '5xx')
+     */
+    _getStatusRangeKey(status) {
+        if (status >= 100 && status < 600) {
+            return `${Math.floor(status / 100)}xx`;
+        }
+        return null;
     }
 
     /**

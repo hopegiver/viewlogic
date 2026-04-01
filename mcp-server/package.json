@@ -1,0 +1,16 @@
+{
+  "name": "viewlogic-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for ViewLogic framework documentation and source code",
+  "type": "module",
+  "bin": {
+    "viewlogic-mcp": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.24.0"
+  }
+}

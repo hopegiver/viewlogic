@@ -75,6 +75,58 @@ const router = new ViewLogicRouter({
 });
 ```
 
+### errorHandlers
+
+HTTP 상태 코드별 전역 에러 핸들러입니다. API 요청이 실패할 때 상태 코드에 따라 자동으로 호출됩니다.
+
+**키 형식:**
+
+| 키 | 타입 | 설명 |
+|------|------|------|
+| {statusCode} | Function | 특정 HTTP 상태 코드 핸들러 (예: `403`, `500`) |
+| '{N}xx' | Function | 범위 핸들러 (예: `'4xx'`, `'5xx'`) |
+
+**핸들러 시그니처:** `({ status, body, url, method }) => any`
+
+- 핸들러가 값을 반환하면 에러가 억제되고 해당 값이 응답으로 사용됩니다.
+- `undefined`를 반환하면(또는 반환값 없으면) 에러가 그대로 전파됩니다.
+- 정확한 코드(`403`)가 범위(`'4xx'`)보다 우선 실행됩니다.
+- 401 토큰 갱신(`refreshToken`)이 설정된 경우, 갱신 시도가 먼저 수행됩니다.
+- async 함수를 지원합니다.
+
+**`apiInterceptors.error`와의 관계:**
+- `errorHandlers`가 에러를 억제하면(값 반환) `apiInterceptors.error`는 호출되지 않습니다.
+- `errorHandlers`가 에러를 전파하면 이후 `apiInterceptors.error`가 호출됩니다.
+- `apiInterceptors.error`에서도 `error.status`, `error.body`로 상태 코드와 응답 본문에 접근할 수 있습니다.
+
+**예제:**
+
+```javascript
+const router = new ViewLogicRouter({
+    apiBaseURL: '/api',
+    errorHandlers: {
+        // 403: 권한 없음 처리
+        403({ status, body, url }) {
+            alert('권한이 없습니다.');
+            router.navigateTo('home');
+        },
+        // 500: 서버 에러 → fallback 데이터 반환 (에러 억제)
+        500({ status, body }) {
+            showToast('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+            return { data: [], error: true };
+        },
+        // 5xx: 나머지 서버 에러 catch-all
+        '5xx'({ status, body }) {
+            console.error(`서버 에러 ${status}:`, body);
+        },
+        // 4xx: 클라이언트 에러 catch-all (403 등 개별 핸들러 미실행 시)
+        '4xx'({ status, body, url, method }) {
+            console.warn(`클라이언트 에러 [${method}] ${url}:`, status);
+        }
+    }
+});
+```
+
 ## 인스턴스 속성
 
 ### router.currentRoute
