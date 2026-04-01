@@ -78,12 +78,29 @@ export class AuthManager {
         }
 
         // 기본 인증 확인
-        const isAuthenticated = this.isAuthenticated();
-        return {
-            allowed: isAuthenticated, 
-            reason: isAuthenticated ? 'authenticated' : 'not_authenticated',
-            routeName
-        };
+        if (this.isAuthenticated()) {
+            return { allowed: true, reason: 'authenticated', routeName };
+        }
+
+        // JWT 만료 시 refreshToken 콜백이 있으면 silent refresh 시도
+        const refreshCallback = this.router?.config?.refreshToken;
+        if (typeof refreshCallback === 'function') {
+            this.log('debug', '🔄 토큰 만료, silent refresh 시도...');
+            try {
+                const apiHandler = this.router?.routeLoader?.apiHandler;
+                if (apiHandler) {
+                    const refreshed = await apiHandler._handleTokenRefresh();
+                    if (refreshed) {
+                        this.log('info', '✅ Silent refresh 성공, 라우트 허용');
+                        return { allowed: true, reason: 'token_refreshed', routeName };
+                    }
+                }
+            } catch (error) {
+                this.log('error', 'Silent refresh 실패:', error);
+            }
+        }
+
+        return { allowed: false, reason: 'not_authenticated', routeName };
     }
 
     /**

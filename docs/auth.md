@@ -97,6 +97,43 @@ export default {
 
 > **참고**: JWT가 아닌 일반 토큰을 사용하는 경우에는 토큰 존재 여부만으로 인증을 판단합니다.
 
+### Silent Refresh (라우트 가드 연동)
+
+`refreshToken` 콜백이 설정되어 있으면, JWT 만료 시 라우트 가드 단계에서 자동으로 토큰 갱신을 시도합니다. `authFunction` 없이도 동작합니다.
+
+```
+페이지 이동 → 라우트 가드 → JWT 만료 감지
+├─ refreshToken 콜백 있음 → 갱신 시도
+│   ├─ 성공 → 새 토큰 저장 → 페이지 정상 표시
+│   └─ 실패 → 로그인 페이지로 이동
+└─ refreshToken 콜백 없음 → 로그인 페이지로 이동
+```
+
+```javascript
+const router = new ViewLogicRouter({
+    auth: true,
+    protectedRoutes: ['profile', 'admin/*'],
+    // refreshToken 콜백만 설정하면 silent refresh 자동 동작
+    refreshToken: async () => {
+        const rt = localStorage.getItem('refresh_token');
+        if (!rt) throw new Error('No refresh token');
+        const res = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: rt })
+        });
+        if (!res.ok) throw new Error('Refresh failed');
+        const data = await res.json();
+        if (data.refresh_token) {
+            localStorage.setItem('refresh_token', data.refresh_token);
+        }
+        return { accessToken: data.access_token };
+    }
+});
+```
+
+> **참고**: API 호출 중 401 응답 시에도 동일한 `refreshToken` 콜백으로 자동 갱신됩니다. 라우트 가드와 API 호출 양쪽에서 모두 silent refresh가 동작합니다.
+
 ## 토큰 갱신 (Refresh Token)
 
 ### 기본 설정
