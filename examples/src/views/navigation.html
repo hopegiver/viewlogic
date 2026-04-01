@@ -1,0 +1,55 @@
+<nav class="main-nav">
+    <div class="nav-container">
+        <!-- Site Logo -->
+        <div class="nav-brand">
+            <a @click="navigateTo('home')" class="brand-link">
+                <span class="brand-logo">🚀</span>
+                <span class="brand-text">ViewLogic</span>
+            </a>
+        </div>
+
+        <!-- Mobile Hamburger Menu Button -->
+        <button
+            class="nav-toggle"
+            :class="{ active: mobileMenuOpen }"
+            @click="toggleMobileMenu"
+            aria-label="Toggle navigation menu"
+        >
+            <span class="nav-toggle-bar"></span>
+            <span class="nav-toggle-bar"></span>
+            <span class="nav-toggle-bar"></span>
+        </button>
+
+        <!-- Mobile Overlay -->
+        <div
+            class="nav-overlay"
+            :class="{ active: mobileMenuOpen }"
+            @click="closeMobileMenu"
+            aria-hidden="true"
+        ></div>
+
+        <!-- Central Navigation Menu -->
+        <div class="nav-menu" :class="{ active: mobileMenuOpen }">
+            <ul class="nav-links">
+                <li v-for="item in menuItems" :key="item.name">
+                    <a
+                        @click="navigateAndClose(item.name)"
+                        :class="{ active: activeRoute === item.name }"
+                    >
+                        {{ item.label }}
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Right Utility Menu (Desktop) -->
+        <div class="nav-utils">
+            <a v-if="!loggedIn" @click="navigateAndClose('login')" class="btn btn-sm btn-outline-primary">
+                🔐 로그인
+            </a>
+            <a v-else @click="logout()" class="btn btn-sm btn-outline-danger">
+                🚪 로그아웃
+            </a>
+        </div>
+    </div>
+</nav>
