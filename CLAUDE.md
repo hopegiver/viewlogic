@@ -85,7 +85,7 @@ new ViewLogicRouter({
   auth: false,                // 인증 활성화 (기본: false) — authEnabled도 가능
   authFunction: null,         // 인증 확인 함수 — checkAuthFunction도 가능
   loginRoute: 'login',        // 로그인 라우트 (기본: 'login')
-  protectedRoutes: [],        // 보호 라우트 배열
+  protectedRoutes: [],        // 비어있으면 publicRoutes 외 전부 보호
   environment: 'development', // 'development' | 'production'
   logLevel: 'info',            // 로그 레벨
   errorHandlers: null           // HTTP 상태 코드별 에러 핸들러 ({ 403: fn, '5xx': fn })

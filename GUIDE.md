@@ -594,10 +594,12 @@ export default {
 const router = new ViewLogicRouter({
     auth: true,
     loginRoute: 'login',
-    protectedRoutes: ['profile', 'admin/*'],  // 보호할 라우트
+    publicRoutes: ['login', 'register', 'home'],  // 인증 없이 접근 가능한 라우트
     authStorage: 'localStorage'  // 'cookie', 'sessionStorage', 'memory'
 });
 ```
+
+> `protectedRoutes`를 지정하지 않으면(빈 배열), publicRoutes 외 모든 라우트가 자동으로 보호됩니다. 특정 라우트만 보호하려면 `protectedRoutes: ['profile', 'admin/*']`를 명시하세요.
 
 **authStorage 옵션:**
 - `localStorage`: 브라우저를 닫아도 유지 (기본값, 권장)
@@ -1530,7 +1532,7 @@ const router = new ViewLogicRouter({
     // 인증
     auth: false,                      // 인증 활성화 (authEnabled도 가능)
     loginRoute: 'login',              // 로그인 라우트
-    protectedRoutes: [],              // 보호할 라우트 목록
+    protectedRoutes: [],              // 비어있으면 publicRoutes 외 전부 보호
     authStorage: 'localStorage',      // 'localStorage', 'sessionStorage', 'cookie', 'memory'
 
     // 다국어

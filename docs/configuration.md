@@ -30,7 +30,7 @@ const router = new ViewLogicRouter({
     auth: true,                       // 인증 활성화 (AuthManager 생성) — authEnabled도 가능
     loginRoute: 'login',              // 로그인 페이지 라우트명
     authFunction: () => {...},        // 페이지 접근 시 인증 상태 확인 함수 — checkAuthFunction도 가능
-    protectedRoutes: [],              // 보호 라우트 목록 (와일드카드: 'admin/*')
+    protectedRoutes: [],              // 비어있으면 publicRoutes 외 전부 보호 (와일드카드: 'admin/*')
     publicRoutes: ['login'],          // 인증 불필요 라우트
     redirectAfterLogin: 'home',       // 로그인 성공 후 이동 경로
     authStorage: 'localStorage',      // 토큰 저장소 ('localStorage'/'sessionStorage'/'cookie')
@@ -121,10 +121,10 @@ const router = new ViewLogicRouter({
     auth: true,                        // AuthManager 활성화 + API 토큰 자동 주입
     loginRoute: 'login',               // 미인증 시 리다이렉트 대상
     publicRoutes: ['login', 'register', 'home'],  // 인증 없이 접근 가능
-    protectedRoutes: ['admin/*'],      // 인증 필수 (와일드카드 지원)
-    authFunction: () => {
+    // protectedRoutes 생략 → publicRoutes 외 전부 보호 (특정 라우트만 보호 시 명시)
+    authFunction: (route) => {
         // true 반환 시 통과, false면 loginRoute로 리다이렉트
-        return !!localStorage.getItem('user');
+        return !!route.$state.get('user');
     },
 
     // ── 토큰 갱신 (선택) ──

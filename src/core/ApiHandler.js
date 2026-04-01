@@ -136,10 +136,9 @@ export class ApiHandler {
                 processedURL = this.combineURLs(this.apiBaseURL, processedURL);
             }
 
-            // 현재 쿼리 파라미터를 URL에 추가
-            const queryString = this.router.queryManager?.buildQueryString(this.router.queryManager?.getQueryParams()) || '';
-            const fullURL = queryString ? `${processedURL}?${queryString}` : processedURL;
-            
+            // options.params가 있으면 쿼리 파라미터로 변환하여 URL에 추가
+            const fullURL = this._appendParams(processedURL, options.params);
+
             this.log('debug', `Fetching data from: ${fullURL}`);
             
             // 요청 옵션 설정
@@ -409,6 +408,32 @@ export class ApiHandler {
             fetchData: (url, options = {}) => this.fetchData(url, component, options),
             fetchMultipleData: (dataConfig) => this.fetchMultipleData(dataConfig, component)
         };
+    }
+
+    /**
+     * params 객체를 쿼리 스트링으로 변환하여 URL에 추가
+     * @param {string} url - 기본 URL
+     * @param {Object} params - 쿼리 파라미터 객체
+     * @returns {string} 쿼리 파라미터가 추가된 URL
+     */
+    _appendParams(url, params) {
+        if (!params || typeof params !== 'object' || Object.keys(params).length === 0) {
+            return url;
+        }
+
+        const searchParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(params)) {
+            if (value !== null && value !== undefined) {
+                searchParams.append(key, value);
+            }
+        }
+
+        const queryString = searchParams.toString();
+        if (!queryString) return url;
+
+        // URL에 이미 쿼리 파라미터가 있으면 &로 연결, 없으면 ?로 시작
+        const separator = url.includes('?') ? '&' : '?';
+        return `${url}${separator}${queryString}`;
     }
 
     /**

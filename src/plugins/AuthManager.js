@@ -50,8 +50,9 @@ export class AuthManager {
         }
 
         // 보호된 라우트인지 확인
+        // protectedRoutes가 비어있으면 publicRoutes 외 전부 보호
         const isProtected = this.isProtectedRoute(routeName);
-        if (!isProtected) {
+        if (this.config.protectedRoutes.length > 0 && !isProtected) {
             return { allowed: true, reason: 'not_protected' };
         }
 
