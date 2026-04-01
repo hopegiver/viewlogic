@@ -421,9 +421,8 @@ export class AuthManager {
     logout() {
         this.log('info', '👋 Logging out user');
         
-        // 모든 저장소에서 토큰 제거
+        // 모든 저장소에서 토큰 제거 (removeAccessToken 내부에서 refreshToken도 함께 제거)
         this.removeAccessToken();
-        this.removeRefreshToken();
 
         this.emitAuthEvent('logout', {});
         
