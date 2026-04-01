@@ -371,7 +371,7 @@ const cacheKey = `layout_components_${layoutName}`;
 
 ```javascript
 // routes/_components.js에서 모든 컴포넌트를 한 번에 로드
-const componentsModule = await import(`${routesPath}/_components.js`);
+const componentsModule = await import(`${basePath}/routes/_components.js`);
 this.unifiedComponents = componentsModule.components || {};
 ```
 

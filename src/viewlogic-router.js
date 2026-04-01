@@ -54,8 +54,6 @@ export class ViewLogicRouter {
             defaultLayout: 'default',
             defaultRoute: 'home',          // 기본 라우트 (/#/ 접근 시)
             environment: 'development',
-            routesPath: '/routes',         // 프로덕션 라우트 경로
-            enableErrorReporting: true,
             useI18n: false,
             defaultLanguage: 'ko',
             i18nPath: '/i18n',            // 다국어 파일 경로
@@ -66,23 +64,29 @@ export class ViewLogicRouter {
             authEnabled: false,
             loginRoute: 'login',
             protectedRoutes: [],
-            protectedPrefixes: [],
             publicRoutes: ['login', 'register', 'home'],
-            checkAuthFunction: null,
+            authFunction: null,
             redirectAfterLogin: 'home',
             authCookieName: 'authToken',
             authStorage: 'localStorage',
             refreshToken: null,                // 토큰 갱신 콜백 (async () => { accessToken, refreshToken? })
-            refreshTokenStorage: null,          // 리프레시 토큰 저장소 (null이면 authStorage 사용)
             apiInterceptors: null,              // API 응답/에러 인터셉터 ({ response?, error? })
             errorHandlers: null                 // HTTP 상태 코드별 에러 핸들러 ({ 403: fn, '5xx': fn })
         };
         
         const config = { ...defaults, ...options };
 
+        // 설정 별칭 지원 (auth → authEnabled, checkAuthFunction → authFunction)
+        if (options.auth !== undefined && options.authEnabled === undefined) {
+            config.authEnabled = options.auth;
+        }
+        if (options.checkAuthFunction !== undefined && options.authFunction === undefined) {
+            config.authFunction = options.checkAuthFunction;
+        }
+
         // 절대 경로들을 basePath 기준으로 해결
         config.srcPath = this.resolvePath(config.srcPath, config.basePath);
-        config.routesPath = this.resolvePath(config.routesPath, config.basePath);
+        config.routesPath = this.resolvePath('/routes', config.basePath); // basePath에서 자동 파생
         config.i18nPath = this.resolvePath(config.i18nPath, config.basePath);
 
         return config;

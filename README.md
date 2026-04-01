@@ -128,7 +128,7 @@ import { ViewLogicRouter } from 'viewlogic';
 
 const router = new ViewLogicRouter({
     environment: 'production',
-    authEnabled: true,
+    auth: true,
     useI18n: true
 });
 ```
@@ -146,7 +146,7 @@ const router = new ViewLogicRouter({
         import { ViewLogicRouter } from 'https://cdn.jsdelivr.net/npm/viewlogic/dist/viewlogic-router.esm.js';
         const router = new ViewLogicRouter({
             environment: 'production',
-            authEnabled: true,
+            auth: true,
             useI18n: true
         });
     </script>
@@ -658,10 +658,9 @@ const router = new ViewLogicRouter({
     mode: 'hash',                       // 'hash' or 'history'
 
     // Authentication settings
-    authEnabled: true,                  // Enable authentication system
+    auth: true,                         // Enable authentication system
     loginRoute: 'login',                // Route name for login page
-    protectedRoutes: ['dashboard', 'profile', 'admin'],
-    protectedPrefixes: ['admin/', 'secure/'],
+    protectedRoutes: ['dashboard', 'profile', 'admin/*', 'secure/*'],
     publicRoutes: ['login', 'register', 'home', 'about'],
     authStorage: 'localStorage',        // 'localStorage', 'sessionStorage', 'cookie'
 
@@ -706,8 +705,8 @@ const router = new ViewLogicRouter({
     },
 
     // Custom authentication function
-    authEnabled: true,
-    checkAuthFunction: async (route) => {
+    auth: true,
+    authFunction: async (route) => {
         try {
             // Use ViewLogic APIs like in components
             const userData = await route.$api.get('/api/auth/verify');

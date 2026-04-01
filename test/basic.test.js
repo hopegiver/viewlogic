@@ -116,6 +116,27 @@ describe('ViewLogic Router - Basic Tests', () => {
             expect(router.authManager).toBeDefined();
         });
 
+        test('should initialize auth manager with auth alias', () => {
+            router = new ViewLogicRouter({ auth: true });
+
+            expect(router.authManager).toBeDefined();
+            expect(router.config.authEnabled).toBe(true);
+        });
+
+        test('should accept authFunction as primary key', () => {
+            const fn = jest.fn(() => true);
+            router = new ViewLogicRouter({ auth: true, authFunction: fn });
+
+            expect(router.config.authFunction).toBe(fn);
+        });
+
+        test('should accept checkAuthFunction as alias', () => {
+            const fn = jest.fn(() => true);
+            router = new ViewLogicRouter({ authEnabled: true, checkAuthFunction: fn });
+
+            expect(router.config.authFunction).toBe(fn);
+        });
+
         test('should initialize i18n manager when enabled', () => {
             router = new ViewLogicRouter({ useI18n: true });
 

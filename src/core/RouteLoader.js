@@ -10,7 +10,7 @@ export class RouteLoader {
     constructor(router, options = {}) {
         this.config = {
             srcPath: options.srcPath || router.config.srcPath || '/src',    // 소스 파일 경로
-            routesPath: options.routesPath || router.config.routesPath || '/routes', // 프로덕션 라우트 경로
+            routesPath: router.config.routesPath, // basePath에서 자동 파생
             environment: options.environment || 'development',
             useLayout: options.useLayout !== false,
             defaultLayout: options.defaultLayout || 'default'
@@ -429,9 +429,7 @@ export class RouteLoader {
                     const result = router.authManager.setAccessToken(token, options);
                     // options.refreshToken이 있으면 리프레시 토큰도 저장
                     if (options?.refreshToken) {
-                        router.authManager.setRefreshToken(options.refreshToken, {
-                            storage: options.refreshTokenStorage || undefined
-                        });
+                        router.authManager.setRefreshToken(options.refreshToken);
                     }
                     return result;
                 },

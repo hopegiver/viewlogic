@@ -592,7 +592,7 @@ export default {
 
 ```javascript
 const router = new ViewLogicRouter({
-    authEnabled: true,
+    auth: true,
     loginRoute: 'login',
     protectedRoutes: ['profile', 'admin/*'],  // 보호할 라우트
     authStorage: 'localStorage'  // 'cookie', 'sessionStorage', 'memory'
@@ -1379,7 +1379,7 @@ methods: {
 - 템플릿에서 PascalCase로 사용했는지 확인 (예: `<Button>`, `<MyCard>`)
 
 ### Q4. 인증 토큰이 전달되지 않아요
-- `authEnabled: true` 설정 확인
+- `auth: true` 설정 확인
 - `this.setToken(token)` 호출 확인
 - 브라우저 개발자 도구에서 localStorage/cookie 확인
 
@@ -1528,7 +1528,7 @@ const router = new ViewLogicRouter({
     defaultLayout: 'default',         // 기본 레이아웃
 
     // 인증
-    authEnabled: false,               // 인증 활성화
+    auth: false,                      // 인증 활성화 (authEnabled도 가능)
     loginRoute: 'login',              // 로그인 라우트
     protectedRoutes: [],              // 보호할 라우트 목록
     authStorage: 'localStorage',      // 'localStorage', 'sessionStorage', 'cookie', 'memory'
@@ -1600,17 +1600,17 @@ dataURL: '/api/users/{id}'  // id 사용
 
 **문제:**
 ```javascript
-// ❌ authEnabled가 false
+// ❌ auth가 false
 const router = new ViewLogicRouter({
-    authEnabled: false  // ❌
+    auth: false  // ❌
 });
 ```
 
 **해결:**
 ```javascript
-// ✅ authEnabled를 true로
+// ✅ auth를 true로
 const router = new ViewLogicRouter({
-    authEnabled: true  // ✅
+    auth: true  // ✅
 });
 ```
 

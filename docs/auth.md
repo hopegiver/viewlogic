@@ -4,7 +4,7 @@
 
 ```javascript
 const router = new ViewLogicRouter({
-    authEnabled: true,
+    auth: true,
     loginRoute: 'login',
     protectedRoutes: ['profile', 'admin/*'],
     authStorage: 'localStorage'  // 'cookie', 'sessionStorage', 'memory'
@@ -63,7 +63,7 @@ mounted() {
 
 ```javascript
 const router = new ViewLogicRouter({
-    authEnabled: true,
+    auth: true,
     loginRoute: 'auth/login',
     publicRoutes: ['home', 'auth/login', 'auth/register'],
     apiBaseURL: window.API_BASE_URL,
@@ -123,7 +123,6 @@ API 요청 → 401 응답 감지
 | 키 | 타입 | 기본값 | 설명 |
 |----|------|--------|------|
 | `refreshToken` | `function\|null` | `null` | 401 시 호출되는 토큰 갱신 콜백 |
-| `refreshTokenStorage` | `string\|null` | `null` | 리프레시 토큰 저장소 (`null`이면 `authStorage` 사용) |
 
 ### 로그인 시 토큰 저장 예시
 

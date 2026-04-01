@@ -82,7 +82,8 @@ new ViewLogicRouter({
   cacheTTL: 300000,           // 캐시 TTL ms (기본: 300000)
   useI18n: false,             // i18n 활성화 (기본: false)
   defaultLanguage: 'ko',      // 기본 언어 (기본: 'ko')
-  authEnabled: false,         // 인증 활성화 (기본: false)
+  auth: false,                // 인증 활성화 (기본: false) — authEnabled도 가능
+  authFunction: null,         // 인증 확인 함수 — checkAuthFunction도 가능
   loginRoute: 'login',        // 로그인 라우트 (기본: 'login')
   protectedRoutes: [],        // 보호 라우트 배열
   environment: 'development', // 'development' | 'production'

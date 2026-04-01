@@ -5,16 +5,14 @@
 export class AuthManager {
     constructor(router, options = {}) {
         this.config = {
-            enabled: options.authEnabled || false,
+            enabled: options.authEnabled ?? options.auth ?? false,
             loginRoute: options.loginRoute || 'login',
             protectedRoutes: options.protectedRoutes || [],
-            protectedPrefixes: options.protectedPrefixes || [],
             publicRoutes: options.publicRoutes || ['login', 'register', 'home'],
-            checkAuthFunction: options.checkAuthFunction || null,
+            authFunction: options.authFunction ?? options.checkAuthFunction ?? null,
             redirectAfterLogin: options.redirectAfterLogin || 'home',
             authCookieName: options.authCookieName || 'authToken',
-            authStorage: options.authStorage || 'localStorage',
-            refreshTokenStorage: options.refreshTokenStorage || options.authStorage || 'localStorage'
+            authStorage: options.authStorage || 'localStorage'
         };
         
         // 라우터 인스턴스 참조 (필수 의존성)
@@ -58,7 +56,7 @@ export class AuthManager {
         }
 
         // 사용자 정의 인증 체크 함수가 있는 경우
-        if (typeof this.config.checkAuthFunction === 'function') {
+        if (typeof this.config.authFunction === 'function') {
             try {
                 // 가벼운 route 객체 생성 (컴포넌트와 동일한 API 경험 제공)
                 const route = {
@@ -67,7 +65,7 @@ export class AuthManager {
                     $state: this.router.stateHandler
                 };
 
-                const isAuthenticated = await this.config.checkAuthFunction(route);
+                const isAuthenticated = await this.config.authFunction(route);
                 return {
                     allowed: isAuthenticated, 
                     reason: isAuthenticated ? 'custom_auth_success' : 'custom_auth_failed',
@@ -149,18 +147,19 @@ export class AuthManager {
      * 보호된 라우트인지 확인
      */
     isProtectedRoute(routeName) {
-        // 특정 라우트가 보호된 라우트 목록에 있는지 확인
-        if (this.config.protectedRoutes.includes(routeName)) {
-            return true;
-        }
-
-        // prefix로 보호된 라우트인지 확인
-        for (const prefix of this.config.protectedPrefixes) {
-            if (routeName.startsWith(prefix)) {
+        for (const route of this.config.protectedRoutes) {
+            // 와일드카드 패턴 (예: 'admin/*')
+            if (route.endsWith('/*')) {
+                const prefix = route.slice(0, -2);
+                if (routeName === prefix || routeName.startsWith(prefix + '/')) {
+                    return true;
+                }
+            }
+            // 정확한 일치
+            else if (route === routeName) {
                 return true;
             }
         }
-
         return false;
     }
 
@@ -229,7 +228,7 @@ export class AuthManager {
             return false;
         }
 
-        const storage = options.storage || this.config.refreshTokenStorage;
+        const storage = options.storage || this.config.authStorage;
 
         try {
             switch (storage) {
@@ -496,7 +495,6 @@ export class AuthManager {
             isAuthenticated: this.isAuthenticated(),
             hasToken: !!this.getAccessToken(),
             protectedRoutesCount: this.config.protectedRoutes.length,
-            protectedPrefixesCount: this.config.protectedPrefixes.length,
             publicRoutesCount: this.config.publicRoutes.length,
             storage: this.config.authStorage,
             loginRoute: this.config.loginRoute

@@ -27,11 +27,10 @@ const router = new ViewLogicRouter({
     defaultLayout: 'default',         // 기본 레이아웃
 
     // ── 인증 ──
-    authEnabled: true,                // 인증 활성화 (AuthManager 생성)
+    auth: true,                       // 인증 활성화 (AuthManager 생성) — authEnabled도 가능
     loginRoute: 'login',              // 로그인 페이지 라우트명
-    checkAuthFunction: () => {...},   // 페이지 접근 시 인증 상태 확인 함수
+    authFunction: () => {...},        // 페이지 접근 시 인증 상태 확인 함수 — checkAuthFunction도 가능
     protectedRoutes: [],              // 보호 라우트 목록 (와일드카드: 'admin/*')
-    protectedPrefixes: [],            // 보호 라우트 접두사
     publicRoutes: ['login'],          // 인증 불필요 라우트
     redirectAfterLogin: 'home',       // 로그인 성공 후 이동 경로
     authStorage: 'localStorage',      // 토큰 저장소 ('localStorage'/'sessionStorage'/'cookie')
@@ -39,7 +38,6 @@ const router = new ViewLogicRouter({
 
     // ── 토큰 갱신 ──
     refreshToken: null,               // 리프레시 토큰 콜백 함수 (null이면 비활성)
-    refreshTokenStorage: null,        // 리프레시 토큰 저장소 (null이면 authStorage 사용)
 
     // ── API 에러 처리 ──
     apiInterceptors: null,            // API 응답/에러 인터셉터 ({ response?, error? })
@@ -62,19 +60,28 @@ const router = new ViewLogicRouter({
 
 | 키 | 타입 | 기본값 | 설명 |
 |----|------|--------|------|
-| `authEnabled` | `boolean` | `false` | `true`여야 AuthManager 생성 + API 토큰 자동 주입 |
-| `checkAuthFunction` | `function\|null` | `null` | 페이지 전환 시 인증 상태 확인. `true` 반환 시 통과 |
+| `auth` | `boolean` | `false` | `true`여야 AuthManager 생성 + API 토큰 자동 주입. `authEnabled`도 가능 |
+| `authFunction` | `function\|null` | `null` | 페이지 전환 시 인증 상태 확인. `true` 반환 시 통과. `checkAuthFunction`도 가능 |
 | `loginRoute` | `string` | `'login'` | 미인증 시 리다이렉트할 라우트명 |
 | `authStorage` | `string` | `'localStorage'` | 토큰 저장 위치 |
 | `refreshToken` | `function\|null` | `null` | 401 응답 시 호출되는 토큰 갱신 콜백 |
+
+### 키 별칭 (Alias)
+
+| 권장 키 | 별칭 (호환) | 설명 |
+|---------|-------------|------|
+| `auth` | `authEnabled` | 인증 활성화 |
+| `authFunction` | `checkAuthFunction` | 인증 확인 함수 |
+
+> 두 형태 모두 동작합니다. 새 프로젝트에서는 간결한 권장 키를 사용하세요.
 
 ### 틀리기 쉬운 키 이름 (동작하지 않음!)
 
 | 잘못된 키 | 올바른 키 |
 |-----------|-----------|
-| ~~`Auth`~~ | `authEnabled` |
-| ~~`useAuth`~~ | `authEnabled` |
-| ~~`authCheck`~~ | `checkAuthFunction` |
+| ~~`Auth`~~ | `auth` |
+| ~~`useAuth`~~ | `auth` |
+| ~~`authCheck`~~ | `authFunction` |
 | ~~`authRedirect`~~ | `loginRoute` |
 
 > ViewLogic Router의 `_buildConfig`는 `{...defaults, ...userOptions}`로 단순 병합합니다.
@@ -110,11 +117,11 @@ const router = new ViewLogicRouter({
     apiBaseURL: 'http://localhost:8787',
 
     // ── 인증 ──
-    authEnabled: true,                 // AuthManager 활성화 + API 토큰 자동 주입
+    auth: true,                        // AuthManager 활성화 + API 토큰 자동 주입
     loginRoute: 'login',               // 미인증 시 리다이렉트 대상
     publicRoutes: ['login', 'register', 'home'],  // 인증 없이 접근 가능
     protectedRoutes: ['admin/*'],      // 인증 필수 (와일드카드 지원)
-    checkAuthFunction: () => {
+    authFunction: () => {
         // true 반환 시 통과, false면 loginRoute로 리다이렉트
         return !!localStorage.getItem('user');
     },
@@ -143,7 +150,7 @@ const router = new ViewLogicRouter({
 **인증 흐름 요약:**
 
 ```
-사용자 접근 → checkAuthFunction() 실행
+사용자 접근 → authFunction() 실행
   ├─ true → 페이지 표시
   └─ false → loginRoute로 리다이렉트 (?redirect=원래경로)
 
@@ -164,10 +171,10 @@ const router = new ViewLogicRouter({
     apiBaseURL: 'http://localhost:8787',
 
     // 인증
-    authEnabled: true,
+    auth: true,
     loginRoute: 'login',
     publicRoutes: ['login', 'register'],
-    checkAuthFunction: () => !!localStorage.getItem('user'),
+    authFunction: () => !!localStorage.getItem('user'),
     refreshToken: async () => {
         // ... (위 예제 참조)
     },

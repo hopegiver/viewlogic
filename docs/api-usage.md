@@ -126,7 +126,7 @@ const router = new ViewLogicRouter({
 
 ## 자동 토큰 주입
 
-인증 활성화 시(`authEnabled: true`) 모든 API 요청에 자동으로 토큰 포함:
+인증 활성화 시(`auth: true`) 모든 API 요청에 자동으로 토큰 포함:
 ```
 Authorization: Bearer YOUR_TOKEN
 ```
