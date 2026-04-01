@@ -55,6 +55,48 @@ mounted() {
 }
 ```
 
+## JWT 토큰 활용
+
+### 자동 만료 검증
+
+JWT 형식의 토큰을 사용하면 `authFunction` 없이도 토큰 만료가 자동으로 검증됩니다. payload의 `exp` 클레임을 확인하여 만료된 토큰은 자동 제거됩니다.
+
+```javascript
+// authFunction 없이도 JWT 만료 체크가 자동으로 동작
+const router = new ViewLogicRouter({
+    auth: true,
+    protectedRoutes: ['profile', 'admin/*']
+    // authFunction 불필요
+});
+```
+
+`authFunction`은 서버 검증 등 커스텀 인증 로직이 필요한 경우에만 지정하면 됩니다.
+
+### 사용자 정보 활용
+
+JWT payload에 사용자 정보(`sub`, `name`, `role` 등)가 포함되어 있으므로, localStorage에 별도로 저장할 필요 없이 토큰에서 직접 꺼내 쓸 수 있습니다.
+
+```javascript
+export default {
+    methods: {
+        getUserInfo() {
+            const token = this.getToken();
+            if (!token || !token.includes('.')) return null;
+            return JSON.parse(atob(token.split('.')[1]));
+        }
+    },
+    mounted() {
+        const user = this.getUserInfo();
+        if (user) {
+            this.userName = user.name;
+            this.userRole = user.role;
+        }
+    }
+}
+```
+
+> **참고**: JWT가 아닌 일반 토큰을 사용하는 경우에는 토큰 존재 여부만으로 인증을 판단합니다.
+
 ## 토큰 갱신 (Refresh Token)
 
 ### 기본 설정

@@ -423,8 +423,8 @@ export class AuthManager {
         
         // 모든 저장소에서 토큰 제거
         this.removeAccessToken();
-        
-        
+        this.removeRefreshToken();
+
         this.emitAuthEvent('logout', {});
         
         // 라우터 인스턴스가 있으면 직접 네비게이션
