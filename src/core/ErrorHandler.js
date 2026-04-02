@@ -207,8 +207,8 @@ export class ErrorHandler {
         }
         
         // 로그 레벨 확인
-        const currentLevelValue = this.logLevels[this.config.logLevel] || this.logLevels.info;
-        const messageLevelValue = this.logLevels[level] || this.logLevels.info;
+        const currentLevelValue = this.logLevels[this.config.logLevel] ?? this.logLevels.info;
+        const messageLevelValue = this.logLevels[level] ?? this.logLevels.info;
         
         if (messageLevelValue > currentLevelValue) {
             return; // 현재 설정된 레벨보다 높으면 출력 안함

@@ -1,5 +1,5 @@
 /**
- * Basic unit tests for publishing
+ * ViewLogic Router 기본 단위 테스트
  */
 
 import { ViewLogicRouter } from '../src/viewlogic-router.js';
@@ -14,15 +14,9 @@ describe('ViewLogic Router - Basic Tests', () => {
         }
     });
 
-    describe('Module Loading', () => {
-        test('should import ViewLogicRouter class', () => {
-            expect(ViewLogicRouter).toBeDefined();
-            expect(typeof ViewLogicRouter).toBe('function');
-        });
-    });
-
+    // === 인스턴스 생성 ===
     describe('Router Instantiation', () => {
-        test('should create router instance with default config', () => {
+        test('기본 설정으로 라우터 인스턴스를 생성해야 한다', () => {
             router = new ViewLogicRouter();
 
             expect(router).toBeDefined();
@@ -30,7 +24,7 @@ describe('ViewLogic Router - Basic Tests', () => {
             expect(router.version).toBeDefined();
         });
 
-        test('should create router instance with custom config', () => {
+        test('커스텀 설정으로 라우터 인스턴스를 생성해야 한다', () => {
             router = new ViewLogicRouter({
                 basePath: '/test',
                 mode: 'hash'
@@ -40,7 +34,7 @@ describe('ViewLogic Router - Basic Tests', () => {
             expect(router.config.mode).toBe('hash');
         });
 
-        test('should have required core components', () => {
+        test('필수 핵심 컴포넌트를 초기화해야 한다', () => {
             router = new ViewLogicRouter();
 
             expect(router.routeLoader).toBeDefined();
@@ -50,8 +44,9 @@ describe('ViewLogic Router - Basic Tests', () => {
         });
     });
 
+    // === 설정 ===
     describe('Configuration', () => {
-        test('should merge custom options with defaults', () => {
+        test('커스텀 옵션이 기본값에 병합되어야 한다', () => {
             router = new ViewLogicRouter({
                 cacheTTL: 600000,
                 useI18n: true,
@@ -63,7 +58,7 @@ describe('ViewLogic Router - Basic Tests', () => {
             expect(router.config.authEnabled).toBe(true);
         });
 
-        test('should have default configuration values', () => {
+        test('기본 설정값이 올바르게 적용되어야 한다', () => {
             router = new ViewLogicRouter();
 
             expect(router.config.mode).toBe('hash');
@@ -72,78 +67,65 @@ describe('ViewLogic Router - Basic Tests', () => {
         });
     });
 
+    // === 기본 기능 ===
     describe('Basic Functionality', () => {
         beforeEach(() => {
             router = new ViewLogicRouter();
         });
 
-        test('should have basic routing methods', () => {
+        test('라우팅 메서드가 존재해야 한다', () => {
             expect(typeof router.navigateTo).toBe('function');
             expect(typeof router.destroy).toBe('function');
         });
 
-        test('should handle navigation to route', () => {
-            expect(() => {
-                router.navigateTo('home');
-            }).not.toThrow();
+        test('네비게이션 후 URL이 업데이트되어야 한다', () => {
+            router.navigateTo('about');
+            expect(window.location.hash).toContain('about');
         });
 
-        test('should have currentHash property', () => {
-            expect(router.currentHash).toBeDefined();
-        });
-    });
-
-    describe('Event Handling', () => {
-        test('should create router without throwing', () => {
-            expect(() => {
-                router = new ViewLogicRouter({ mode: 'hash' });
-            }).not.toThrow();
-        });
-
-        test('should destroy router without throwing', () => {
-            router = new ViewLogicRouter();
-
-            expect(() => {
-                router.destroy();
-            }).not.toThrow();
+        test('빈 라우트 네비게이션은 defaultRoute로 이동해야 한다', () => {
+            router.navigateTo('');
+            // 빈 문자열은 defaultRoute('home')로 처리됨
+            expect(window.location.hash).toBe('#/');
         });
     });
 
+    // === 컴포넌트 통합 ===
     describe('Component Integration', () => {
-        test('should initialize auth manager when enabled', () => {
+        test('authEnabled가 true이면 authManager를 초기화해야 한다', () => {
             router = new ViewLogicRouter({ authEnabled: true });
 
             expect(router.authManager).toBeDefined();
         });
 
-        test('should initialize auth manager with auth alias', () => {
+        test('auth 별칭으로 authManager를 초기화해야 한다', () => {
             router = new ViewLogicRouter({ auth: true });
 
             expect(router.authManager).toBeDefined();
             expect(router.config.authEnabled).toBe(true);
         });
 
-        test('should accept authFunction as primary key', () => {
+        test('authFunction을 설정으로 전달해야 한다', () => {
             const fn = jest.fn(() => true);
             router = new ViewLogicRouter({ auth: true, authFunction: fn });
 
             expect(router.config.authFunction).toBe(fn);
         });
 
-        test('should accept checkAuthFunction as alias', () => {
+        test('checkAuthFunction 별칭을 지원해야 한다', () => {
             const fn = jest.fn(() => true);
             router = new ViewLogicRouter({ authEnabled: true, checkAuthFunction: fn });
 
             expect(router.config.authFunction).toBe(fn);
         });
 
-        test('should initialize i18n manager when enabled', () => {
+        test('useI18n이 true이면 i18nManager를 초기화해야 한다', () => {
             router = new ViewLogicRouter({ useI18n: true });
 
             expect(router.i18nManager).toBeDefined();
         });
 
-        test('should not initialize optional components when disabled', () => {
+        test('비활성화된 선택적 컴포넌트는 초기화하지 않아야 한다', () => {
             router = new ViewLogicRouter({
                 authEnabled: false,
                 useI18n: false
@@ -154,8 +136,9 @@ describe('ViewLogic Router - Basic Tests', () => {
         });
     });
 
+    // === errorHandlers 설정 ===
     describe('errorHandlers Configuration', () => {
-        test('should accept errorHandlers configuration', () => {
+        test('errorHandlers 설정을 수용해야 한다', () => {
             const handler403 = jest.fn();
             router = new ViewLogicRouter({
                 errorHandlers: {
@@ -169,12 +152,12 @@ describe('ViewLogic Router - Basic Tests', () => {
             expect(typeof router.config.errorHandlers['5xx']).toBe('function');
         });
 
-        test('should default errorHandlers to null', () => {
+        test('errorHandlers 기본값이 null이어야 한다', () => {
             router = new ViewLogicRouter();
             expect(router.config.errorHandlers).toBeNull();
         });
 
-        test('should pass errorHandlers to ApiHandler', async () => {
+        test('errorHandlers를 ApiHandler에 전달해야 한다', async () => {
             const handler500 = jest.fn();
             router = new ViewLogicRouter({
                 errorHandlers: { 500: handler500 }
@@ -186,30 +169,23 @@ describe('ViewLogic Router - Basic Tests', () => {
         });
     });
 
-    describe('Error Handling', () => {
-        test('should handle destroy gracefully', () => {
+    // === destroy ===
+    describe('destroy', () => {
+        test('destroy 후 이벤트 리스너가 제거되어야 한다', () => {
             router = new ViewLogicRouter();
-
-            expect(() => {
-                router.destroy();
-            }).not.toThrow();
+            const spy = jest.spyOn(window, 'removeEventListener');
+            router.destroy();
+            expect(spy).toHaveBeenCalledWith('hashchange', expect.any(Function));
+            spy.mockRestore();
         });
 
-        test('should handle multiple destroy calls', () => {
+        test('다중 destroy 호출이 에러 없이 처리되어야 한다', () => {
             router = new ViewLogicRouter();
-
             router.destroy();
             expect(() => {
                 router.destroy();
             }).not.toThrow();
-        });
-
-        test('should handle invalid navigation gracefully', () => {
-            router = new ViewLogicRouter();
-
-            expect(() => {
-                router.navigateTo('');
-            }).not.toThrow();
+            router = null; // afterEach에서 중복 destroy 방지
         });
     });
 });
