@@ -1,7 +1,7 @@
 # 테스트 스위트 분석 보고서
 
-> 작성일: 2026-04-02 (2차 업데이트)
-> 대상: `test/` 디렉토리 전체 (13개 파일, 492개 테스트 케이스) + `e2e/` (Playwright, 10개)
+> 작성일: 2026-04-02 (최종 업데이트)
+> 대상: `test/` 디렉토리 전체 (13개 파일, 515개 테스트 케이스) + `e2e/` (Playwright, 10개)
 > 실행 환경: Jest + jsdom (단위/통합), Playwright + Chromium (E2E)
 
 ---
@@ -11,21 +11,21 @@
 | 항목 | 수치 |
 |------|------|
 | 단위/통합 테스트 파일 | 13개 |
-| 단위/통합 테스트 케이스 | 492개 |
+| 단위/통합 테스트 케이스 | 515개 |
 | E2E 테스트 케이스 | 10개 |
-| 총 테스트 케이스 | **502개** |
-| 통과 / 실패 | 502 / 0 |
-| 전체 Stmts 커버리지 | **83.50%** |
-| 전체 Lines 커버리지 | **84.45%** |
+| 총 테스트 케이스 | **525개** |
+| 통과 / 실패 | 525 / 0 |
+| 전체 Stmts 커버리지 | **85.22%** |
+| 전체 Lines 커버리지 | **86.10%** |
 
 ### 테스트 분포
 
 ```
-test/                                 (Jest, 492개)
+test/                                 (Jest, 515개)
 ├── basic.test.js                 19개  (메인 라우터 기본)
 ├── integration.test.js           19개  (통합 테스트)
 ├── core/
-│   ├── ViewLogicRouter.test.js   41개  (라우팅 핵심 흐름)
+│   ├── ViewLogicRouter.test.js   64개  ← +23개 (navigateTo, progress bar, cleanup, destroy)
 │   ├── ApiHandler.test.js        51개
 │   ├── ComponentLoader.test.js   25개
 │   ├── ErrorHandler.test.js      22개
@@ -52,15 +52,15 @@ e2e/                                  (Playwright, 10개)
 모듈                    | Stmts  | Branch | Funcs  | Lines  | 등급
 ------------------------|--------|--------|--------|--------|------
 StateHandler.js         | 100%   | 94.7%  | 100%   | 100%   | ★ A+
-FormHandler.js          | 97.6%  | 86.4%  | 92.0%  | 98.3%  | ★ A+  ← C→A+ 승격
-AuthManager.js          | 98.0%  | 88.5%  | 100%   | 99.0%  | ★ A+  ← B→A+ 승격
+FormHandler.js          | 97.6%  | 86.4%  | 92.0%  | 98.3%  | ★ A+
+AuthManager.js          | 98.0%  | 88.5%  | 100%   | 99.0%  | ★ A+
 QueryManager.js         | 96.5%  | 91.8%  | 100%   | 98.7%  | ★ A
-I18nManager.js          | 95.5%  | 84.4%  | 100%   | 95.5%  | ★ A   ← B→A 승격
+I18nManager.js          | 95.5%  | 84.4%  | 100%   | 95.5%  | ★ A
 CacheManager.js         | 89.4%  | 75.6%  | 100%   | 90.6%  | A
 ErrorHandler.js         | 87.5%  | 80.4%  | 93.8%  | 87.4%  | A
 ApiHandler.js           | 82.6%  | 79.4%  | 73.2%  | 84.4%  | B
-RouteLoader.js          | 77.5%  | 58.4%  | 60.5%  | 78.4%  | B     ← C→B 승격
-viewlogic-router.js     | 65.6%  | 68.6%  | 52.8%  | 66.8%  | C
+RouteLoader.js          | 77.5%  | 58.4%  | 60.5%  | 78.4%  | B
+viewlogic-router.js     | 77.5%  | 80.6%  | 66.7%  | 78.2%  | B     ← C→B 승격
 ComponentLoader.js      | 52.1%  | 52.4%  | 78.6%  | 52.6%  | D
 ```
 
@@ -91,12 +91,7 @@ ComponentLoader.js      | 52.1%  | 52.4%  | 78.6%  | 52.6%  | D
 |------|----------|-----------|-----------|
 | ApiHandler | **84.4%** | 51개 | 인터셉터, 토큰 갱신 일부 미커버. 전체적으로 양호 |
 | RouteLoader | **78.4%** | 42개 | loadScript, 템플릿 컴파일 미커버. 라이프사이클 훅 순서, 레이아웃 병합 검증됨 |
-
-### C등급 — 핵심 로직 일부 미검증
-
-| 모듈 | 커버리지 | 테스트 수 | 핵심 문제 |
-|------|----------|-----------|-----------|
-| viewlogic-router.js | **66.8%** | 79개 | `renderComponentWithTransition` (Vue 의존), `_createProgressBar`, `cleanupPreviousPages` 미커버. E2E로 간접 검증됨 |
+| viewlogic-router.js | **78.2%** | 102개 | navigateTo 엣지 케이스, progress bar, cleanupPreviousPages, destroy 검증 완료. `renderComponentWithTransition`만 미커버 (E2E로 간접 검증) |
 
 ### D등급 — 실효성 낮음
 
@@ -150,7 +145,7 @@ ComponentLoader.js      | 52.1%  | 52.4%  | 78.6%  | 52.6%  | D
 | 해시 라우팅 + hashchange 이벤트 | ✅ 직접 검증 |
 | 인증 가드 (라우트 보호/리다이렉트) | ✅ 직접 검증 |
 | 레이아웃-페이지 통합 렌더링 | ✅ 직접 검증 |
-| Progress bar DOM 조작 | ⚠️ 부분 (빠른 전환 테스트에서 간접 확인) |
+| Progress bar DOM 조작 | ✅ 단위 테스트 + 빠른 전환 E2E에서 간접 확인 |
 
 ---
 
@@ -162,8 +157,8 @@ ComponentLoader.js      | 52.1%  | 52.4%  | 78.6%  | 52.6%  | D
 |------|------|------|
 | `_loadComponentFromFile()` 실제 경로 | ComponentLoader.js:72-114 | 동적 `import()` mock으로 우회. 실제 파일 로딩 미검증 |
 | `loadScript()` | RouteLoader.js:39-70 | 스크립트 로딩/파싱 로직 미테스트 |
-| `cleanupPreviousPages()` | viewlogic-router.js:468-492 | DOM 정리, Vue unmount 로직 |
-| Progress bar 상태 관리 | viewlogic-router.js:497-553 | `_createProgressBar`, `_showProgressBar`, `_hideProgressBar` |
+| `renderComponentWithTransition()` | viewlogic-router.js:379-465 | Vue `createApp()` 의존. E2E로 간접 검증됨 |
+| 초기화 실패 경로 | viewlogic-router.js:188-210 | I18n/Auth 초기화 에러 시 graceful degradation |
 
 ### ~~해소된 갭~~
 
@@ -174,6 +169,10 @@ ComponentLoader.js      | 52.1%  | 52.4%  | 78.6%  | 52.6%  | D
 | ~~초기화 실패, setLanguage 실패~~ | ✅ I18nManager.test.js에 11개 테스트 추가 (95.5% 커버리지) |
 | ~~라이프사이클 훅 순서, 레이아웃 병합~~ | ✅ RouteLoader.test.js에 7개 테스트 추가 (78.4% 커버리지) |
 | ~~`renderComponentWithTransition`~~ | ✅ Playwright E2E로 간접 검증 |
+| ~~`cleanupPreviousPages`~~ | ✅ ViewLogicRouter.test.js에 5개 테스트 추가 |
+| ~~Progress bar 상태 관리~~ | ✅ ViewLogicRouter.test.js에 6개 테스트 추가 |
+| ~~navigateTo 엣지 케이스~~ | ✅ ViewLogicRouter.test.js에 5개 테스트 추가 |
+| ~~destroy Vue 앱 정리~~ | ✅ ViewLogicRouter.test.js에 4개 테스트 추가 |
 
 ---
 
@@ -203,35 +202,43 @@ ComponentLoader.js      | 52.1%  | 52.4%  | 78.6%  | 52.6%  | D
 - **RouteLoader 라이프사이클 강화** (+7개): loadLayoutScript 캐시/실패, main-content 경로, 라이프사이클 훅 순서, componentLoader 에러 fallback
 - **Playwright E2E 도입** (+10개): 실제 브라우저에서 Vue 마운트, 라우트 전환, 인증 가드, 레이아웃 시스템 검증
 
+### 개선된 부분 (3차 viewlogic-router.js 보강)
+
+- **navigateTo 엣지 케이스** (+5개): 객체 파라미터 분해, 앞 슬래시 제거, 빈 문자열 처리, 쿼리 파라미터 초기화
+- **Progress bar 전체 흐름** (+6개): _createProgressBar 생성, _showProgressBar 0.3초 딜레이, 기존 타이머 초기화, _hideProgressBar 100%→0% 전환, null 안전성
+- **cleanupPreviousPages** (+5개): page-exiting 제거, 이전 Vue 앱 unmount, unmount 에러 무시, 로딩 엘리먼트 제거, appElement null 안전성
+- **destroy 상세** (+4개): currentVueApp/previousVueApp unmount, 동시 unmount, DOM 정리
+- **초기화/waitForReady** (+3개): 즉시 반환, refreshToken 별칭, init hash 설정
+
 ---
 
 ## 8. 테스트 유효성 분류
 
 ```
-단위/통합 492개 + E2E 10개 = 전체 502개 기준:
+단위/통합 515개 + E2E 10개 = 전체 525개 기준:
 
-  실효성 있는 테스트     ~475개 (95%)  ← 실제 동작/상태 검증, 에지 케이스 포함
-  인프라 한계로 제한      ~20개 ( 4%)  ← mock 우회로 실제 경로 미검증 (ComponentLoader 등)
-  경량 검증              ~7개  ( 1%)  ← 프로퍼티 존재 확인 수준이나 다른 테스트와 보완적
+  실효성 있는 테스트     ~500개 (95%)  ← 실제 동작/상태 검증, 에지 케이스 포함
+  인프라 한계로 제한      ~18개 ( 3%)  ← mock 우회로 실제 경로 미검증 (ComponentLoader 등)
+  경량 검증              ~7개  ( 2%)  ← 프로퍼티 존재 확인 수준이나 다른 테스트와 보완적
 ```
 
 ---
 
 ## 9. 커버리지 변화 요약
 
-| 항목 | 초기 | 1차 개선 | 2차 개선 | 총 변화 |
-|------|------|----------|----------|---------|
-| 전체 Stmts | 70.62% | 74.30% | **83.50%** | **+12.88%** |
-| 전체 Lines | 71.35% | 75.03% | **84.45%** | **+13.10%** |
-| FormHandler Lines | 70.8% | 70.8% | **98.3%** | **+27.5%** |
-| AuthManager Lines | 73.9% | 73.9% | **99.0%** | **+25.1%** |
-| I18nManager Lines | 75.8% | 75.8% | **95.5%** | **+19.7%** |
-| RouteLoader Lines | 45.94% | 60.36% | **78.4%** | **+32.5%** |
-| ErrorHandler Lines | 82.75% | 87.35% | 87.4% | **+4.65%** |
-| viewlogic-router.js Lines | 56.72% | 66.80% | 66.8% | **+10.08%** |
-| 단위/통합 테스트 수 | 385개 | 438개 | **492개** | **+107개** |
-| E2E 테스트 수 | 0개 | 0개 | **10개** | **+10개** |
-| 테스트 파일 수 | 12개 | 13개 | **14개** | **+2개** |
+| 항목 | 초기 | 1차 개선 | 2차 개선 | 3차 개선 | 총 변화 |
+|------|------|----------|----------|----------|---------|
+| 전체 Stmts | 70.62% | 74.30% | 83.50% | **85.22%** | **+14.60%** |
+| 전체 Lines | 71.35% | 75.03% | 84.45% | **86.10%** | **+14.75%** |
+| viewlogic-router.js Lines | 56.72% | 66.80% | 66.8% | **78.15%** | **+21.43%** |
+| FormHandler Lines | 70.8% | 70.8% | **98.3%** | 98.3% | **+27.5%** |
+| AuthManager Lines | 73.9% | 73.9% | **99.0%** | 99.0% | **+25.1%** |
+| I18nManager Lines | 75.8% | 75.8% | **95.5%** | 95.5% | **+19.7%** |
+| RouteLoader Lines | 45.94% | 60.36% | **78.4%** | 78.4% | **+32.5%** |
+| ErrorHandler Lines | 82.75% | 87.35% | 87.4% | 87.4% | **+4.65%** |
+| 단위/통합 테스트 수 | 385개 | 438개 | 492개 | **515개** | **+130개** |
+| E2E 테스트 수 | 0개 | 0개 | **10개** | 10개 | **+10개** |
+| 테스트 파일 수 | 12개 | 13개 | 14개 | **14개** | **+2개** |
 
 ---
 
@@ -240,6 +247,6 @@ ComponentLoader.js      | 52.1%  | 52.4%  | 78.6%  | 52.6%  | D
 1. ~~**ErrorHandler `||` → `??` 버그 수정**~~ ✅ 완료
 2. ~~**E2E 테스트 도입**~~ ✅ 완료 (Playwright + Chromium, 10개 시나리오)
 3. ~~**FormHandler 전체 흐름 테스트**~~ ✅ 완료 (98.3% 커버리지)
-4. **ComponentLoader `import()` 전략 개선** — Jest의 `jest.unstable_mockModule` 또는 빌드 타임 변환으로 실제 import 경로 테스트
-5. **loadScript 테스트 추가** — RouteLoader의 스크립트 로딩/파싱 로직 (현재 78.4%)
-6. **viewlogic-router.js 커버리지 개선** — Progress bar, cleanupPreviousPages 등 (현재 66.8%)
+4. ~~**viewlogic-router.js 커버리지 개선**~~ ✅ 완료 (66.8% → 78.2%, navigateTo/progress bar/cleanup/destroy)
+5. **ComponentLoader `import()` 전략 개선** — Jest의 `jest.unstable_mockModule` 또는 빌드 타임 변환으로 실제 import 경로 테스트
+6. **loadScript 테스트 추가** — RouteLoader의 스크립트 로딩/파싱 로직 (현재 78.4%)

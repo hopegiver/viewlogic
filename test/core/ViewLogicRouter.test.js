@@ -285,6 +285,239 @@ describe('ViewLogicRouter', () => {
         });
     });
 
+    // === navigateTo 엣지 케이스 ===
+    describe('navigateTo', () => {
+        beforeEach(() => {
+            router = new ViewLogicRouter({ mode: 'hash', defaultRoute: 'home' });
+            jest.spyOn(router, 'updateURL').mockImplementation(() => {});
+        });
+
+        test('객체 파라미터를 분해해야 한다', () => {
+            router.navigateTo({ route: 'users', params: { id: '123' } });
+            expect(router.updateURL).toHaveBeenCalledWith('users', { id: '123' });
+        });
+
+        test('객체에 params가 없으면 null로 처리해야 한다', () => {
+            router.navigateTo({ route: 'about' });
+            expect(router.updateURL).toHaveBeenCalledWith('about', null);
+        });
+
+        test('앞 슬래시를 제거해야 한다', () => {
+            router.navigateTo('/about');
+            expect(router.updateURL).toHaveBeenCalledWith('about', null);
+        });
+
+        test('빈 문자열이면 defaultRoute로 이동해야 한다', () => {
+            router.navigateTo('');
+            expect(router.updateURL).toHaveBeenCalledWith('home', null);
+        });
+
+        test('다른 라우트로 이동 시 쿼리 파라미터를 초기화해야 한다', () => {
+            router.currentHash = 'home';
+            const clearSpy = jest.spyOn(router.queryManager, 'clearQueryParams');
+            router.navigateTo('users');
+            expect(clearSpy).toHaveBeenCalled();
+        });
+    });
+
+    // === Progress Bar ===
+    describe('Progress Bar', () => {
+        beforeEach(() => {
+            router = new ViewLogicRouter({ mode: 'hash' });
+            // loadRoute가 트리거되지 않도록 격리
+            jest.spyOn(router, 'loadRoute').mockResolvedValue();
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        test('_createProgressBar가 DOM에 프로그레스 바를 생성해야 한다', () => {
+            expect(router.progressBarElement).toBeDefined();
+            expect(router.progressBarElement.id).toBe('viewlogic-progress-bar');
+            // body에 추가된 것은 progressBarElement 참조로 검증
+            expect(router.progressBarElement.style).toBeDefined();
+        });
+
+        test('_showProgressBar가 0.3초 후 프로그레스 바를 표시해야 한다', () => {
+            const mockEl = { style: { opacity: '0', width: '0%' } };
+            router.progressBarElement = mockEl;
+            router._showProgressBar();
+
+            // 0.3초 전에는 변하지 않음
+            expect(mockEl.style.opacity).toBe('0');
+
+            // 0.3초 후 표시
+            jest.advanceTimersByTime(300);
+            expect(mockEl.style.opacity).toBe('1');
+            expect(mockEl.style.width).toBe('70%');
+        });
+
+        test('_showProgressBar가 기존 타이머를 초기화해야 한다', () => {
+            router.progressBarTimer = 12345; // 가짜 타이머 ID
+            const clearSpy = jest.spyOn(global, 'clearTimeout');
+            router._showProgressBar();
+            expect(clearSpy).toHaveBeenCalledWith(12345);
+        });
+
+        test('_hideProgressBar가 프로그레스 바를 숨겨야 한다', () => {
+            const mockEl = { style: { opacity: '1', width: '70%' } };
+            router.progressBarElement = mockEl;
+            router.progressBarTimer = 12345;
+
+            router._hideProgressBar();
+
+            // 즉시 width 100%
+            expect(mockEl.style.width).toBe('100%');
+            expect(router.progressBarTimer).toBeNull();
+
+            // 0.2초 후 opacity 0
+            jest.advanceTimersByTime(200);
+            expect(mockEl.style.opacity).toBe('0');
+            expect(mockEl.style.width).toBe('0%');
+        });
+
+        test('_hideProgressBar가 progressBarElement 없이도 안전해야 한다', () => {
+            router.progressBarElement = null;
+            expect(() => router._hideProgressBar()).not.toThrow();
+        });
+
+        test('_showProgressBar가 progressBarElement 없이도 안전해야 한다', () => {
+            router.progressBarElement = null;
+            router._showProgressBar();
+            jest.advanceTimersByTime(300);
+            // 에러 없이 완료
+        });
+    });
+
+    // === cleanupPreviousPages ===
+    describe('cleanupPreviousPages', () => {
+        beforeEach(() => {
+            router = new ViewLogicRouter({ mode: 'hash' });
+        });
+
+        test('page-exiting 컨테이너를 제거해야 한다', () => {
+            const exitingEl = { remove: jest.fn(), classList: { contains: jest.fn(() => true) } };
+            jest.spyOn(document, 'getElementById').mockReturnValue({
+                querySelectorAll: jest.fn(() => [exitingEl]),
+                querySelector: jest.fn(() => null)
+            });
+
+            router.cleanupPreviousPages();
+            expect(exitingEl.remove).toHaveBeenCalled();
+        });
+
+        test('이전 Vue 앱을 unmount해야 한다', () => {
+            const mockApp = { unmount: jest.fn() };
+            router.previousVueApp = mockApp;
+            jest.spyOn(document, 'getElementById').mockReturnValue({
+                querySelectorAll: jest.fn(() => []),
+                querySelector: jest.fn(() => null)
+            });
+
+            router.cleanupPreviousPages();
+            expect(mockApp.unmount).toHaveBeenCalled();
+            expect(router.previousVueApp).toBeNull();
+        });
+
+        test('unmount 에러를 무시해야 한다', () => {
+            router.previousVueApp = { unmount: jest.fn(() => { throw new Error('already unmounted'); }) };
+            jest.spyOn(document, 'getElementById').mockReturnValue({
+                querySelectorAll: jest.fn(() => []),
+                querySelector: jest.fn(() => null)
+            });
+
+            expect(() => router.cleanupPreviousPages()).not.toThrow();
+            expect(router.previousVueApp).toBeNull();
+        });
+
+        test('로딩 엘리먼트를 제거해야 한다', () => {
+            const loadingEl = { remove: jest.fn() };
+            jest.spyOn(document, 'getElementById').mockReturnValue({
+                querySelectorAll: jest.fn(() => []),
+                querySelector: jest.fn((sel) => sel === '.loading' ? loadingEl : null)
+            });
+
+            router.cleanupPreviousPages();
+            expect(loadingEl.remove).toHaveBeenCalled();
+        });
+
+        test('appElement가 없으면 즉시 반환해야 한다', () => {
+            jest.spyOn(document, 'getElementById').mockReturnValue(null);
+            expect(() => router.cleanupPreviousPages()).not.toThrow();
+        });
+    });
+
+    // === destroy 상세 ===
+    describe('destroy', () => {
+        test('currentVueApp을 unmount해야 한다', () => {
+            router = new ViewLogicRouter({ mode: 'hash' });
+            const mockApp = { unmount: jest.fn() };
+            router.currentVueApp = mockApp;
+            router.destroy();
+            expect(mockApp.unmount).toHaveBeenCalled();
+            expect(router.currentVueApp).toBeNull();
+        });
+
+        test('previousVueApp을 unmount해야 한다', () => {
+            router = new ViewLogicRouter({ mode: 'hash' });
+            const mockApp = { unmount: jest.fn() };
+            router.previousVueApp = mockApp;
+            router.destroy();
+            expect(mockApp.unmount).toHaveBeenCalled();
+            expect(router.previousVueApp).toBeNull();
+        });
+
+        test('currentVueApp과 previousVueApp 모두 unmount해야 한다', () => {
+            router = new ViewLogicRouter({ mode: 'hash' });
+            const mockCurrent = { unmount: jest.fn() };
+            const mockPrevious = { unmount: jest.fn() };
+            router.currentVueApp = mockCurrent;
+            router.previousVueApp = mockPrevious;
+            router.destroy();
+            expect(mockCurrent.unmount).toHaveBeenCalled();
+            expect(mockPrevious.unmount).toHaveBeenCalled();
+        });
+
+        test('앱 DOM을 정리해야 한다', () => {
+            router = new ViewLogicRouter({ mode: 'hash' });
+            const appEl = { innerHTML: '<div>content</div>' };
+            jest.spyOn(document, 'getElementById').mockReturnValue(appEl);
+            router.destroy();
+            expect(appEl.innerHTML).toBe('');
+        });
+    });
+
+    // === 초기화 실패 및 waitForReady ===
+    describe('초기화 및 waitForReady', () => {
+        test('waitForReady가 이미 준비되었으면 즉시 반환해야 한다', async () => {
+            router = new ViewLogicRouter({ mode: 'hash' });
+            router.isReady = true;
+            const result = await router.waitForReady();
+            expect(result).toBe(true);
+        });
+
+        test('refreshToken 옵션이 refreshFunction으로 매핑되어야 한다', () => {
+            const fn = jest.fn();
+            router = new ViewLogicRouter({ mode: 'hash', refreshToken: fn });
+            expect(router.config.refreshFunction).toBe(fn);
+        });
+
+        test('init에서 hash가 없으면 #/로 설정해야 한다', () => {
+            window.location.hash = '';
+            router = new ViewLogicRouter({ mode: 'hash' });
+            // loadRoute가 트리거되지 않도록 격리
+            jest.spyOn(router, 'loadRoute').mockResolvedValue();
+            // rAF 콜백이 실행되면 hash가 설정됨
+            const lastCall = rAFSpy.mock.calls[rAFSpy.mock.calls.length - 1];
+            if (lastCall) {
+                lastCall[0]();
+                expect(window.location.hash).toBe('#/');
+            }
+        });
+    });
+
     // === loadRoute ===
     describe('loadRoute', () => {
         beforeEach(() => {

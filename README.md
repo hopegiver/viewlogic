@@ -38,7 +38,7 @@ ViewLogic Router revolutionizes Vue development with three fundamental principle
 - 🌐 **API Client** - HTTP client with automatic token injection
 - 📝 **Form Handling** - Revolutionary form processing with parameter substitution
 
-**Tiny Bundle Size** - Complete framework in just **52KB minified / 18KB gzipped**!
+**Tiny Bundle Size** - Complete framework in just **~61KB minified / ~16KB gzipped**!
 
 **Easy Integration** - Drop-in UMD build available for instant usage without build tools.
 
@@ -203,7 +203,7 @@ export default {
 </main>
 
 <footer>
-    <p>&copy; 2024 My ViewLogic App</p>
+    <p>&copy; 2026 My ViewLogic App</p>
 </footer>
 ```
 
@@ -660,9 +660,10 @@ const router = new ViewLogicRouter({
     // Authentication settings
     auth: true,                         // Enable authentication system
     loginRoute: 'login',                // Route name for login page
-    protectedRoutes: ['dashboard', 'profile', 'admin/*', 'secure/*'],
+    protectedRoutes: [],                // Empty = protect all non-public routes
     publicRoutes: ['login', 'register', 'home', 'about'],
     authStorage: 'localStorage',        // 'localStorage', 'sessionStorage', 'cookie'
+    refreshFunction: null,              // Silent token refresh function
 
     // Internationalization
     useI18n: true,                      // Enable i18n system
@@ -679,6 +680,9 @@ const router = new ViewLogicRouter({
     requestTimeout: 30000,              // Form submission timeout in milliseconds (30 seconds)
     uploadTimeout: 300000,              // File upload timeout in milliseconds (5 minutes)
     apiInterceptors: null,              // API response/error interceptors ({ response?, error? })
+
+    // Error handling
+    errorHandlers: null,                // HTTP status code error handlers ({ 403: fn, '5xx': fn })
 
     // Development settings
     environment: 'development',         // 'development' or 'production'
@@ -749,13 +753,13 @@ ViewLogic Router provides two optimized build outputs:
 
 ### ESM Module (`viewlogic-router.esm.js`)
 - **Format**: ES6 modules
-- **Size**: ~52KB minified
+- **Size**: ~61KB minified (~16KB gzipped)
 - **Usage**: Modern bundlers (Vite, Webpack, Rollup)
 - **Import**: `import { ViewLogicRouter } from 'viewlogic'`
 
 ### UMD Bundle (`viewlogic-router.min.js`)
 - **Format**: UMD (Universal Module Definition)
-- **Size**: ~52KB minified
+- **Size**: ~62KB minified (~17KB gzipped)
 - **Usage**: Direct browser usage, CDN
 - **Global**: `window.ViewLogicRouter`
 

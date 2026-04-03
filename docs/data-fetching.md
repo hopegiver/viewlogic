@@ -49,6 +49,15 @@ dataURL: {
 
 ## 수동 API 호출
 
+> **mounted()에서 API 호출 시 주의사항**
+>
+> | 페이지 유형 | mounted 형태 | 이유 |
+> |---|---|---|
+> | API 호출이 있는 페이지 | `async mounted()` + `await` | 데이터가 준비된 후 렌더링되어 깜빡임 방지 |
+> | 정적/동기 초기화만 있는 페이지 | 일반 `mounted()` | async가 불필요 |
+>
+> `await` 없이 API를 호출하면 데이터가 도착하기 전에 빈 화면이 잠깐 보이는 깜빡임이 발생합니다.
+
 ```javascript
 export default {
     name: 'Products',
