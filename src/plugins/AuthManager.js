@@ -112,7 +112,10 @@ export class AuthManager {
 
         try {
             if (token.includes('.')) {
-                const payload = JSON.parse(atob(token.split('.')[1]));
+                // JWT는 Base64url 인코딩 사용 → 표준 Base64로 변환 후 디코딩
+                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const padded = base64 + '==='.slice(0, (4 - base64.length % 4) % 4);
+                const payload = JSON.parse(atob(padded));
                 if (payload.exp && Date.now() >= payload.exp * 1000) {
                     return false; // 만료됨
                 }
@@ -369,7 +372,10 @@ export class AuthManager {
         // JWT에서 만료 시간 추출
         if (token.includes('.')) {
             try {
-                const payload = JSON.parse(atob(token.split('.')[1]));
+                // JWT는 Base64url 인코딩 사용 → 표준 Base64로 변환 후 디코딩
+                const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+                const padded = base64 + '==='.slice(0, (4 - base64.length % 4) % 4);
+                const payload = JSON.parse(atob(padded));
                 if (payload.exp) {
                     const expireDate = new Date(payload.exp * 1000);
                     cookieString += `; Expires=${expireDate.toUTCString()}`;
